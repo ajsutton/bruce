@@ -170,6 +170,8 @@ docs/
   .nojekyll
   CNAME
   index.html
+  .well-known/
+    apple-app-site-association
   auth/
     index.html
 ```
@@ -177,6 +179,10 @@ docs/
 Requirements:
 
 - `CNAME` contains only `bruce.symphonious.net`;
+- `.well-known/apple-app-site-association` declares the Bruce application identifier under
+  `webcredentials.apps`;
+- the association file is served directly over HTTPS without a redirect and with a JSON-compatible
+  content type;
 - the root page identifies Bruce as an iPhone and Mac client for a Home Assistant-backed home and
   makes no claims about unimplemented features;
 - `/auth/` is a benign fallback page explaining that authentication should return to Bruce;
@@ -192,6 +198,16 @@ Requirements:
 The root marketing page and `/auth/` fallback are support infrastructure only. Home Assistant
 credentials and token exchange remain between Bruce and the user's Home Assistant instance; the
 GitHub Pages site must never receive or proxy tokens.
+
+Apple requires an HTTPS `ASWebAuthenticationSession` callback host to be associated with the app
+using Associated Web Credentials. Both Apple-side declarations are required:
+
+- the app entitlement contains `webcredentials:bruce.symphonious.net`; and
+- the public association file contains `<Apple Team ID>.net.symphonious.bruce`.
+
+If GitHub Pages cannot serve the association file in a form accepted by Apple, the callback host
+must move to static hosting that can set the required response headers. Do not fall back to a
+custom URL scheme merely to avoid validating the HTTPS association.
 
 ## Backend design
 
@@ -429,7 +445,8 @@ iOS and macOS devices. Simulator success is not sufficient evidence for local-ne
 behaviour.
 
 The HTTPS OAuth callback is matched by `ASWebAuthenticationSession`; it does not require Bruce to
-register a custom URL scheme.
+register a custom URL scheme. It does require the Associated Domains entitlement for
+`webcredentials:bruce.symphonious.net` and the matching public Apple association file.
 
 Permission, privacy, authentication, and recovery language must remain direct and identical in
 Bruce and Full Bruce modes.
@@ -575,13 +592,15 @@ behaviour.
 ### Phase 3: OAuth backend
 
 1. Add the minimal GitHub Pages source for `bruce.symphonious.net`.
-2. Configure DNS, the GitHub Pages custom domain, domain verification, and HTTPS.
-3. Verify that the root client-ID page and `/auth/` callback route are publicly reachable.
-4. Add the fixed release OAuth configuration.
-5. Add authorization URL and callback validation.
-6. Add token exchange, refresh, revocation, and tests.
-7. Add Keychain credential storage and tests.
-8. Add the actor-owned authenticated session.
+2. Add and validate the Apple association file and Associated Domains entitlement.
+3. Configure DNS, the GitHub Pages custom domain, domain verification, and HTTPS.
+4. Verify that the root client-ID page, `/auth/` callback route, and Apple association file are
+   publicly reachable.
+5. Add the fixed release OAuth configuration.
+6. Add authorization URL and callback validation.
+7. Add token exchange, refresh, revocation, and tests.
+8. Add Keychain credential storage and tests.
+9. Add the actor-owned authenticated session.
 
 ### Phase 4: Authentication UI and connection management
 
@@ -608,6 +627,8 @@ Connection setup is complete when:
 - `https://bruce.symphonious.net/` serves the public client-ID page over enforced HTTPS;
 - `https://bruce.symphonious.net/auth/` is stable and matches the app's authentication-session
   callback exactly;
+- Apple accepts the public Associated Web Credentials file for
+  `webcredentials:bruce.symphonious.net`;
 - a fresh install can discover all valid Home Assistant advertisements on its LAN;
 - every discovered instance retains both valid advertised URLs;
 - the user can connect by manual URL when discovery is unavailable;

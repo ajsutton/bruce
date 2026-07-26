@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta
+      name="description"
+      content="Return to Bruce to continue connecting your Home Assistant-backed home."
+    >
+    <title>Return to Bruce</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+        color: #173e3b;
+        background: #ede3d1;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      main {
+        display: grid;
+        min-height: 100vh;
+        place-items: center;
+        padding: clamp(2rem, 8vw, 7rem);
+      }
+
+      article {
+        width: min(100%, 36rem);
+      }
+
+      .mark {
+        display: grid;
+        width: 4.5rem;
+        height: 4.5rem;
+        margin-bottom: 2rem;
+        place-items: center;
+        border-radius: 1.15rem;
+        background: #173e3b;
+        color: #ede3d1;
+        font-family: "New York", "Iowan Old Style", Georgia, serif;
+        font-size: 3rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      h1 {
+        margin: 0;
+        font-family: "New York", "Iowan Old Style", Georgia, serif;
+        font-size: clamp(2.75rem, 9vw, 5rem);
+        font-weight: 600;
+        letter-spacing: -0.035em;
+        line-height: 1;
+      }
+
+      p {
+        margin: 1.5rem 0 0;
+        font-size: 1.2rem;
+        line-height: 1.55;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color: #ede3d1;
+          background: #173e3b;
+        }
+
+        .mark {
+          background: #ede3d1;
+          color: #173e3b;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article>
+        <div class="mark" aria-hidden="true">B</div>
+        <h1>Return to Bruce.</h1>
+        <p>Open Bruce to continue connecting your home.</p>
+      </article>
+    </main>
+  </body>
+</html>

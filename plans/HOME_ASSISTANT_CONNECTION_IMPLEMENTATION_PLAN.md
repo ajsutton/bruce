@@ -130,6 +130,7 @@ Create:
 docs/.nojekyll
 docs/CNAME
 docs/index.html
+docs/.well-known/apple-app-site-association
 docs/auth/index.html
 ```
 
@@ -147,18 +148,25 @@ docs/auth/index.html
    - offers no token input or account controls;
    - does not read, render, persist, forward, or transform query parameters; and
    - contains no JavaScript or third-party resources.
-4. Verify both pages with a local static HTTP server at root and `/auth/`.
-5. Check keyboard navigation, text scaling, dark mode, narrow layout, and semantic heading order.
-6. Confirm no source or generated page contains a real OAuth code, state, token, home URL, or
+4. Add `.well-known/apple-app-site-association` with:
+   - a `webcredentials` object;
+   - the Bruce application identifier formed from the Apple Team ID and
+     `net.symphonious.bruce`; and
+   - no unrelated applications or capabilities.
+5. Verify the root page, `/auth/`, and association file with a local static HTTP server.
+6. Check keyboard navigation, text scaling, dark mode, narrow layout, and semantic heading order.
+7. Confirm no source or generated page contains a real OAuth code, state, token, home URL, or
    household identity.
 
 ### Automated checks
 
 - Add a lightweight repository test or script that verifies:
   - `docs/CNAME` has the exact custom domain;
-  - both HTML files exist;
+  - both HTML files and the Apple association file exist;
   - neither page includes scripts, forms, analytics, or external assets; and
-  - required title, description, language, and viewport metadata are present.
+  - required title, description, language, and viewport metadata are present;
+  - the association file is valid JSON; and
+  - its application identifier matches the configured Apple Team ID and bundle identifier.
 - Run `git diff --check`.
 
 ### Manual checkpoint: publish the site
@@ -339,18 +347,20 @@ Tests/HomeAssistantCredentialStoreTests.swift
 ### Implementation work
 
 1. Hard-code the release OAuth client ID and redirect URL in one immutable configuration value.
-2. Generate OAuth state with a cryptographically secure random source.
-3. Build the authorization URL against the confirmed reachable instance URL.
-4. Validate callback scheme, host, port, path, OAuth error, state, and code exactly.
-5. Form-encode authorization-code, refresh-token, and revocation requests.
-6. Decode token responses and calculate expiry using an injected clock.
-7. Preserve useful protocol errors while redacting request bodies and secrets.
-8. Define a versioned credential value containing both instance URLs and the last successful URL.
-9. Store credentials in a non-synchronizable, device-only Keychain item available after first
+2. Add `webcredentials:bruce.symphonious.net` to the app's Associated Domains entitlement without
+   removing the existing iCloud key-value entitlement.
+3. Generate OAuth state with a cryptographically secure random source.
+4. Build the authorization URL against the confirmed reachable instance URL.
+5. Validate callback scheme, host, port, path, OAuth error, state, and code exactly.
+6. Form-encode authorization-code, refresh-token, and revocation requests.
+7. Decode token responses and calculate expiry using an injected clock.
+8. Preserve useful protocol errors while redacting request bodies and secrets.
+9. Define a versioned credential value containing both instance URLs and the last successful URL.
+10. Store credentials in a non-synchronizable, device-only Keychain item available after first
    unlock.
-10. Make Keychain replacement atomic from the caller's perspective.
-11. Delete corrupt or rejected credentials only under the behaviours defined by the specification.
-12. Keep browser presentation outside the protocol client.
+11. Make Keychain replacement atomic from the caller's perspective.
+12. Delete corrupt or rejected credentials only under the behaviours defined by the specification.
+13. Keep browser presentation outside the protocol client.
 
 ### Unit tests
 
@@ -578,7 +588,7 @@ Fix every finding and repeat the relevant build, tests, and reviewers until clea
 
 ### Manual validation matrix
 
-Follow **Manual setup instructions D-F** and record results for:
+Follow **Manual setup instructions E-G** and record results for:
 
 | Scenario | iPhone | Mac |
 | --- | --- | --- |
@@ -659,11 +669,34 @@ Do this after the website files have reached `main`:
 7. Confirm in a private browser window:
    - `https://bruce.symphonious.net/` loads without a certificate warning; and
    - `https://bruce.symphonious.net/auth/` loads without a certificate warning.
+8. Confirm `https://bruce.symphonious.net/.well-known/apple-app-site-association` returns the
+   association JSON directly without a redirect.
 
 If GitHub does not offer Pages for the private repository, stop. Do not make the repository
 public. Choose a supported account plan or approve a separate public website repository.
 
-### D. Configure the Home Assistant URLs
+### D. Enable Apple's Associated Domains capability
+
+The implementation needs the Apple Team ID before the association file is committed.
+
+1. In the Apple Developer account, open **Certificates, Identifiers & Profiles**.
+2. Open **Identifiers**, then select the App ID for `net.symphonious.bruce`.
+3. Enable **Associated Domains** and save.
+4. Provide the 10-character Apple Team ID to the implementation agent. It is not a credential, but
+   it must exactly match the signing team.
+5. After the site is published, confirm Apple's CDN can retrieve the association:
+
+   ```text
+   https://app-site-association.cdn-apple.com/a/v1/bruce.symphonious.net
+   ```
+
+6. Confirm the response lists `<Apple Team ID>.net.symphonious.bruce` under
+   `webcredentials.apps`.
+
+If the Apple CDN rejects the GitHub Pages response, stop OAuth device testing and move the static
+site to hosting that can serve the association file with the required headers.
+
+### E. Configure the Home Assistant URLs
 
 In the Home Assistant instance used for testing:
 
@@ -679,7 +712,7 @@ In the Home Assistant instance used for testing:
 The URLs may contain a scheme, host, and port, but no path. Do not expose Home Assistant directly
 to the Internet without an appropriately secured remote-access configuration.
 
-### E. Perform the first OAuth test
+### F. Perform the first OAuth test
 
 No central Home Assistant developer registration or client secret is required.
 
@@ -695,7 +728,7 @@ No central Home Assistant developer registration or client secret is required.
 9. Separately enter the local HTTP URL manually and confirm Bruce requires the unencrypted-
    connection warning before it opens authentication.
 
-### F. Verify automatic internal/external switching
+### G. Verify automatic internal/external switching
 
 1. At home, confirm Bruce connects and records the internal URL as successful.
 2. Close and reopen Bruce to prove Keychain restoration works.
@@ -717,6 +750,8 @@ No central Home Assistant developer registration or client secret is required.
 - [ ] DNS CNAME configured.
 - [ ] GitHub Pages enabled from `main` and `/docs`.
 - [ ] HTTPS enforced at both public routes.
+- [ ] Apple Associated Domains capability enabled.
+- [ ] Apple association file accepted by Apple's CDN.
 - [ ] Discovery backend and tests complete.
 - [ ] Discovery/manual-entry UI complete.
 - [ ] OAuth and Keychain backend complete.

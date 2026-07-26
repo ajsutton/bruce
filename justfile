@@ -35,6 +35,9 @@ format-check:
     echo "All Swift files are correctly formatted."
     swiftlint lint --strict --quiet
 
+check-site:
+    bash scripts/check-pages-site.sh
+
 build: build-mac build-ios
 
 build-mac: generate
