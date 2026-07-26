@@ -20,6 +20,12 @@
     <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_home-assistant._tcp</string>
+    </array>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Bruce uses your local network to find and connect to your Home Assistant server.</string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>
