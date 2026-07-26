@@ -1,0 +1,4 @@
+interface:
+  display_name: "Run Bruce With Logs"
+  short_description: "Launch Bruce and capture unified logs"
+  default_prompt: "Use $run-mac-app-with-logs to reproduce this issue with logs."

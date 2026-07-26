@@ -1,0 +1,4 @@
+interface:
+  display_name: "Interpret Benchmarks"
+  short_description: "Assess performance measurements and noise"
+  default_prompt: "Use $interpret-benchmarks to analyze these Bruce benchmark results."

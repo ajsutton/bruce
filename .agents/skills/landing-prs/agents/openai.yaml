@@ -1,0 +1,4 @@
+interface:
+  display_name: "Land Pull Requests"
+  short_description: "Safely land regular and stacked PRs"
+  default_prompt: "Use $landing-prs to land this Bruce pull request safely."

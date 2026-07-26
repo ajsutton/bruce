@@ -1,0 +1,4 @@
+interface:
+  display_name: "Profile Performance"
+  short_description: "Diagnose Bruce performance with evidence"
+  default_prompt: "Use $profile-performance to diagnose why Bruce feels slow."

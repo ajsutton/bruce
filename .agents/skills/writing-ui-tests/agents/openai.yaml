@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write UI Tests"
+  short_description: "Build reliable Bruce UI regression tests"
+  default_prompt: "Use $writing-ui-tests to add regression coverage for this journey."

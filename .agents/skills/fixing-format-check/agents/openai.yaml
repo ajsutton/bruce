@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fix Format Check"
+  short_description: "Resolve Swift formatting and lint failures"
+  default_prompt: "Use $fixing-format-check to diagnose and fix this format-check failure."

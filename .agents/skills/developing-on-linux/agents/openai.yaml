@@ -1,0 +1,4 @@
+interface:
+  display_name: "Develop on Linux"
+  short_description: "Validate Bruce changes without Xcode"
+  default_prompt: "Use $developing-on-linux to validate this Bruce change from Linux."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write a Benchmark"
+  short_description: "Add focused Bruce performance measurements"
+  default_prompt: "Use $write-benchmark to add a benchmark for this operation."

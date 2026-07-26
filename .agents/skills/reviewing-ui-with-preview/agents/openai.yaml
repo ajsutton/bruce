@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review UI With Preview"
+  short_description: "Iterate on SwiftUI in Xcode previews"
+  default_prompt: "Use $reviewing-ui-with-preview to refine this Bruce view."

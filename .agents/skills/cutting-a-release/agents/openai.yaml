@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cut a Release"
+  short_description: "Prepare and safely release Bruce"
+  default_prompt: "Use $cutting-a-release to prepare the next Bruce release."

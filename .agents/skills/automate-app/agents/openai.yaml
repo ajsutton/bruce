@@ -1,0 +1,4 @@
+interface:
+  display_name: "Automate Bruce"
+  short_description: "Drive and inspect the Bruce macOS app"
+  default_prompt: "Use $automate-app to verify this behavior in the running Bruce app."
