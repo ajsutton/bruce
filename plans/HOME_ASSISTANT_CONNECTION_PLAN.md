@@ -113,23 +113,66 @@ active internal or external instance URL determines which token endpoint is used
 action should revoke the refresh token through an available instance URL before deleting the
 local credentials.
 
-### OAuth client identity prerequisite
+### OAuth client identity and callback
 
-Before OAuth can ship, Bruce needs an HTTPS client-ID URL on a domain controlled by the project.
-The first 10 kB of that page must include a Home Assistant-approved redirect declaration when the
-app uses a custom callback scheme, for example:
+Bruce will use these permanent OAuth values:
 
-```html
-<link rel="redirect_uri" href="bruce://home-assistant-auth">
+```text
+Client ID:    https://bruce.symphonious.net/
+Redirect URI: https://bruce.symphonious.net/auth/
 ```
 
-The final client-ID URL and redirect URL are release configuration, not values to invent inside
-the networking implementation. The iOS and macOS targets must use the same values that the hosted
-client-ID page declares.
+The client ID is the public website for the application. The root will become Bruce's marketing
+site. The redirect URI uses the same HTTPS host and port, so Home Assistant permits it without a
+custom-scheme redirect declaration.
 
-The preferred callback design is a Bruce-owned custom URL scheme handled by an
-`ASWebAuthenticationSession`. A universal-link callback may replace it if Bruce gains a supported
-website and associated-domains configuration before implementation.
+The app should handle the redirect with an `ASWebAuthenticationSession` configured for the exact
+HTTPS host `bruce.symphonious.net` and path `/auth/`. It must still validate the complete callback
+URL and OAuth `state` before accepting an authorization code.
+
+These URLs are part of Bruce's long-lived protocol identity:
+
+- use the exact client ID, including its trailing slash, in authorization-code and refresh-token
+  requests;
+- do not vary either URL by build configuration;
+- keep the domain and `/auth/` route available for existing app versions; and
+- do not replace the HTTPS callback with a custom URL scheme unless a later security review
+  requires it.
+
+### Minimal GitHub Pages prerequisite
+
+The initial website should be a deliberately small static GitHub Pages site. A separate design
+task can replace the root content without changing the OAuth URLs.
+
+The minimal source should contain:
+
+```text
+docs/
+  .nojekyll
+  CNAME
+  index.html
+  auth/
+    index.html
+```
+
+Requirements:
+
+- `CNAME` contains only `bruce.symphonious.net`;
+- the root page identifies Bruce as an iPhone and Mac client for a Home Assistant-backed home and
+  makes no claims about unimplemented features;
+- `/auth/` is a benign fallback page explaining that authentication should return to Bruce;
+- the auth page must not inspect, render, store, forward, or log authorization codes or `state`;
+- both pages work without JavaScript, cookies, analytics, forms, or external assets;
+- the Pages site is publicly reachable even while the application repository remains private;
+- GitHub Pages serves from `main` and `/docs`;
+- the `bruce.symphonious.net` DNS record points to the GitHub Pages host;
+- the custom domain is verified for the `ajsutton` GitHub account to reduce domain-takeover risk;
+  and
+- GitHub Pages enforces HTTPS after its certificate is issued.
+
+The root marketing page and `/auth/` fallback are support infrastructure only. Home Assistant
+credentials and token exchange remain between Bruce and the user's Home Assistant instance; the
+GitHub Pages site must never receive or proxy tokens.
 
 ## Backend design
 
@@ -358,12 +401,14 @@ Before starting Bonjour discovery:
 
 - declare `_home-assistant._tcp` in `NSBonjourServices`;
 - provide a concise `NSLocalNetworkUsageDescription` explaining that Bruce looks for the user's
-  Home Assistant server; and
-- register the final OAuth callback URL scheme or associated domain.
+  Home Assistant server.
 
 These declarations must be applied only to the platforms that require them and verified on real
 iOS and macOS devices. Simulator success is not sufficient evidence for local-network permission
 behaviour.
+
+The HTTPS OAuth callback is matched by `ASWebAuthenticationSession`; it does not require Bruce to
+register a custom URL scheme.
 
 Permission, privacy, authentication, and recovery language must remain direct and identical in
 Bruce and Full Bruce modes.
@@ -498,12 +543,14 @@ behaviour.
 
 ### Phase 3: OAuth backend
 
-1. Finalize and host the OAuth client-ID page and callback declaration.
-2. Add release OAuth configuration.
-3. Add authorization URL and callback validation.
-4. Add token exchange, refresh, revocation, and tests.
-5. Add Keychain credential storage and tests.
-6. Add the actor-owned authenticated session.
+1. Add the minimal GitHub Pages source for `bruce.symphonious.net`.
+2. Configure DNS, the GitHub Pages custom domain, domain verification, and HTTPS.
+3. Verify that the root client-ID page and `/auth/` callback route are publicly reachable.
+4. Add the fixed release OAuth configuration.
+5. Add authorization URL and callback validation.
+6. Add token exchange, refresh, revocation, and tests.
+7. Add Keychain credential storage and tests.
+8. Add the actor-owned authenticated session.
 
 ### Phase 4: Authentication UI and connection management
 
@@ -527,6 +574,9 @@ setup UI, strings, permissions, and accessibility also require `ui-review`.
 
 Connection setup is complete when:
 
+- `https://bruce.symphonious.net/` serves the public client-ID page over enforced HTTPS;
+- `https://bruce.symphonious.net/auth/` is stable and matches the app's authentication-session
+  callback exactly;
 - a fresh install can discover all valid Home Assistant advertisements on its LAN;
 - every discovered instance retains both valid advertised URLs;
 - the user can connect by manual URL when discovery is unavailable;
@@ -546,13 +596,14 @@ Connection setup is complete when:
 
 ## Decisions required before OAuth implementation
 
-1. Choose the HTTPS client-ID URL and domain Bruce will control.
-2. Choose and publish the approved callback: custom URL scheme or universal link.
-3. Decide whether HTTP Home Assistant URLs are allowed only on local networks or supported
+The client ID, callback, hosting service, and custom domain are decided above. The remaining
+decisions are:
+
+1. Decide whether HTTP Home Assistant URLs are allowed only on local networks or supported
    wherever the user enters them.
-4. Decide how Bruce should handle privately issued or self-signed HTTPS certificates. The default
+2. Decide how Bruce should handle privately issued or self-signed HTTPS certificates. The default
    remains rejection.
-5. Decide whether changing servers replaces the current connection immediately or preserves it
+3. Decide whether changing servers replaces the current connection immediately or preserves it
    until the new server authenticates successfully. Preserving the working connection is
    recommended.
 
@@ -562,3 +613,5 @@ Connection setup is complete when:
 - [Home Assistant authentication API](https://developers.home-assistant.io/docs/auth_api/)
 - [Home Assistant REST API](https://developers.home-assistant.io/docs/api/rest/)
 - [Home Assistant native app connection setup](https://developers.home-assistant.io/docs/api/native-app-integration/setup/)
+- [Apple web authentication sessions](https://developer.apple.com/documentation/authenticationservices/aswebauthenticationsession)
+- [GitHub Pages custom domains](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/about-custom-domains-and-github-pages)
