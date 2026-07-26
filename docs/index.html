@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta
+      name="description"
+      content="Bruce is a native iPhone and Mac client for a Home Assistant-backed home."
+    >
+    <title>Bruce — The house is sorted.</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+        color: #173e3b;
+        background: #ede3d1;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      main {
+        display: grid;
+        min-height: 100vh;
+        place-items: center;
+        padding: clamp(2rem, 8vw, 7rem);
+      }
+
+      article {
+        width: min(100%, 42rem);
+      }
+
+      .mark {
+        display: grid;
+        width: 5.5rem;
+        height: 5.5rem;
+        margin-bottom: 2.5rem;
+        place-items: center;
+        border-radius: 1.4rem;
+        background: #173e3b;
+        color: #ede3d1;
+        font-family: "New York", "Iowan Old Style", Georgia, serif;
+        font-size: 3.75rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .eyebrow {
+        margin: 0 0 0.75rem;
+        color: #526956;
+        font-size: 0.875rem;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 11ch;
+        margin: 0;
+        font-family: "New York", "Iowan Old Style", Georgia, serif;
+        font-size: clamp(3rem, 11vw, 6.75rem);
+        font-weight: 600;
+        letter-spacing: -0.045em;
+        line-height: 0.94;
+      }
+
+      .introduction {
+        max-width: 36rem;
+        margin: 2rem 0 0;
+        font-size: clamp(1.125rem, 2.5vw, 1.4rem);
+        line-height: 1.55;
+      }
+
+      footer {
+        margin-top: 4rem;
+        color: #526956;
+        font-size: 0.9rem;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color: #ede3d1;
+          background: #173e3b;
+        }
+
+        .mark {
+          background: #ede3d1;
+          color: #173e3b;
+        }
+
+        .eyebrow,
+        footer {
+          color: #b7c4b7;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article>
+        <div class="mark" aria-hidden="true">B</div>
+        <p class="eyebrow">Bruce for iPhone and Mac</p>
+        <h1>The house is sorted.</h1>
+        <p class="introduction">
+          Bruce is a native client for a Home Assistant-backed home. Product functionality is
+          being added incrementally around the things a household actually needs.
+        </p>
+        <footer>Bruce is currently in development.</footer>
+      </article>
+    </main>
+  </body>
+</html>
