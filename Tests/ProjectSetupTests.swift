@@ -5,7 +5,10 @@ import XCTest
 @MainActor
 final class ProjectSetupTests: XCTestCase {
   func testContentViewCanBeCreated() {
-    _ = ContentView(modeController: BruceModeController())
+    _ = ContentView(
+      modeController: BruceModeController(),
+      setupStore: HomeAssistantSetupStore(discovery: EmptyHomeAssistantDiscovery())
+    )
   }
 
   func testBruceDefaultsToStandardWhenNoPreferenceExists() async {
@@ -308,5 +311,13 @@ final class ProjectSetupTests: XCTestCase {
 
     XCTAssertEqual(controller.mode, .full)
     XCTAssertFalse(controller.isTransitioning)
+  }
+}
+
+private struct EmptyHomeAssistantDiscovery: HomeAssistantDiscovering {
+  func snapshots() -> AsyncThrowingStream<HomeAssistantDiscoverySnapshot, any Error> {
+    AsyncThrowingStream { continuation in
+      continuation.finish()
+    }
   }
 }

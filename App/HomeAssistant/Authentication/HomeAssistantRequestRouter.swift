@@ -1,0 +1,70 @@
+import Foundation
+
+enum HomeAssistantRequestRouter {
+  static func candidates(
+    for credentials: HomeAssistantCredentials
+  ) throws -> [URL] {
+    let knownCandidates = [credentials.internalURL, credentials.externalURL].compactMap(\.self)
+    let ordered = [credentials.lastSuccessfulURL] + knownCandidates
+    let valid = ordered.reduce(into: [URL]()) { result, url in
+      if !result.contains(url), isAllowed(url, by: credentials) {
+        result.append(url)
+      }
+    }
+    guard !valid.isEmpty else {
+      throw HomeAssistantAPIError.invalidServerURL
+    }
+    return valid
+  }
+
+  static func authenticatedRequest(
+    baseURL: URL,
+    path: String,
+    token: String
+  ) throws -> URLRequest {
+    guard !path.hasPrefix("http://"), !path.hasPrefix("https://") else {
+      throw HomeAssistantAPIError.invalidServerURL
+    }
+    var request = URLRequest(url: baseURL.appending(path: path))
+    request.httpMethod = "GET"
+    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    return request
+  }
+
+  static func isConnectivityFailure(_ error: any Error) -> Bool {
+    guard let error = error as? URLError else {
+      return false
+    }
+    return [
+      .cannotFindHost,
+      .cannotConnectToHost,
+      .dnsLookupFailed,
+      .networkConnectionLost,
+      .notConnectedToInternet,
+      .timedOut,
+    ].contains(error.code)
+  }
+
+  static func isRejectedRefresh(_ error: any Error) -> Bool {
+    guard
+      case .serverRejectedRequest(let statusCode, _) =
+        error as? HomeAssistantAuthenticationError
+    else {
+      return false
+    }
+    return statusCode == 400 || statusCode == 401
+  }
+
+  private static func isAllowed(
+    _ url: URL,
+    by credentials: HomeAssistantCredentials
+  ) -> Bool {
+    if url == credentials.internalURL {
+      return ["http", "https"].contains(url.scheme?.lowercased())
+    }
+    if url == credentials.externalURL {
+      return url.scheme?.lowercased() == "https"
+    }
+    return false
+  }
+}
