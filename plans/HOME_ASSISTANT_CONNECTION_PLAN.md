@@ -86,10 +86,14 @@ contain:
 - `base_url`: a deprecated compatibility URL; and
 - `landingpage`: a marker for an instance that has not completed Home Assistant onboarding.
 
-Bruce should prefer `internal_url` while it is on the local network. If that property is absent,
-the discovery implementation should resolve the advertised service host and port. `base_url`
-should be used only as a compatibility fallback. The obsolete `requires_api_password` property
-must be ignored.
+Bruce must capture both `internal_url` and `external_url` when Home Assistant advertises them.
+Discovery will normally happen on the same LAN as the internal URL, but retaining the external
+URL lets the authenticated app continue working after the device leaves home.
+
+If `internal_url` is absent, the discovery implementation should resolve the advertised service
+host and port as an internal connection candidate. `base_url` should be used only as a
+compatibility fallback and must not replace a distinct internal or external URL. The obsolete
+`requires_api_password` property must be ignored.
 
 ### Authentication
 
@@ -104,9 +108,10 @@ Home Assistant uses OAuth 2 with IndieAuth-style client identification:
 5. Home Assistant returns an access token, refresh token, token type, and access-token lifetime.
 6. Bruce uses `Authorization: Bearer <access token>` for API requests.
 
-The refresh token is exchanged at the same token endpoint when the access token expires. A
-disconnect action should revoke the refresh token through `<instance>/auth/revoke` before deleting
-the local credentials when the server is reachable.
+The refresh token is exchanged at the same token endpoint when the access token expires. The
+active internal or external instance URL determines which token endpoint is used. A disconnect
+action should revoke the refresh token through an available instance URL before deleting the
+local credentials.
 
 ### OAuth client identity prerequisite
 
@@ -142,8 +147,9 @@ Add a `HomeAssistantInstance` value with:
 It should be an immutable, `Sendable`, `Equatable` value. Discovery metadata must not contain
 credentials.
 
-URL selection should be explicit. The value may expose ordered connection candidates, but it
-must not claim that a URL is reachable until a connection check succeeds.
+The internal and external URLs are separate optional properties, not a single selected base URL.
+The value should expose unique connection candidates without discarding either role. It must not
+claim that a candidate is reachable until a connection check succeeds.
 
 ### 2. Discovery client
 
@@ -153,6 +159,7 @@ Responsibilities:
 
 - browse `_home-assistant._tcp` in the `local.` domain;
 - parse and validate Home Assistant TXT records;
+- retain both valid `internal_url` and `external_url` values from each record;
 - resolve host and port when no usable internal URL is advertised;
 - deduplicate records by stable Home Assistant UUID;
 - publish deterministic snapshots ordered by display name and UUID;
@@ -215,7 +222,9 @@ Separate the wire responses from the persisted credential value.
 
 The stored credential record should contain:
 
-- instance identifier and selected instance base URL;
+- instance identifier and display name;
+- internal and external instance URLs when known;
+- the most recently successful instance URL;
 - access token;
 - refresh token;
 - token type;
@@ -242,6 +251,12 @@ Responsibilities:
 
 - own the current credential state;
 - attach the bearer token to requests;
+- select between the internal and external instance URLs without requiring the user to switch
+  modes;
+- try the most recently successful URL first, then the other known URL after a qualifying
+  connectivity failure;
+- remember a newly successful URL so subsequent requests do not repeatedly wait on an unreachable
+  endpoint;
 - refresh before expiry;
 - coalesce concurrent refresh attempts into one operation;
 - update Keychain only after a successful refresh;
@@ -254,14 +269,33 @@ Responsibilities:
 Transport requests should remain cancellable through structured concurrency. Retrying must be
 bounded; authentication failures must not create loops.
 
+Automatic endpoint fallback applies only to failures that show the selected URL could not provide
+a response, such as DNS failure, connection refusal, loss of network, or a bounded connection
+timeout. Bruce must not hide certificate failures, `401` responses, incompatible-server
+responses, decoding failures, or other HTTP errors by silently switching URLs.
+
+Read-only, idempotent fetches may be attempted once against the alternate URL. Mutating Home
+Assistant commands must not be replayed automatically after an ambiguous transport failure,
+because the first endpoint may have performed the command before its response was lost. Before a
+future command feature sends a mutation, it should establish a working active URL with a harmless
+authenticated check and then send the command once.
+
+The endpoint-selection policy must not depend on a coarse Wi-Fi-versus-cellular check. A device
+can use Wi-Fi away from home, a VPN can make the internal address reachable remotely, and an
+external URL may also work on the home LAN. Observed request success is the source of truth.
+
 ### 7. Initial authenticated API check
 
 After token exchange, setup should perform a small authenticated request such as `GET /api/` or
 `GET /api/config` before declaring success. This proves that:
 
-- the selected base URL is usable;
+- at least one captured instance URL is usable;
 - the token is accepted; and
 - the endpoint is a compatible Home Assistant instance.
+
+Setup should preserve both discovered URLs even though the internal URL will usually win this
+first check. The first request made after leaving home can then fall back to the external URL and
+record it as the new preferred candidate without asking the user to reconfigure Bruce.
 
 The generic REST client can then expose typed state-fetching methods. `GET /api/states` is the
 expected first data endpoint, but room-temperature mapping belongs to a subsequent vertical
@@ -347,7 +381,7 @@ Provide distinct, actionable presentations for:
   error;
 - authentication rejected or expired: offer sign-in again;
 - Home Assistant still onboarding: explain that setup must finish in Home Assistant first; and
-- saved server unavailable later: preserve credentials, show offline state, and allow retry or
+- neither saved URL available later: preserve credentials, show offline state, and allow retry or
   connection management.
 
 Do not reveal raw tokens, callback URLs containing codes, internal stack details, or full server
@@ -357,7 +391,9 @@ responses in user-facing errors.
 
 Add a Settings connection section when authentication is integrated into the app:
 
-- show the connected Home Assistant instance name and non-secret base URL;
+- show the connected Home Assistant instance name and non-secret internal and external URLs;
+- show which URL is currently working in secondary diagnostic detail without requiring the user
+  to manage an internal/external mode;
 - allow the user to test or retry the connection;
 - allow reauthentication when credentials are rejected;
 - allow changing to another server through the setup flow; and
@@ -384,7 +420,8 @@ state.
 - Redact secrets from logs and diagnostics.
 - Use ephemeral browser authentication only if product testing shows that preventing shared
   sign-in state is preferable; otherwise use the system session's normal secure cookie handling.
-- Send bearer tokens only to URLs derived from the user-confirmed instance root.
+- Send bearer tokens only to the internal and external URLs captured from the user-confirmed
+  Home Assistant instance, or to a replacement URL the user explicitly confirms.
 - Reject redirects that would forward an authorization header to another origin.
 - Store credentials locally in Keychain and do not sync them.
 - Never weaken App Transport Security or certificate validation globally.
@@ -399,7 +436,7 @@ Cover:
 
 - complete, partial, malformed, onboarding, and legacy discovery TXT records;
 - deterministic deduplication and ordering;
-- discovered URL preference and service-resolution fallback;
+- preservation of distinct internal and external URLs plus service-resolution fallback;
 - manual URL normalization and rejection;
 - authorization URL query construction;
 - callback validation, including missing/mismatched state and OAuth errors;
@@ -408,6 +445,10 @@ Cover:
 - HTTP and Home Assistant error mapping;
 - Keychain save, replace, load, delete, and corrupt-record handling through a test store;
 - access-token attachment without leaking it into errors;
+- last-successful-first URL selection;
+- fallback from internal to external and external to internal on qualifying connectivity failures;
+- no fallback for TLS, authentication, decoding, or HTTP failures;
+- no automatic replay of mutating requests after ambiguous transport failures;
 - refresh coalescing for concurrent requests;
 - one bounded retry after `401`;
 - invalid-refresh cleanup; and
@@ -423,11 +464,14 @@ Assistant instance.
 Use an isolated Home Assistant test instance to verify:
 
 - discovery from iPhone and Mac on the same LAN;
+- capture of both advertised URLs while discovery is running;
 - local-network permission grant and denial;
 - multiple advertised instances;
 - manual entry when mDNS is blocked;
 - OAuth success, cancellation, rejection, refresh, and revocation;
 - app relaunch with saved credentials;
+- automatic transition from the internal URL at home to the external URL away from home, and back
+  again when only the internal URL is reachable;
 - access-token expiry during concurrent API requests;
 - server restart and temporary network loss;
 - internal HTTP and trusted HTTPS deployments; and
@@ -484,12 +528,16 @@ setup UI, strings, permissions, and accessibility also require `ui-review`.
 Connection setup is complete when:
 
 - a fresh install can discover all valid Home Assistant advertisements on its LAN;
+- every discovered instance retains both valid advertised URLs;
 - the user can connect by manual URL when discovery is unavailable;
 - the user confirms the server before Bruce opens authentication;
 - OAuth callbacks cannot succeed with a missing or mismatched state;
 - tokens are exchanged, refreshed, stored, and removed without appearing in logs or non-secure
   storage;
 - concurrent API calls share one refresh and recover from a single expired access token;
+- authenticated read requests automatically use whichever captured URL is reachable, preferring
+  the last one that succeeded;
+- moving between the home LAN and an external network does not require manual server switching;
 - app relaunch restores an authenticated session from Keychain;
 - disconnect revokes credentials when possible and always clears local access;
 - iPhone and Mac expose native, accessible recovery paths for every setup state; and
