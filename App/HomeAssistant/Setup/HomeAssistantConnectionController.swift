@@ -1,7 +1,13 @@
 import Foundation
+import OSLog
 
 @MainActor
 final class HomeAssistantConnectionController: ObservableObject {
+  private static let logger = Logger(
+    subsystem: "net.symphonious.bruce",
+    category: "HomeAssistantAuthentication"
+  )
+
   @Published var step: HomeAssistantSetupStore.Step = .introduction {
     didSet {
       onStepChange?(step)
@@ -56,11 +62,10 @@ final class HomeAssistantConnectionController: ObservableObject {
         guard let self, self.connectionGeneration == generation else {
           return
         }
+        let failure = HomeAssistantAuthenticationFailure(error: error)
+        Self.logger.error("Authentication failed: \(failure.diagnostic, privacy: .public)")
         self.connectionTask = nil
-        self.step = .authenticationFailed(
-          candidate,
-          HomeAssistantAuthenticationProblemMapper.problem(for: error)
-        )
+        self.step = .authenticationFailed(candidate, failure)
       }
     }
   }

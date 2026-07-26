@@ -9,6 +9,7 @@ struct BruceApp: App {
   init() {
     let loader = URLSessionHomeAssistantHTTPDataLoader()
     let authenticationClient = HomeAssistantAuthenticationClient(loader: loader)
+    let webAuthenticationPresenter = HomeAssistantWebAuthenticationPresenter()
     let session = HomeAssistantSession(
       credentialStore: KeychainHomeAssistantCredentialStore(),
       authenticationClient: authenticationClient,
@@ -16,13 +17,14 @@ struct BruceApp: App {
     )
     let connection = HomeAssistantConnectionCoordinator(
       authenticationClient: authenticationClient,
-      browser: HomeAssistantWebAuthenticationPresenter(),
+      browser: webAuthenticationPresenter,
       session: session
     )
     _setupStore = StateObject(
       wrappedValue: HomeAssistantSetupStore(
         discovery: HomeAssistantDiscoveryClient(browser: NetworkHomeAssistantDiscovery()),
-        connection: connection
+        connection: connection,
+        webAuthenticationPresenter: webAuthenticationPresenter
       )
     )
   }

@@ -77,11 +77,61 @@ final class HomeAssistantSetupAuthenticationTests: XCTestCase {
     connection.fail(with: HomeAssistantAuthenticationError.authorizationRejected(nil))
     await fulfillment(of: [stepChanged], timeout: 1)
 
-    guard case .authenticationFailed(_, let problem) = store.step else {
+    guard case .authenticationFailed(_, let failure) = store.step else {
       return XCTFail("Expected an authentication failure.")
     }
-    XCTAssertEqual(problem, .rejected)
+    XCTAssertEqual(failure.problem, .rejected)
     withExtendedLifetime(subscription) {}
+  }
+
+  func testAuthenticationFailureIncludesTheUnderlyingDiagnostic() async {
+    let connection = ControlledHomeAssistantConnection()
+    let store = makeStore(connection: connection)
+    let stepChanged = expectation(description: "Authentication failure shown")
+    let subscription = store.$step.sink { step in
+      if case .authenticationFailed = step {
+        stepChanged.fulfill()
+      }
+    }
+    prepareManualCandidate(in: store)
+
+    store.requestAuthentication()
+    await fulfillment(of: [connection.connectStarted], timeout: 1)
+    connection.fail(
+      with: NSError(
+        domain: "AuthenticationServices.WebAuthenticationSession",
+        code: 1,
+        userInfo: [NSLocalizedDescriptionKey: "The test authentication failed."]
+      ))
+    await fulfillment(of: [stepChanged], timeout: 1)
+
+    guard case .authenticationFailed(_, let failure) = store.step else {
+      return XCTFail("Expected an authentication failure.")
+    }
+    XCTAssertEqual(
+      failure.diagnostic,
+      "The test authentication failed. "
+        + "(AuthenticationServices.WebAuthenticationSession, code 1)"
+    )
+    withExtendedLifetime(subscription) {}
+  }
+
+  func testAuthenticationFailureDoesNotRepeatADomainAlreadyInTheDescription() {
+    let failure = HomeAssistantAuthenticationFailure(
+      error: NSError(
+        domain: "AuthenticationServices.WebAuthenticationSession",
+        code: 1,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "The operation failed. (AuthenticationServices.WebAuthenticationSession error 1.)"
+        ]
+      )
+    )
+
+    XCTAssertEqual(
+      failure.diagnostic,
+      "The operation failed. (AuthenticationServices.WebAuthenticationSession error 1.)"
+    )
   }
 
   func testSavedConnectionIsRestoredOnLaunch() async {

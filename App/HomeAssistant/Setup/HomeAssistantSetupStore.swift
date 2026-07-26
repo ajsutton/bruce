@@ -27,7 +27,10 @@ final class HomeAssistantSetupStore: ObservableObject {
     case unencryptedWarning(HomeAssistantConnectionCandidate)
     case onboardingRequired(HomeAssistantInstance)
     case readyForAuthentication(HomeAssistantConnectionCandidate)
-    case authenticationFailed(HomeAssistantConnectionCandidate, AuthenticationProblem)
+    case authenticationFailed(
+      HomeAssistantConnectionCandidate,
+      HomeAssistantAuthenticationFailure
+    )
     case configured(HomeAssistantCredentials)
     case connected(HomeAssistantCredentials)
     case cancelled
@@ -67,6 +70,7 @@ final class HomeAssistantSetupStore: ObservableObject {
 
   private let discovery: any HomeAssistantDiscovering
   private let connectionController: HomeAssistantConnectionController
+  private let webAuthenticationPresenter: HomeAssistantWebAuthenticationPresenter?
   private var discoveryTask: Task<Void, Never>?
   private var discoveryGeneration = UUID()
   private var selectionWasAutomatic = false
@@ -74,9 +78,11 @@ final class HomeAssistantSetupStore: ObservableObject {
 
   init(
     discovery: any HomeAssistantDiscovering,
-    connection: (any HomeAssistantConnecting)? = nil
+    connection: (any HomeAssistantConnecting)? = nil,
+    webAuthenticationPresenter: HomeAssistantWebAuthenticationPresenter? = nil
   ) {
     self.discovery = discovery
+    self.webAuthenticationPresenter = webAuthenticationPresenter
     connectionController = HomeAssistantConnectionController(connection: connection)
     connectionController.onStepChange = { [weak self] step in
       self?.step = step
@@ -283,5 +289,21 @@ final class HomeAssistantSetupStore: ObservableObject {
   func cancel() {
     stopDiscovery()
     connectionController.cancel()
+  }
+}
+
+extension HomeAssistantSetupStore {
+  func registerWebAuthenticationAction(
+    ownerID: UUID,
+    _ authenticationAction: @escaping HomeAssistantWebAuthenticationPresenter.AuthenticationAction
+  ) {
+    webAuthenticationPresenter?.register(
+      ownerID: ownerID,
+      authenticationAction: authenticationAction
+    )
+  }
+
+  func unregisterWebAuthenticationAction(ownerID: UUID) {
+    webAuthenticationPresenter?.unregister(ownerID: ownerID)
   }
 }

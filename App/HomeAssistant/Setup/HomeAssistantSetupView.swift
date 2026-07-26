@@ -1,8 +1,12 @@
+import AuthenticationServices
 import SwiftUI
 
 struct HomeAssistantSetupView: View {
+  @Environment(\.webAuthenticationSession) private var webAuthenticationSession
   @ObservedObject var store: HomeAssistantSetupStore
   let mode: BruceMode
+  @State private var webAuthenticationOwnerID = UUID()
+  @State private var showsAuthenticationTechnicalDetails = false
 
   private var copy: HomeAssistantCopy {
     HomeAssistantCopy(mode: mode)
@@ -30,8 +34,8 @@ struct HomeAssistantSetupView: View {
           onboardingRequired(instance)
         case .readyForAuthentication(let candidate):
           authenticationHandoff(candidate)
-        case .authenticationFailed(let candidate, let problem):
-          authenticationFailure(candidate, problem: problem)
+        case .authenticationFailed(let candidate, let failure):
+          authenticationFailure(candidate, failure: failure)
         case .configured(let credentials):
           configured(credentials)
         case .connected(let credentials):
@@ -47,6 +51,7 @@ struct HomeAssistantSetupView: View {
     }
     .onDisappear {
       store.stopDiscovery()
+      store.unregisterWebAuthenticationAction(ownerID: webAuthenticationOwnerID)
     }
   }
 }
@@ -81,7 +86,7 @@ extension HomeAssistantSetupView {
 
       Section {
         Button("Sign In to Home Assistant") {
-          store.requestAuthentication()
+          beginAuthentication()
         }
         .buttonStyle(.borderedProminent)
 
@@ -149,16 +154,30 @@ extension HomeAssistantSetupView {
 
   private func authenticationFailure(
     _ candidate: HomeAssistantConnectionCandidate,
-    problem: HomeAssistantSetupStore.AuthenticationProblem
+    failure: HomeAssistantAuthenticationFailure
   ) -> some View {
     scrollableState {
       ContentUnavailableView {
-        Label(copy.authenticationTitle(problem), systemImage: "exclamationmark.triangle.fill")
+        Label(
+          copy.authenticationTitle(failure.problem),
+          systemImage: "exclamationmark.triangle.fill"
+        )
       } description: {
-        Text(copy.authenticationMessage(problem))
+        VStack(spacing: 8) {
+          Text(copy.authenticationMessage(failure.problem))
+          DisclosureGroup(
+            "Technical Details",
+            isExpanded: $showsAuthenticationTechnicalDetails
+          ) {
+            Text(failure.diagnostic)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .textSelection(.enabled)
+          }
+        }
       } actions: {
         Button("Try Again") {
-          store.retryAuthentication()
+          beginAuthentication(retrying: true)
         }
         .buttonStyle(.borderedProminent)
 
@@ -167,6 +186,23 @@ extension HomeAssistantSetupView {
         }
       }
       .padding()
+    }
+  }
+
+  private func beginAuthentication(retrying: Bool = false) {
+    let authenticationSession = webAuthenticationSession
+    store.registerWebAuthenticationAction(ownerID: webAuthenticationOwnerID) { url in
+      try await authenticationSession.authenticate(
+        using: url,
+        callback: .https(host: "bruce.symphonious.net", path: "/auth/"),
+        preferredBrowserSession: nil,
+        additionalHeaderFields: [:]
+      )
+    }
+    if retrying {
+      store.retryAuthentication()
+    } else {
+      store.requestAuthentication()
     }
   }
 

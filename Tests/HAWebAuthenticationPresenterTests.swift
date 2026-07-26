@@ -3,20 +3,13 @@ import XCTest
 
 @testable import Bruce
 
-#if os(macOS)
-  import AppKit
-#else
-  import UIKit
-#endif
-
 @MainActor
 final class HAWebAuthenticationPresenterTests: XCTestCase {
-  func testAuthenticationFailsCleanlyWithoutAPresentationAnchor() async throws {
-    let presenter = HomeAssistantWebAuthenticationPresenter(anchorProvider: { nil })
-    let url = try XCTUnwrap(URL(string: "https://home.example/auth/authorize"))
+  func testAuthenticationFailsCleanlyBeforeTheViewProvidesAnAuthenticationAction() async throws {
+    let presenter = HomeAssistantWebAuthenticationPresenter()
 
     do {
-      _ = try await presenter.authenticate(at: url)
+      _ = try await presenter.authenticate(at: authenticationURL)
       XCTFail("Expected presentation to be unavailable.")
     } catch HomeAssistantAuthenticationError.presentationUnavailable {
     } catch {
@@ -24,16 +17,41 @@ final class HAWebAuthenticationPresenterTests: XCTestCase {
     }
   }
 
-  func testProgrammaticCancellationCompletesOnceAndIgnoresLateCallback() async throws {
-    let session = ControlledWebAuthenticationSession()
-    let presenter = makePresenter(sessions: [session])
+  func testAuthenticationReturnsTheCallbackFromTheConfiguredAction() async throws {
+    let presenter = HomeAssistantWebAuthenticationPresenter { _ in
+      self.callbackURL
+    }
+
+    let result = try await presenter.authenticate(at: authenticationURL)
+
+    XCTAssertEqual(result, callbackURL)
+  }
+
+  func testDismissingTheAuthenticationSessionIsTreatedAsCancellation() async throws {
+    let presenter = HomeAssistantWebAuthenticationPresenter { _ in
+      throw ASWebAuthenticationSessionError(.canceledLogin)
+    }
+
+    do {
+      _ = try await presenter.authenticate(at: authenticationURL)
+      XCTFail("Expected authentication cancellation.")
+    } catch is CancellationError {
+    } catch {
+      XCTFail("Unexpected error: \(error)")
+    }
+  }
+
+  func testProgrammaticCancellationCancelsTheAuthenticationAction() async throws {
+    let action = ControlledAuthenticationAction()
+    let presenter = HomeAssistantWebAuthenticationPresenter {
+      try await action.authenticate(at: $0)
+    }
     let authentication = Task {
       try await presenter.authenticate(at: authenticationURL)
     }
-    await fulfillment(of: [session.started], timeout: 1)
+    await fulfillment(of: [action.started], timeout: 1)
 
     presenter.cancel()
-    session.complete(with: callbackURL)
 
     do {
       _ = try await authentication.value
@@ -42,24 +60,27 @@ final class HAWebAuthenticationPresenterTests: XCTestCase {
     } catch {
       XCTFail("Unexpected error: \(error)")
     }
-    XCTAssertEqual(session.cancelCount, 1)
+    await fulfillment(of: [action.cancelled], timeout: 1)
   }
 
-  func testLateCallbackFromReplacedSessionCannotCompleteCurrentAttempt() async throws {
-    let firstSession = ControlledWebAuthenticationSession()
-    let secondSession = ControlledWebAuthenticationSession()
-    let presenter = makePresenter(sessions: [firstSession, secondSession])
+  func testStartingAnotherAuthenticationCancelsThePreviousAction() async throws {
+    let firstAction = ControlledAuthenticationAction()
+    let secondAction = ControlledAuthenticationAction()
+    var actions = [firstAction, secondAction]
+    let presenter = HomeAssistantWebAuthenticationPresenter { url in
+      let action = actions.removeFirst()
+      return try await action.authenticate(at: url)
+    }
     let firstAuthentication = Task {
       try await presenter.authenticate(at: authenticationURL)
     }
-    await fulfillment(of: [firstSession.started], timeout: 1)
+    await fulfillment(of: [firstAction.started], timeout: 1)
 
     let secondAuthentication = Task {
       try await presenter.authenticate(at: authenticationURL)
     }
-    await fulfillment(of: [secondSession.started], timeout: 1)
-    firstSession.complete(with: callbackURL)
-    secondSession.complete(with: callbackURL)
+    await fulfillment(of: [secondAction.started], timeout: 1)
+    secondAction.complete(with: callbackURL)
 
     do {
       _ = try await firstAuthentication.value
@@ -68,65 +89,24 @@ final class HAWebAuthenticationPresenterTests: XCTestCase {
     } catch {
       XCTFail("Unexpected error: \(error)")
     }
-    let secondCallback = try await secondAuthentication.value
-    XCTAssertEqual(secondCallback, callbackURL)
-    XCTAssertEqual(firstSession.cancelCount, 1)
-    XCTAssertEqual(secondSession.cancelCount, 0)
+    let result = try await secondAuthentication.value
+    XCTAssertEqual(result, callbackURL)
+    await fulfillment(of: [firstAction.cancelled], timeout: 1)
   }
 
-  func testDelayedCancellationCannotCancelReplacementAttempt() async throws {
-    let firstSession = ControlledWebAuthenticationSession()
-    let secondSession = ControlledWebAuthenticationSession()
-    let cancellationDeferral = WebAuthenticationCancellationDeferral()
-    let presenter = makePresenter(
-      sessions: [firstSession, secondSession],
-      cancellationDeferral: {
-        await cancellationDeferral.wait()
-      }
-    )
-    let firstAuthentication = Task {
-      try await presenter.authenticate(at: authenticationURL)
+  func testUnregisteringTheCurrentOwnerCancelsAuthentication() async throws {
+    let action = ControlledAuthenticationAction()
+    let presenter = HomeAssistantWebAuthenticationPresenter()
+    let ownerID = UUID()
+    presenter.register(ownerID: ownerID) {
+      try await action.authenticate(at: $0)
     }
-    await fulfillment(of: [firstSession.started], timeout: 1)
-
-    firstAuthentication.cancel()
-    await fulfillment(of: [cancellationDeferral.started], timeout: 1)
-    let secondAuthentication = Task {
-      try await presenter.authenticate(at: authenticationURL)
-    }
-    await fulfillment(of: [secondSession.started], timeout: 1)
-    await cancellationDeferral.proceed()
-    secondSession.complete(with: callbackURL)
-
-    do {
-      _ = try await firstAuthentication.value
-      XCTFail("Expected the first authentication to be cancelled.")
-    } catch is CancellationError {
-    } catch {
-      XCTFail("Unexpected error: \(error)")
-    }
-    let secondCallback = try await secondAuthentication.value
-    XCTAssertEqual(secondCallback, callbackURL)
-    XCTAssertEqual(secondSession.cancelCount, 0)
-  }
-
-  func testCallbackCannotSucceedAfterAuthenticationTaskIsCancelled() async throws {
-    let session = ControlledWebAuthenticationSession()
-    let cancellationDeferral = WebAuthenticationCancellationDeferral()
-    let presenter = makePresenter(
-      sessions: [session],
-      cancellationDeferral: {
-        await cancellationDeferral.wait()
-      }
-    )
     let authentication = Task {
       try await presenter.authenticate(at: authenticationURL)
     }
-    await fulfillment(of: [session.started], timeout: 1)
+    await fulfillment(of: [action.started], timeout: 1)
 
-    authentication.cancel()
-    await fulfillment(of: [cancellationDeferral.started], timeout: 1)
-    session.complete(with: callbackURL)
+    presenter.unregister(ownerID: ownerID)
 
     do {
       _ = try await authentication.value
@@ -135,23 +115,55 @@ final class HAWebAuthenticationPresenterTests: XCTestCase {
     } catch {
       XCTFail("Unexpected error: \(error)")
     }
-    await cancellationDeferral.proceed()
+    await fulfillment(of: [action.cancelled], timeout: 1)
   }
 
-  private func makePresenter(
-    sessions: [ControlledWebAuthenticationSession],
-    cancellationDeferral: @escaping @Sendable () async -> Void = {}
-  ) -> HomeAssistantWebAuthenticationPresenter {
-    var remainingSessions = sessions
-    return HomeAssistantWebAuthenticationPresenter(
-      anchorProvider: { self.presentationAnchor },
-      sessionFactory: { _, completionHandler in
-        let session = remainingSessions.removeFirst()
-        session.completionHandler = completionHandler
-        return session
-      },
-      cancellationDeferral: cancellationDeferral
-    )
+  func testAnOlderOwnerCannotUnregisterANewerOwner() async throws {
+    let presenter = HomeAssistantWebAuthenticationPresenter()
+    let olderOwnerID = UUID()
+    let newerOwnerID = UUID()
+    presenter.register(ownerID: olderOwnerID) { _ in
+      XCTFail("Expected the newer owner's action.")
+      return self.callbackURL
+    }
+    presenter.register(ownerID: newerOwnerID) { _ in
+      self.callbackURL
+    }
+
+    presenter.unregister(ownerID: olderOwnerID)
+
+    let result = try await presenter.authenticate(at: authenticationURL)
+    XCTAssertEqual(result, callbackURL)
+  }
+
+  func testReplacingAnActiveOwnerCancelsItsAuthenticationAndKeepsTheNewOwner() async throws {
+    let olderAction = ControlledAuthenticationAction()
+    let presenter = HomeAssistantWebAuthenticationPresenter()
+    let olderOwnerID = UUID()
+    let newerOwnerID = UUID()
+    presenter.register(ownerID: olderOwnerID) {
+      try await olderAction.authenticate(at: $0)
+    }
+    let olderAuthentication = Task {
+      try await presenter.authenticate(at: authenticationURL)
+    }
+    await fulfillment(of: [olderAction.started], timeout: 1)
+
+    presenter.register(ownerID: newerOwnerID) { _ in
+      self.callbackURL
+    }
+    presenter.unregister(ownerID: olderOwnerID)
+
+    do {
+      _ = try await olderAuthentication.value
+      XCTFail("Expected the older owner's authentication to be cancelled.")
+    } catch is CancellationError {
+    } catch {
+      XCTFail("Unexpected error: \(error)")
+    }
+    await fulfillment(of: [olderAction.cancelled], timeout: 1)
+    let result = try await presenter.authenticate(at: authenticationURL)
+    XCTAssertEqual(result, callbackURL)
   }
 
   private var authenticationURL: URL {
@@ -162,57 +174,35 @@ final class HAWebAuthenticationPresenterTests: XCTestCase {
     URL(string: "https://bruce.symphonious.net/auth/?code=value")
       ?? URL(fileURLWithPath: "/")
   }
-
-  private var presentationAnchor: ASPresentationAnchor? {
-    #if os(macOS)
-      NSWindow()
-    #else
-      guard
-        let windowScene = UIApplication.shared.connectedScenes
-          .compactMap({ $0 as? UIWindowScene })
-          .first
-      else {
-        return nil
-      }
-      return UIWindow(windowScene: windowScene)
-    #endif
-  }
-}
-
-private actor WebAuthenticationCancellationDeferral {
-  nonisolated let started = XCTestExpectation(description: "Cancellation was deferred")
-  private var continuation: CheckedContinuation<Void, Never>?
-
-  func wait() async {
-    started.fulfill()
-    await withCheckedContinuation { continuation in
-      self.continuation = continuation
-    }
-  }
-
-  func proceed() {
-    continuation?.resume()
-    continuation = nil
-  }
 }
 
 @MainActor
-private final class ControlledWebAuthenticationSession: HAWebAuthenticationSession {
+private final class ControlledAuthenticationAction {
   let started = XCTestExpectation(description: "Web authentication started")
-  var presentationContextProvider: (any ASWebAuthenticationPresentationContextProviding)?
-  var completionHandler: ASWebAuthenticationSession.CompletionHandler?
-  private(set) var cancelCount = 0
+  let cancelled = XCTestExpectation(description: "Web authentication cancelled")
+  private var continuation: CheckedContinuation<URL, any Error>?
 
-  func start() -> Bool {
-    started.fulfill()
-    return true
+  func authenticate(at url: URL) async throws -> URL {
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { continuation in
+        self.continuation = continuation
+        started.fulfill()
+      }
+    } onCancel: {
+      Task { @MainActor in
+        self.cancel()
+      }
+    }
   }
 
-  func cancel() {
-    cancelCount += 1
+  func complete(with url: URL) {
+    continuation?.resume(returning: url)
+    continuation = nil
   }
 
-  func complete(with callbackURL: URL) {
-    completionHandler?(callbackURL, nil)
+  private func cancel() {
+    continuation?.resume(throwing: CancellationError())
+    continuation = nil
+    cancelled.fulfill()
   }
 }
