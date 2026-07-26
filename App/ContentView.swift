@@ -68,7 +68,6 @@ private struct BruceMark: View {
             ? .system(size: isCompact ? 56 : 82, weight: .black)
             : .system(size: isCompact ? 56 : 82, design: .serif)
         )
-        .tracking(mode.isFullBruce ? -8 : -5)
 
       Text(mode.isFullBruce ? "!" : "•")
         .font(

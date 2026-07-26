@@ -29,3 +29,9 @@ concrete use case requires it.
 Codex reviewer wrappers live in `.codex/agents`; their detailed checklists live in
 `.claude/agents`. Before committing, run the reviewers required by
 `guides/AI_ASSISTANT_GUIDE.md`, fix every finding, and repeat until there are no findings.
+
+## Task completion
+
+For every implementation task, run the required formatting, builds, tests, and reviewer cycle,
+then commit all intended changes before reporting completion. Do not leave a completed task as an
+uncommitted working-tree diff unless the user explicitly asks for that.
