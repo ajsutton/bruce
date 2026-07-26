@@ -1,0 +1,33 @@
+# XcodeGen output
+*.xcodeproj
+*.xcworkspace
+
+# Xcode
+xcuserdata/
+DerivedData/
+.DerivedData*/
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.xcarchive
+
+# Build output
+.build/
+.build-ios/
+build/
+.swiftpm/
+
+# Local configuration
+.env
+.codex/config.toml
+
+# Agent and worktree state
+.agent-tmp/
+.worktrees/
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+
+# macOS
+.DS_Store
+*.swp

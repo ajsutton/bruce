@@ -1,0 +1,61 @@
+# UI Guide
+
+## Principles
+
+- The app should feel native on each platform.
+- iPhone and Mac may share components, but not at the expense of platform conventions.
+- Build screens around a concrete household task rather than around Home Assistant entities.
+- Keep the primary path obvious for family members who do not manage the system.
+- Reveal advanced detail progressively.
+- Use colour to communicate state and exceptions, not as decoration.
+
+## Platform behaviour
+
+### iPhone
+
+- Optimise for one-handed use and 44-point minimum touch targets.
+- Put the most common actions within comfortable reach.
+- Prefer navigation stacks, sheets, and standard toolbars.
+- Support Dynamic Type without clipping or fixed text heights.
+
+### macOS
+
+- Support keyboard navigation and standard shortcuts.
+- Use sidebars, inspectors, tables, and menus only when the use case benefits from them.
+- Toolbar, menu, and context-menu actions should agree.
+- Disable unavailable commands rather than changing menu shape.
+
+## SwiftUI
+
+- Prefer native controls and semantic system colours.
+- Avoid fixed widths for text.
+- Use `ContentUnavailableView` for empty or unavailable states.
+- Use `Form` for editable settings and structured input.
+- Use `confirmationDialog` or alerts for destructive and safety-sensitive actions.
+- Do not reproduce system controls with custom gestures unless the native control cannot satisfy
+  the use case.
+- Respect Reduce Motion and increased contrast.
+
+## Status and control
+
+- Distinguish live, stale, unavailable, and in-progress state.
+- Do not display cached state as though it were live.
+- Provide immediate acknowledgement for every command.
+- Avoid optimistic updates for safety-sensitive actions unless the pending state is explicit.
+- Confirm remote or safety-sensitive operations; do not confirm routine reversible actions.
+
+## Accessibility
+
+- Give custom controls meaningful labels, values, and traits.
+- Do not rely on colour alone.
+- Keep contrast at least 4.5:1 for body text and 3:1 for large text.
+- Combine child accessibility elements only when the combined reading is clearer.
+- Verify keyboard use on macOS and VoiceOver order on iOS.
+
+## Review checklist
+
+- Is this the smallest UI that solves the use case?
+- Does it use native platform navigation and controls?
+- Are loading, stale, unavailable, error, and success states represented?
+- Are dangerous actions appropriately protected?
+- Does it work with Dynamic Type, VoiceOver, keyboard navigation, dark mode, and Reduce Motion?

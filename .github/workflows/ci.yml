@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  merge_group:
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install tools
+        run: bash scripts/install-ci-tools.sh
+
+      - name: Generate Xcode project
+        run: just generate
+
+      - name: Format check
+        run: just format-check
+
+  test-mac:
+    name: Test (macOS)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install tools
+        run: bash scripts/install-ci-tools.sh
+
+      - name: Generate Xcode project
+        run: just generate
+
+      - name: Test
+        run: just test-mac
+
+  test-ios:
+    name: Test (iOS)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install tools
+        run: bash scripts/install-ci-tools.sh
+
+      - name: Generate Xcode project
+        run: just generate
+
+      - name: Test
+        run: just test-ios
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: [checks, test-mac, test-ios]
+    if: always()
+    steps:
+      - name: Verify required jobs succeeded
+        run: |
+          if [ "${{ needs.checks.result }}" != "success" ] \
+            || [ "${{ needs.test-mac.result }}" != "success" ] \
+            || [ "${{ needs.test-ios.result }}" != "success" ]; then
+            echo "One or more required jobs did not succeed:"
+            echo "  checks=${{ needs.checks.result }}"
+            echo "  test-mac=${{ needs.test-mac.result }}"
+            echo "  test-ios=${{ needs.test-ios.result }}"
+            exit 1
+          fi

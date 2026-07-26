@@ -1,0 +1,77 @@
+# Smart Home native app — common development tasks.
+set dotenv-load
+
+default:
+    @just --list
+
+generate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p .build
+    xcodegen generate --use-cache --cache-path .build/xcodegen.cache
+
+format:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    find App Tests -type f -name '*.swift' -print0 \
+        | xargs -0 swift-format format -i --configuration .swift-format
+    swiftlint lint --fix --quiet
+
+format-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    fail=0
+    while IFS= read -r -d '' file; do
+        if ! cmp -s "$file" <(swift-format format --configuration .swift-format "$file"); then
+            echo "::error file=$file::Not formatted; run 'just format' to fix"
+            diff -u --label "$file" --label "$file (formatted)" \
+                "$file" <(swift-format format --configuration .swift-format "$file") || true
+            fail=1
+        fi
+    done < <(find App Tests -type f -name '*.swift' -print0)
+    if [ "$fail" -ne 0 ]; then
+        exit 1
+    fi
+    echo "All Swift files are correctly formatted."
+    swiftlint lint --strict --quiet
+
+build: build-mac build-ios
+
+build-mac: generate
+    xcodebuild build \
+        -scheme SmartHome-macOS \
+        -destination 'platform=macOS' \
+        -derivedDataPath .build \
+        CODE_SIGNING_ALLOWED=NO
+
+build-ios: generate
+    #!/usr/bin/env bash
+    set -euo pipefail
+    simulator="$(bash scripts/find-simulator.sh)"
+    xcodebuild build \
+        -scheme SmartHome-iOS \
+        -destination "platform=iOS Simulator,id=$simulator" \
+        -derivedDataPath .build-ios \
+        CODE_SIGNING_ALLOWED=NO
+
+test *FILTERS: generate
+    bash scripts/test.sh all {{ FILTERS }}
+
+test-mac *FILTERS: generate
+    bash scripts/test.sh mac {{ FILTERS }}
+
+test-ios *FILTERS: generate
+    bash scripts/test.sh ios {{ FILTERS }}
+
+clean:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rm -rf \
+        .build \
+        .build-ios \
+        .DerivedData-ios \
+        .DerivedData-mac \
+        SmartHome.xcodeproj
+
+open: generate
+    open SmartHome.xcodeproj

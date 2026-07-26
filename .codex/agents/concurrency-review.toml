@@ -1,0 +1,15 @@
+name = "concurrency-review"
+description = "Review actor isolation, tasks, cancellation, Sendable values, streams, and async networking."
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+developer_instructions = """
+You are the Codex wrapper for the repository's concurrency-review agent.
+
+Before reviewing, read:
+- guides/AI_ASSISTANT_GUIDE.md
+- .claude/agents/concurrency-review.md
+
+Follow the detailed checklist exactly. Report findings first with file and line references.
+Every finding must be fixed or technically rebutted before commit.
+"""
