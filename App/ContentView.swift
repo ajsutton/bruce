@@ -1,102 +1,78 @@
+import Combine
 import SwiftUI
 
 struct ContentView: View {
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.scenePhase) private var scenePhase
   @ObservedObject var modeController: BruceModeController
+  @ObservedObject var setupStore: HomeAssistantSetupStore
 
   private var mode: BruceMode {
     modeController.mode
   }
 
   var body: some View {
-    GeometryReader { geometry in
-      ScrollView {
-        VStack(spacing: 28) {
-          BruceMark(mode: mode, isCompact: dynamicTypeSize.isAccessibilitySize)
-
-          ContentUnavailableView {
-            Label(mode.title, systemImage: "house.fill")
-          } description: {
-            Text(mode.introduction)
-          }
+    HomeAssistantSetupView(store: setupStore, mode: mode)
+      .task {
+        await modeController.synchronize()
+        await setupStore.restoreSavedConnection()
+      }
+      .onChange(of: scenePhase) { _, newScenePhase in
+        guard newScenePhase == .active else {
+          return
         }
-        .padding(32)
-        .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+        modeController.requestLocalPreferenceRefresh()
       }
-    }
-    .foregroundStyle(mode.foregroundColor)
-    .preferredColorScheme(mode.isFullBruce ? .dark : .light)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(mode.backgroundColor)
-    .task {
-      await modeController.synchronize()
-    }
-    .onChange(of: scenePhase) { _, newScenePhase in
-      guard newScenePhase == .active else {
-        return
-      }
-      modeController.requestLocalPreferenceRefresh()
-    }
-    .alert(
-      "Bruce couldn’t change the app icon",
-      isPresented: Binding(
-        get: { modeController.appIconErrorMessage != nil },
-        set: { isPresented in
-          if !isPresented {
-            modeController.appIconErrorMessage = nil
+      .alert(
+        "Bruce couldn’t change the app icon",
+        isPresented: Binding(
+          get: { modeController.appIconErrorMessage != nil },
+          set: { isPresented in
+            if !isPresented {
+              modeController.appIconErrorMessage = nil
+            }
           }
-        }
-      )
-    ) {
-      Button("OK", role: .cancel) {}
-    } message: {
-      Text(modeController.appIconErrorMessage ?? "")
-    }
-  }
-}
-
-private struct BruceMark: View {
-  let mode: BruceMode
-  let isCompact: Bool
-
-  var body: some View {
-    ZStack(alignment: .bottomTrailing) {
-      Text("B")
-        .font(
-          mode.isFullBruce
-            ? .system(size: isCompact ? 56 : 82, weight: .black)
-            : .system(size: isCompact ? 56 : 82, design: .serif)
         )
-
-      Text(mode.isFullBruce ? "!" : "•")
-        .font(
-          .system(
-            size: isCompact ? (mode.isFullBruce ? 28 : 18) : (mode.isFullBruce ? 36 : 24),
-            weight: .black
-          )
-        )
-        .foregroundStyle(
-          mode.isFullBruce ? Color(red: 0.91, green: 0.27, blue: 0.20) : mode.accentColor
-        )
-        .offset(x: mode.isFullBruce ? 4 : 0, y: mode.isFullBruce ? -3 : -6)
-    }
-    .frame(width: isCompact ? 96 : 132, height: isCompact ? 96 : 132)
-    .background(
-      mode.isFullBruce
-        ? Color(red: 0.00, green: 0.34, blue: 0.25) : Color(red: 0.93, green: 0.89, blue: 0.82)
-    )
-    .clipShape(.rect(cornerRadius: 30))
-    .overlay {
-      if mode.isFullBruce {
-        RoundedRectangle(cornerRadius: 30)
-          .stroke(Color.white, lineWidth: 4)
+      ) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(modeController.appIconErrorMessage ?? "")
       }
-    }
-    .accessibilityHidden(true)
   }
 }
 
 #Preview("Bruce") {
-  ContentView(modeController: BruceModeController())
+  ContentView(
+    modeController: BruceModeController(
+      store: PreviewBruceModeStore(),
+      iconApplier: PreviewAppIconApplier()
+    ),
+    setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery())
+  )
+}
+
+@MainActor
+final class PreviewBruceModeStore: BruceModeStoring {
+  var syncedPreferenceChanges: AnyPublisher<Void, Never> {
+    Empty().eraseToAnyPublisher()
+  }
+
+  func prepareForSynchronization() {}
+  func hasUnpublishedLocalChange() -> Bool { false }
+  func loadLocalMode() -> BruceMode? { .standard }
+  func loadSyncedMode() -> BruceMode? { nil }
+  func saveLocalMode(_ mode: BruceMode) {}
+  func saveMode(_ mode: BruceMode) {}
+}
+
+@MainActor
+struct PreviewAppIconApplier: AppIconApplying {
+  func apply(_ mode: BruceMode) async throws {}
+}
+
+private struct PreviewHomeAssistantDiscovery: HomeAssistantDiscovering {
+  func snapshots() -> AsyncThrowingStream<HomeAssistantDiscoverySnapshot, any Error> {
+    AsyncThrowingStream { continuation in
+      continuation.finish()
+    }
+  }
 }
