@@ -11,10 +11,17 @@ struct URLSessionHomeAssistantHTTPDataLoader: HomeAssistantHTTPDataLoading {
     self.session =
       session
       ?? URLSession(
-        configuration: .default,
+        configuration: Self.makeConfiguration(),
         delegate: HomeAssistantRedirectDelegate(),
         delegateQueue: nil
       )
+  }
+
+  static func makeConfiguration() -> URLSessionConfiguration {
+    let configuration = URLSessionConfiguration.default
+    configuration.waitsForConnectivity = true
+    configuration.timeoutIntervalForResource = 60
+    return configuration
   }
 
   func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {

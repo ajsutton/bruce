@@ -128,6 +128,7 @@ final class HomeAssistantConnectionController: ObservableObject {
     )
     invalidateConnectionOperation()
     step = .confirmation(candidate)
+    requestAuthentication()
   }
 
   func changeServer() {

@@ -6,6 +6,7 @@
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var store: HomeAssistantSetupStore
     let copy: HomeAssistantCopy
+    let reauthenticate: () -> Void
     @State private var showsDisconnectConfirmation = false
 
     var body: some View {
@@ -37,7 +38,7 @@
 
             if store.connectionCheckState.canSignInAgain {
               Button("Sign In Again") {
-                store.reauthenticate()
+                reauthenticate()
                 dismiss()
               }
               .disabled(store.isDisconnecting)
@@ -49,7 +50,7 @@
             }
             .disabled(store.isDisconnecting)
 
-            Button(disconnectButtonTitle, role: .destructive) {
+            Button(store.connectionCheckState.disconnectButtonTitle, role: .destructive) {
               showsDisconnectConfirmation = true
             }
             .disabled(store.isDisconnecting)
@@ -112,12 +113,6 @@
           }
         }
       }
-    }
-
-    private var disconnectButtonTitle: String {
-      store.connectionCheckState == .disconnectFailed
-        ? "Retry Disconnect"
-        : "Disconnect from Home Assistant"
     }
   }
 

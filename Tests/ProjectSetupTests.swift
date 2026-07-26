@@ -4,13 +4,6 @@ import XCTest
 
 @MainActor
 final class ProjectSetupTests: XCTestCase {
-  func testContentViewCanBeCreated() {
-    _ = ContentView(
-      modeController: BruceModeController(),
-      setupStore: HomeAssistantSetupStore(discovery: EmptyHomeAssistantDiscovery())
-    )
-  }
-
   func testBruceDefaultsToStandardWhenNoPreferenceExists() async {
     let store = TestModeStore()
     let iconApplier = TestIconApplier()

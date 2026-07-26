@@ -193,25 +193,6 @@ struct HomeAssistantCopy {
     "Home Assistant requires you to sign in again."
   }
 
-  func connectionCheckAnnouncement(
-    _ state: HomeAssistantSetupStore.ConnectionCheckState
-  ) -> String? {
-    switch state {
-    case .idle:
-      nil
-    case .checking:
-      "Checking the Home Assistant connection."
-    case .succeeded:
-      "The Home Assistant connection check succeeded."
-    case .failed(let problem):
-      connectionFailed(problem)
-    case .reauthenticationRequired:
-      reauthenticationRequired
-    case .disconnectFailed:
-      disconnectFailed
-    }
-  }
-
   var disconnectFailed: String {
     "The saved Home Assistant connection was not removed and remains active. Try disconnecting again."
   }
@@ -236,6 +217,10 @@ struct HomeAssistantCopy {
       "Home Assistant Didn’t Approve Sign-In"
     case .inactiveUser:
       "Home Assistant User Is Inactive"
+    case .browserUnavailable:
+      "Sign-In Window Didn’t Open"
+    case .browserSessionEnded:
+      "Sign-In Didn’t Complete"
     case .unavailable:
       "Home Assistant Is Unavailable"
     case .invalidCallback:
@@ -257,6 +242,10 @@ struct HomeAssistantCopy {
       "Sign in again and approve Bruce in Home Assistant."
     case .inactiveUser:
       "Activate this user in Home Assistant, then try again."
+    case .browserUnavailable:
+      "Bruce could not open the sign-in window. Try again. If it still doesn’t open, quit and reopen Bruce."
+    case .browserSessionEnded:
+      "The sign-in window either couldn’t open or closed before Home Assistant returned to Bruce. Try again when you’re ready."
     case .unavailable:
       "Check that the server is running and that this device can reach it."
     case .invalidCallback:
@@ -288,6 +277,27 @@ struct HomeAssistantCopy {
       "Remove everything after the number sign."
     case .pointsToEndpoint:
       "Enter the server’s base address, not an API or sign-in page."
+    }
+  }
+}
+
+extension HomeAssistantCopy {
+  func connectionCheckAnnouncement(
+    _ state: HomeAssistantSetupStore.ConnectionCheckState
+  ) -> String? {
+    switch state {
+    case .idle:
+      nil
+    case .checking:
+      "Checking the Home Assistant connection."
+    case .succeeded:
+      "The Home Assistant connection check succeeded."
+    case .failed(let problem):
+      connectionFailed(problem)
+    case .reauthenticationRequired:
+      reauthenticationRequired
+    case .disconnectFailed:
+      disconnectFailed
     }
   }
 }

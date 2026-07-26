@@ -27,7 +27,7 @@ if pgrep -f "$PROCESS_PATTERN" >/dev/null 2>&1; then
 fi
 
 echo "Building macOS app..."
-just build-mac
+just build-mac-for-running
 
 # Stop a wrapper before it execs Bruce so the PID-filtered log stream is
 # subscribed before the app emits its first log. exec preserves the PID.

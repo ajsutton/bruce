@@ -45,6 +45,48 @@ final class HomeAssistantCredentialStoreTests: XCTestCase {
     XCTAssertEqual(keychain.deleteCount, 0)
   }
 
+  func testLegacyCredentialMigratesToBundleScopedService() async throws {
+    let keychain = RecordingHomeAssistantKeychain()
+    let legacyStore = KeychainHomeAssistantCredentialStore(
+      service: "net.symphonious.bruce.home-assistant",
+      keychain: keychain
+    )
+    let expected = credentials(accessToken: "legacy")
+    try await legacyStore.save(expected)
+    let debugStore = KeychainHomeAssistantCredentialStore(
+      service: "net.symphonious.bruce.debug.home-assistant",
+      legacyService: "net.symphonious.bruce.home-assistant",
+      keychain: keychain
+    )
+
+    let migrated = try await debugStore.load()
+
+    XCTAssertEqual(migrated, expected)
+    XCTAssertNotNil(keychain.data(service: "net.symphonious.bruce.debug.home-assistant"))
+  }
+
+  func testDeletingMigratedCredentialDoesNotRestoreItFromLegacyService() async throws {
+    let keychain = RecordingHomeAssistantKeychain()
+    let legacyStore = KeychainHomeAssistantCredentialStore(
+      service: "net.symphonious.bruce.home-assistant",
+      keychain: keychain
+    )
+    try await legacyStore.save(credentials(accessToken: "legacy"))
+    let debugStore = KeychainHomeAssistantCredentialStore(
+      service: "net.symphonious.bruce.debug.home-assistant",
+      legacyService: "net.symphonious.bruce.home-assistant",
+      keychain: keychain
+    )
+    let migrated = try await debugStore.load()
+    XCTAssertNotNil(migrated)
+
+    try await debugStore.delete()
+
+    let loadedAfterDelete = try await debugStore.load()
+    XCTAssertNil(loadedAfterDelete)
+    XCTAssertNotNil(keychain.data(service: "net.symphonious.bruce.home-assistant"))
+  }
+
   private func credentials(accessToken: String) -> HomeAssistantCredentials {
     let localURL = URL(string: "http://home.local:8123") ?? URL(fileURLWithPath: "/")
     return HomeAssistantCredentials(
@@ -66,18 +108,28 @@ private final class RecordingHomeAssistantKeychain:
   HomeAssistantKeychainAccessing, @unchecked Sendable
 {
   private let lock = NSLock()
-  private var storedData: Data?
+  private var storedDataByKey: [String: Data] = [:]
   private(set) var addedOptions: HomeAssistantKeychainOptions?
   private(set) var updateCount = 0
   private(set) var deleteCount = 0
 
   var data: Data? {
-    get { lock.withLock { storedData } }
-    set { lock.withLock { storedData = newValue } }
+    get { data(service: "net.symphonious.bruce.home-assistant") }
+    set {
+      lock.withLock {
+        storedDataByKey[
+          key(service: "net.symphonious.bruce.home-assistant", account: "credentials")
+        ] = newValue
+      }
+    }
+  }
+
+  func data(service: String, account: String = "credentials") -> Data? {
+    lock.withLock { storedDataByKey[key(service: service, account: account)] }
   }
 
   func load(service: String, account: String) throws -> Data? {
-    data
+    data(service: service, account: account)
   }
 
   func add(
@@ -87,7 +139,7 @@ private final class RecordingHomeAssistantKeychain:
     options: HomeAssistantKeychainOptions
   ) throws {
     lock.withLock {
-      storedData = data
+      storedDataByKey[key(service: service, account: account)] = data
       addedOptions = options
     }
   }
@@ -99,15 +151,19 @@ private final class RecordingHomeAssistantKeychain:
     options: HomeAssistantKeychainOptions
   ) throws {
     lock.withLock {
-      storedData = data
+      storedDataByKey[key(service: service, account: account)] = data
       updateCount += 1
     }
   }
 
   func delete(service: String, account: String) throws {
     lock.withLock {
-      storedData = nil
+      storedDataByKey[key(service: service, account: account)] = nil
       deleteCount += 1
     }
+  }
+
+  private func key(service: String, account: String) -> String {
+    "\(service)|\(account)"
   }
 }

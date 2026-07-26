@@ -3,15 +3,21 @@ import SwiftUI
 
 struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
+  #if os(macOS)
+    @Environment(\.openSettings) private var openSettings
+  #endif
   @ObservedObject var modeController: BruceModeController
   @ObservedObject var setupStore: HomeAssistantSetupStore
+  #if os(macOS)
+    @ObservedObject var settingsNavigation: BruceSettingsNavigation
+  #endif
 
   private var mode: BruceMode {
     modeController.mode
   }
 
   var body: some View {
-    HomeAssistantSetupView(store: setupStore, mode: mode)
+    content
       .task {
         await modeController.synchronize()
         await setupStore.restoreSavedConnection()
@@ -38,16 +44,57 @@ struct ContentView: View {
         Text(modeController.appIconErrorMessage ?? "")
       }
   }
+
+  @ViewBuilder
+  private var content: some View {
+    #if os(macOS)
+      ContentUnavailableView {
+        Label(mainStatus.title, systemImage: "house.fill")
+      } description: {
+        Text(mainStatus.description)
+      } actions: {
+        Button(mainStatus.actionTitle) {
+          settingsNavigation.showHomeAssistant()
+          openSettings()
+        }
+        .buttonStyle(.borderedProminent)
+      }
+      .padding()
+    #else
+      HomeAssistantSetupView(store: setupStore, mode: mode)
+    #endif
+  }
+
+  #if os(macOS)
+    private var mainStatus: HomeAssistantMainStatus {
+      HomeAssistantMainStatus(
+        step: setupStore.step,
+        connectionCheckState: setupStore.connectionCheckState,
+        isDisconnecting: setupStore.isDisconnecting
+      )
+    }
+  #endif
 }
 
 #Preview("Bruce") {
-  ContentView(
-    modeController: BruceModeController(
-      store: PreviewBruceModeStore(),
-      iconApplier: PreviewAppIconApplier()
-    ),
-    setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery())
-  )
+  #if os(macOS)
+    ContentView(
+      modeController: BruceModeController(
+        store: PreviewBruceModeStore(),
+        iconApplier: PreviewAppIconApplier()
+      ),
+      setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery()),
+      settingsNavigation: BruceSettingsNavigation()
+    )
+  #else
+    ContentView(
+      modeController: BruceModeController(
+        store: PreviewBruceModeStore(),
+        iconApplier: PreviewAppIconApplier()
+      ),
+      setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery())
+    )
+  #endif
 }
 
 @MainActor

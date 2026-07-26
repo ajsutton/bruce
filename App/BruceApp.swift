@@ -5,13 +5,25 @@ import SwiftUI
 struct BruceApp: App {
   @StateObject private var modeController = BruceModeController()
   @StateObject private var setupStore: HomeAssistantSetupStore
+  #if os(macOS)
+    @StateObject private var settingsNavigation = BruceSettingsNavigation()
+  #endif
 
   init() {
+    let bundleIdentifier = Bundle.main.bundleIdentifier ?? "net.symphonious.bruce"
+    let credentialService = "\(bundleIdentifier).home-assistant"
+    let legacyCredentialService =
+      bundleIdentifier == "net.symphonious.bruce.debug"
+      ? "net.symphonious.bruce.home-assistant"
+      : nil
     let loader = URLSessionHomeAssistantHTTPDataLoader()
     let authenticationClient = HomeAssistantAuthenticationClient(loader: loader)
     let webAuthenticationPresenter = HomeAssistantWebAuthenticationPresenter()
     let session = HomeAssistantSession(
-      credentialStore: KeychainHomeAssistantCredentialStore(),
+      credentialStore: KeychainHomeAssistantCredentialStore(
+        service: credentialService,
+        legacyService: legacyCredentialService
+      ),
       authenticationClient: authenticationClient,
       loader: loader
     )
@@ -31,14 +43,27 @@ struct BruceApp: App {
 
   var body: some Scene {
     WindowGroup("Bruce", id: "main") {
-      ContentView(modeController: modeController, setupStore: setupStore)
+      #if os(macOS)
+        ContentView(
+          modeController: modeController,
+          setupStore: setupStore,
+          settingsNavigation: settingsNavigation
+        )
         .tint(modeController.mode.accentColor)
+      #else
+        ContentView(modeController: modeController, setupStore: setupStore)
+          .tint(modeController.mode.accentColor)
+      #endif
     }
 
     #if os(macOS)
       Settings {
-        BruceSettingsView(modeController: modeController, setupStore: setupStore)
-          .tint(modeController.mode.accentColor)
+        BruceSettingsView(
+          modeController: modeController,
+          setupStore: setupStore,
+          settingsNavigation: settingsNavigation
+        )
+        .tint(modeController.mode.accentColor)
       }
     #endif
   }

@@ -1,3 +1,4 @@
+import Accessibility
 import AuthenticationServices
 import SwiftUI
 
@@ -7,6 +8,7 @@ struct HomeAssistantSetupView: View {
   let mode: BruceMode
   @State private var webAuthenticationOwnerID = UUID()
   @State private var showsAuthenticationTechnicalDetails = false
+  @State private var showsDisconnectConfirmation = false
 
   private var copy: HomeAssistantCopy {
     HomeAssistantCopy(mode: mode)
@@ -17,7 +19,7 @@ struct HomeAssistantSetupView: View {
       Group {
         switch store.step {
         case .restoring:
-          progress(copy.restoringTitle, detail: copy.restoringDetail)
+          HomeAssistantProgressView(title: copy.restoringTitle, detail: copy.restoringDetail)
         case .restoreFailed:
           restoreFailed
         case .introduction:
@@ -34,8 +36,14 @@ struct HomeAssistantSetupView: View {
           onboardingRequired(instance)
         case .readyForAuthentication(let candidate):
           authenticationHandoff(candidate)
-        case .authenticationFailed(let candidate, let failure):
-          authenticationFailure(candidate, failure: failure)
+        case .authenticationFailed(_, let failure):
+          HomeAssistantAuthenticationFailureView(
+            copy: copy,
+            failure: failure,
+            showsTechnicalDetails: $showsAuthenticationTechnicalDetails,
+            retry: { beginAuthentication(retrying: true) },
+            chooseAnotherServer: store.showDiscoveredHomes
+          )
         case .configured(let credentials):
           configured(credentials)
         case .connected(let credentials):
@@ -49,9 +57,37 @@ struct HomeAssistantSetupView: View {
         .navigationBarTitleDisplayMode(.inline)
       #endif
     }
+    .onAppear {
+      #if os(macOS)
+        registerWebAuthenticationAction()
+      #endif
+    }
     .onDisappear {
       store.stopDiscovery()
       store.unregisterWebAuthenticationAction(ownerID: webAuthenticationOwnerID)
+    }
+    #if os(macOS)
+      .onChange(of: store.connectionCheckState) { _, state in
+        if let announcement = copy.connectionCheckAnnouncement(state) {
+          AccessibilityNotification.Announcement(announcement).post()
+        }
+      }
+      .onChange(of: store.isDisconnecting) { _, isDisconnecting in
+        if isDisconnecting {
+          AccessibilityNotification.Announcement("Disconnecting from Home Assistant").post()
+        }
+      }
+    #endif
+    .confirmationDialog(
+      "Disconnect from Home Assistant?",
+      isPresented: $showsDisconnectConfirmation
+    ) {
+      Button("Disconnect", role: .destructive) {
+        store.disconnect()
+      }
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      Text("Bruce will remove the saved Home Assistant connection from this device.")
     }
   }
 }
@@ -152,44 +188,18 @@ extension HomeAssistantSetupView {
     }
   }
 
-  private func authenticationFailure(
-    _ candidate: HomeAssistantConnectionCandidate,
-    failure: HomeAssistantAuthenticationFailure
-  ) -> some View {
-    scrollableState {
-      ContentUnavailableView {
-        Label(
-          copy.authenticationTitle(failure.problem),
-          systemImage: "exclamationmark.triangle.fill"
-        )
-      } description: {
-        VStack(spacing: 8) {
-          Text(copy.authenticationMessage(failure.problem))
-          DisclosureGroup(
-            "Technical Details",
-            isExpanded: $showsAuthenticationTechnicalDetails
-          ) {
-            Text(failure.diagnostic)
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .textSelection(.enabled)
-          }
-        }
-      } actions: {
-        Button("Try Again") {
-          beginAuthentication(retrying: true)
-        }
-        .buttonStyle(.borderedProminent)
-
-        Button(copy.recoveryChooseAnotherServer) {
-          store.showDiscoveredHomes()
-        }
-      }
-      .padding()
+  private func beginAuthentication(retrying: Bool = false) {
+    #if os(iOS)
+      registerWebAuthenticationAction()
+    #endif
+    if retrying {
+      store.retryAuthentication()
+    } else {
+      store.requestAuthentication()
     }
   }
 
-  private func beginAuthentication(retrying: Bool = false) {
+  private func registerWebAuthenticationAction() {
     let authenticationSession = webAuthenticationSession
     store.registerWebAuthenticationAction(ownerID: webAuthenticationOwnerID) { url in
       try await authenticationSession.authenticate(
@@ -198,11 +208,6 @@ extension HomeAssistantSetupView {
         preferredBrowserSession: nil,
         additionalHeaderFields: [:]
       )
-    }
-    if retrying {
-      store.retryAuthentication()
-    } else {
-      store.requestAuthentication()
     }
   }
 
@@ -213,13 +218,13 @@ extension HomeAssistantSetupView {
           copy.connectedTitle(instanceName: credentials.instanceName),
           systemImage: "checkmark.circle.fill"
         )
-        LabeledContent("Last successful route", value: credentials.lastSuccessfulURL.absoluteString)
+        connectionOverviewDetails(credentials)
       } footer: {
         connectionCheckDescription
       }
 
       Section {
-        connectionManagementLink
+        connectionManagementControls
       }
     }
     .formStyle(.grouped)
@@ -232,16 +237,13 @@ extension HomeAssistantSetupView {
           copy.configuredTitle(instanceName: credentials.instanceName),
           systemImage: "exclamationmark.circle"
         )
-        LabeledContent(
-          "Last successful route",
-          value: credentials.lastSuccessfulURL.absoluteString
-        )
+        connectionOverviewDetails(credentials)
       } footer: {
         connectionCheckDescription
       }
 
       Section {
-        connectionManagementLink
+        connectionManagementControls
       }
     }
     .formStyle(.grouped)
@@ -249,48 +251,83 @@ extension HomeAssistantSetupView {
 
   @ViewBuilder
   private var connectionCheckDescription: some View {
-    switch store.connectionCheckState {
-    case .idle:
-      Text(copy.connectionIdle)
-    case .checking:
-      Text(copy.connectionChecking)
-    case .succeeded:
-      Text(copy.connectionSucceeded)
-    case .failed(let problem):
-      Text(copy.connectionFailed(problem))
-    case .reauthenticationRequired:
-      Text(copy.reauthenticationRequired)
-    case .disconnectFailed:
-      Text(copy.disconnectFailed)
-    }
-  }
-
-  private func progress(_ title: String, detail: String) -> some View {
-    scrollableState {
-      VStack(spacing: 16) {
+    if store.isDisconnecting {
+      HStack {
         ProgressView()
-          .controlSize(.large)
-        Text(title)
-          .font(.headline)
-        Text(detail)
-          .foregroundStyle(.secondary)
-          .multilineTextAlignment(.center)
+          .controlSize(.small)
+        Text("Disconnecting from Home Assistant…")
       }
-      .padding()
+      .accessibilityElement(children: .combine)
+      .accessibilityLabel("Disconnecting from Home Assistant")
+    } else {
+      switch store.connectionCheckState {
+      case .idle:
+        Text(copy.connectionIdle)
+      case .checking:
+        Text(copy.connectionChecking)
+      case .succeeded:
+        Text(copy.connectionSucceeded)
+      case .failed(let problem):
+        Text(copy.connectionFailed(problem))
+      case .reauthenticationRequired:
+        Text(copy.reauthenticationRequired)
+      case .disconnectFailed:
+        Text(copy.disconnectFailed)
+      }
     }
   }
 
   @ViewBuilder
-  private var connectionManagementLink: some View {
+  private func connectionOverviewDetails(_ credentials: HomeAssistantCredentials) -> some View {
     #if os(macOS)
-      SettingsLink {
-        Text(copy.manageConnection)
+      HomeAssistantConnectionDetails(credentials: credentials)
+    #else
+      LabeledContent(
+        "Last successful route",
+        value: credentials.lastSuccessfulURL.absoluteString
+      )
+    #endif
+  }
+
+  @ViewBuilder
+  private var connectionManagementControls: some View {
+    #if os(macOS)
+      Button(copy.testConnection) {
+        store.testConnection()
       }
+      .disabled(store.connectionCheckState == .checking || store.isDisconnecting)
+      .accessibilityValue(store.connectionCheckState == .checking ? "Checking" : "Ready")
+
+      if store.connectionCheckState.canSignInAgain {
+        Button("Sign In Again") {
+          store.reauthenticate()
+        }
+        .disabled(store.isDisconnecting)
+      }
+
+      Button(copy.changeServer) {
+        store.changeServer()
+      }
+      .disabled(store.isDisconnecting)
+
+      Button(store.connectionCheckState.disconnectButtonTitle, role: .destructive) {
+        showsDisconnectConfirmation = true
+      }
+      .disabled(store.isDisconnecting)
     #else
       NavigationLink(copy.manageConnection) {
-        HomeAssistantConnectionManagementView(store: store, copy: copy)
+        HomeAssistantConnectionManagementView(
+          store: store,
+          copy: copy,
+          reauthenticate: beginReauthentication
+        )
       }
     #endif
+  }
+
+  private func beginReauthentication() {
+    registerWebAuthenticationAction()
+    store.reauthenticate()
   }
 
   private var cancelled: some View {

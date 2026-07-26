@@ -47,9 +47,24 @@ build-mac: generate
         -derivedDataPath .build \
         CODE_SIGNING_ALLOWED=NO
 
+build-mac-for-running: generate
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -z "${DEVELOPMENT_TEAM:-}" ]]; then
+        echo "DEVELOPMENT_TEAM must be set in .env for a signed runtime build." >&2
+        exit 1
+    fi
+    xcodebuild build \
+        -allowProvisioningUpdates \
+        -scheme Bruce-macOS \
+        -destination 'platform=macOS' \
+        -derivedDataPath .build \
+        DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+        CODE_SIGNING_ALLOWED=YES
+
 # Build and launch the macOS app; extra arguments are forwarded to the app.
 [positional-arguments]
-run-mac *args: build-mac
+run-mac *args: build-mac-for-running
     #!/usr/bin/env bash
     set -euo pipefail
     app_path=".build/Build/Products/Debug/Bruce.app"

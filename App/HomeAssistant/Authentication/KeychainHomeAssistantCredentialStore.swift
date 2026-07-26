@@ -113,25 +113,51 @@ struct SecurityHomeAssistantKeychain: HomeAssistantKeychainAccessing {
 
 actor KeychainHomeAssistantCredentialStore: HomeAssistantCredentialStoring {
   private let service: String
+  private let legacyService: String?
   private let account: String
   private let keychain: any HomeAssistantKeychainAccessing
   private let encoder = JSONEncoder()
   private let decoder = JSONDecoder()
+  private var legacyMigrationAccount: String {
+    "\(account).legacy-migration-completed"
+  }
 
   init(
     service: String = "net.symphonious.bruce.home-assistant",
+    legacyService: String? = nil,
     account: String = "credentials",
     keychain: any HomeAssistantKeychainAccessing = SecurityHomeAssistantKeychain()
   ) {
     self.service = service
+    self.legacyService = legacyService
     self.account = account
     self.keychain = keychain
   }
 
   func load() throws -> HomeAssistantCredentials? {
-    guard let data = try keychain.load(service: service, account: account) else {
+    if let data = try keychain.load(service: service, account: account) {
+      let credentials = try decode(data)
+      try recordLegacyMigrationIfNeeded()
+      return credentials
+    }
+    guard let legacyService,
+      try keychain.load(service: service, account: legacyMigrationAccount) == nil,
+      let data = try keychain.load(service: legacyService, account: account)
+    else {
       return nil
     }
+    let credentials = try decode(data)
+    try saveScoped(credentials)
+    do {
+      try recordLegacyMigrationIfNeeded()
+    } catch {
+      try keychain.delete(service: service, account: account)
+      throw error
+    }
+    return credentials
+  }
+
+  private func decode(_ data: Data) throws -> HomeAssistantCredentials {
     guard let credentials = try? decoder.decode(HomeAssistantCredentials.self, from: data),
       credentials.schemaVersion == HomeAssistantCredentials.currentSchemaVersion
     else {
@@ -141,6 +167,11 @@ actor KeychainHomeAssistantCredentialStore: HomeAssistantCredentialStoring {
   }
 
   func save(_ credentials: HomeAssistantCredentials) throws {
+    try recordLegacyMigrationIfNeeded()
+    try saveScoped(credentials)
+  }
+
+  private func saveScoped(_ credentials: HomeAssistantCredentials) throws {
     let data = try encoder.encode(credentials)
     if try keychain.load(service: service, account: account) == nil {
       try keychain.add(
@@ -160,6 +191,21 @@ actor KeychainHomeAssistantCredentialStore: HomeAssistantCredentialStoring {
   }
 
   func delete() throws {
+    try recordLegacyMigrationIfNeeded()
     try keychain.delete(service: service, account: account)
+  }
+
+  private func recordLegacyMigrationIfNeeded() throws {
+    guard legacyService != nil,
+      try keychain.load(service: service, account: legacyMigrationAccount) == nil
+    else {
+      return
+    }
+    try keychain.add(
+      Data([1]),
+      service: service,
+      account: legacyMigrationAccount,
+      options: .credentials
+    )
   }
 }

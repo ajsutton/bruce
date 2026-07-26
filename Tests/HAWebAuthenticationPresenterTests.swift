@@ -27,15 +27,36 @@ final class HAWebAuthenticationPresenterTests: XCTestCase {
     XCTAssertEqual(result, callbackURL)
   }
 
-  func testDismissingTheAuthenticationSessionIsTreatedAsCancellation() async throws {
+  func testDismissingTheAuthenticationSessionIsReportedInsteadOfSilentlyCancelled() async throws {
     let presenter = HomeAssistantWebAuthenticationPresenter { _ in
       throw ASWebAuthenticationSessionError(.canceledLogin)
     }
 
     do {
       _ = try await presenter.authenticate(at: authenticationURL)
-      XCTFail("Expected authentication cancellation.")
-    } catch is CancellationError {
+      XCTFail("Expected the ended browser session.")
+    } catch HomeAssistantWebAuthenticationError.sessionEnded {
+    } catch {
+      XCTFail("Unexpected error: \(error)")
+    }
+  }
+
+  func testCancelledLoginClassificationDoesNotDependOnLocalizedDiagnostic() async throws {
+    let diagnostic =
+      "Die Anwendung ist nicht mit der Domain bruce.symphonious.net verknüpft."
+    let presenter = HomeAssistantWebAuthenticationPresenter { _ in
+      throw NSError(
+        domain: ASWebAuthenticationSessionError.errorDomain,
+        code: ASWebAuthenticationSessionError.Code.canceledLogin.rawValue,
+        userInfo: [NSLocalizedDescriptionKey: diagnostic]
+      )
+    }
+
+    do {
+      _ = try await presenter.authenticate(at: authenticationURL)
+      XCTFail("Expected the ambiguous cancelled-login failure.")
+    } catch HomeAssistantWebAuthenticationError.sessionEnded(let receivedDiagnostic) {
+      XCTAssertEqual(receivedDiagnostic, diagnostic)
     } catch {
       XCTFail("Unexpected error: \(error)")
     }

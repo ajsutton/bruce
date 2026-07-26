@@ -7,6 +7,14 @@ enum HomeAssistantAuthenticationProblemMapper {
     if let authenticationError = error as? HomeAssistantAuthenticationError {
       return problem(for: authenticationError)
     }
+    if let browserError = error as? HomeAssistantWebAuthenticationError {
+      switch browserError {
+      case .presentationFailed:
+        return .browserUnavailable
+      case .sessionEnded:
+        return .browserSessionEnded
+      }
+    }
     if error is HomeAssistantCredentialStoreError {
       return .couldNotSave
     }
@@ -36,8 +44,10 @@ enum HomeAssistantAuthenticationProblemMapper {
     case .invalidCallback, .stateMismatch, .missingAuthorizationCode:
       return .invalidCallback
     case .invalidInstanceURL, .invalidTokenResponse, .unexpectedResponse,
-      .randomGenerationFailed, .presentationUnavailable:
+      .randomGenerationFailed:
       return .other
+    case .presentationUnavailable:
+      return .browserUnavailable
     }
   }
 

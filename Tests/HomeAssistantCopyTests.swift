@@ -97,6 +97,8 @@ final class HomeAssistantCopyTests: XCTestCase {
     [
       .rejected,
       .inactiveUser,
+      .browserUnavailable,
+      .browserSessionEnded,
       .unavailable,
       .invalidCallback,
       .verificationFailed,

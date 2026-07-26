@@ -36,16 +36,6 @@ final class HomeAssistantSetupStore: ObservableObject {
     case cancelled
   }
 
-  enum AuthenticationProblem: Equatable {
-    case rejected
-    case inactiveUser
-    case unavailable
-    case invalidCallback
-    case verificationFailed
-    case couldNotSave
-    case other
-  }
-
   enum DiscoveryProblem: Equatable {
     case permissionDenied
     case failed
@@ -308,6 +298,10 @@ extension HomeAssistantSetupStore.ConnectionCheckState {
     case .idle, .checking, .succeeded, .disconnectFailed:
       false
     }
+  }
+
+  var disconnectButtonTitle: String {
+    self == .disconnectFailed ? "Retry Disconnect" : "Disconnect from Home Assistant"
   }
 }
 

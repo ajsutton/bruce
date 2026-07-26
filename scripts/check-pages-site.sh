@@ -3,7 +3,8 @@ set -euo pipefail
 
 site_root="docs"
 domain="bruce.symphonious.net"
-application_identifier="P8LX6DFJM4.net.symphonious.bruce"
+release_application_identifier="P8LX6DFJM4.net.symphonious.bruce"
+debug_application_identifier="P8LX6DFJM4.net.symphonious.bruce.debug"
 
 required_files=(
   "$site_root/.nojekyll"
@@ -39,9 +40,9 @@ done
 
 association_file="$site_root/.well-known/apple-app-site-association"
 normalized_association="$(plutil -convert json -o - "$association_file")"
-expected_association="{\"webcredentials\":{\"apps\":[\"$application_identifier\"]}}"
+expected_association="{\"webcredentials\":{\"apps\":[\"$release_application_identifier\",\"$debug_application_identifier\"]}}"
 if [[ "$normalized_association" != "$expected_association" ]]; then
-  echo "Apple association file must contain only the expected web credentials application"
+  echo "Apple association file must contain only the expected Release and Debug web credentials applications"
   exit 1
 fi
 

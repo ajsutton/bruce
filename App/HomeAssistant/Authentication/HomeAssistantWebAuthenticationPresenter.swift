@@ -67,10 +67,11 @@ final class HomeAssistantWebAuthenticationPresenter: HomeAssistantWebAuthenticat
       let callbackURL: URL
       do {
         callbackURL = try await task.value
-      } catch let error as ASWebAuthenticationSessionError
-        where error.code == .canceledLogin
-      {
-        throw CancellationError()
+      } catch {
+        if error is CancellationError || Task.isCancelled {
+          throw CancellationError()
+        }
+        throw Self.classifiedError(error)
       }
       try Task.checkCancellation()
       guard self.attemptID == attemptID else {
@@ -86,5 +87,15 @@ final class HomeAssistantWebAuthenticationPresenter: HomeAssistantWebAuthenticat
     authenticationTask?.cancel()
     authenticationTask = nil
     attemptID = UUID()
+  }
+
+  private static func classifiedError(_ error: any Error) -> any Error {
+    let diagnostic = (error as NSError).localizedDescription
+    if let sessionError = error as? ASWebAuthenticationSessionError,
+      sessionError.code == .canceledLogin
+    {
+      return HomeAssistantWebAuthenticationError.sessionEnded(diagnostic)
+    }
+    return HomeAssistantWebAuthenticationError.presentationFailed(diagnostic)
   }
 }
