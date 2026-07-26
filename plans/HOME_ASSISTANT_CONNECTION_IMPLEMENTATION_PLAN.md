@@ -2,7 +2,7 @@
 
 ## Status
 
-Ready for implementation after the manual decision and infrastructure checkpoints below.
+Ready for implementation, subject to the infrastructure checkpoints below.
 
 This document turns
 [`HOME_ASSISTANT_CONNECTION_PLAN.md`](HOME_ASSISTANT_CONNECTION_PLAN.md) into executable work. The
@@ -39,31 +39,16 @@ typed authenticated connection check, not an entity browser or temperature UI.
   it.
 - Fix every reviewer finding and rerun the affected reviewers until they report no findings.
 
-## Decisions before implementation
-
-### Manual decision 1: local HTTP policy
-
-Home Assistant commonly advertises an internal URL such as
-`http://homeassistant.local:8123`. Using it for OAuth and API requests sends bearer credentials
-without TLS on the local network.
-
-Before Milestone 2, the user must select one policy:
-
-1. **Allow discovered local HTTP:** accept `http://` only when it came from a user-confirmed
-   `_home-assistant._tcp.local.` advertisement or its resolved service endpoint. Continue to
-   require HTTPS for external URLs. This provides the easiest compatibility with default Home
-   Assistant installations.
-2. **Require HTTPS everywhere:** reject HTTP URLs and instruct the user to configure trusted HTTPS
-   for the Home Assistant instance. This is the strongest transport policy but makes common local
-   installations require extra setup.
-
-Do not infer this choice from implementation convenience. Record the selected policy in the
-specification before networking code is committed.
-
-### Decisions already resolved
+## Resolved implementation decisions
 
 - Client ID: `https://bruce.symphonious.net/`
 - OAuth redirect: `https://bruce.symphonious.net/auth/`
+- Local HTTP is allowed only for a user-confirmed internal candidate.
+- A manually entered HTTP URL requires an explicit unencrypted-connection warning and
+  confirmation.
+- External candidates require trusted HTTPS; an advertised HTTP external URL is retained but
+  cannot receive credentials.
+- HTTPS-to-HTTP redirects and cross-origin authorization redirects are rejected.
 - Self-signed and privately issued certificates: reject by default.
 - Server replacement: keep the current working connection until the replacement authenticates
   and verifies successfully.
@@ -73,7 +58,7 @@ specification before networking code is committed.
 ## Dependency order
 
 ```text
-Milestone 0: manual policy decision
+Milestone 0: preflight and baselines
         |
         +------------------------------+
         |                              |
@@ -108,34 +93,32 @@ until the website, DNS, and HTTPS checkpoints are complete.
 
 ### Implementation work
 
-1. Record the selected local HTTP policy in the specification.
-2. Confirm the branch starts clean and rebased or merged from the intended `main`.
-3. Run and capture the existing tests before changing production code:
+1. Confirm the branch starts clean and rebased or merged from the intended `main`.
+2. Run and capture the existing tests before changing production code:
 
    ```sh
    mkdir -p .agent-tmp
    just test 2>&1 | tee .agent-tmp/home-assistant-baseline-tests.txt
    ```
 
-4. Confirm the installed SDK exposes:
+3. Confirm the installed SDK exposes:
    - `NWBrowser` Bonjour browsing and TXT records;
    - `ASWebAuthenticationSession.Callback.https(host:path:)`;
    - Keychain Services; and
    - the required iOS and macOS local-network privacy keys.
-5. Confirm GitHub Pages is available for the private `ajsutton/bruce` repository under the
+4. Confirm GitHub Pages is available for the private `ajsutton/bruce` repository under the
    account's current GitHub plan. If it is unavailable, stop and ask the user to choose between a
    plan change and a separate public website repository. Do not make the application repository
    public.
 
 ### Exit criteria
 
-- The HTTP policy is documented.
 - Baseline tests pass.
 - Required platform APIs and GitHub Pages availability are confirmed.
 
 ### Commit
 
-Commit only if the specification changed to record the HTTP policy.
+Do not create a preflight-only commit.
 
 ## Milestone 1: minimal OAuth website
 
@@ -227,8 +210,10 @@ Tests/HomeAssistantDiscoveryClientTests.swift
 9. Cancel browsing, resolution, handlers, and continuations when the consumer stops.
 10. Map permission denial, browser failure, invalid advertisements, and cancellation distinctly.
 11. Add the required Bonjour and local-network usage keys to the applicable Info.plists.
-12. Apply the selected local HTTP policy without weakening TLS or App Transport Security
-    globally.
+12. Allow HTTP only for a user-confirmed internal candidate.
+13. Retain but reject an HTTP external URL for authentication and API requests.
+14. Reject HTTPS-to-HTTP and cross-origin authorization redirects without weakening TLS or App
+    Transport Security globally.
 
 ### Unit tests
 
@@ -242,6 +227,8 @@ Cover:
 - missing version;
 - `base_url` compatibility;
 - resolved-service fallback;
+- confirmed discovered HTTP internal candidates;
+- retained but unusable HTTP external candidates;
 - stable ordering;
 - result updates and removal;
 - permission and browser failures; and
@@ -292,10 +279,12 @@ Use platform-specific view files if a shared view makes either iPhone or Mac beh
    results.
 5. Normalize manual URLs and reject credentials, fragments, endpoint suffixes, and unsupported
    schemes.
-6. Preserve typed input after validation errors.
-7. Keep VoiceOver and keyboard focus stable when discovery results change.
-8. Stop discovery when the setup screen no longer owns it.
-9. Provide deterministic preview and test dependencies; never browse from previews.
+6. Treat manual HTTP as an internal candidate and require a clear unencrypted-connection warning
+   and explicit confirmation before authentication.
+7. Preserve typed input after validation errors.
+8. Keep VoiceOver and keyboard focus stable when discovery results change.
+9. Stop discovery when the setup screen no longer owns it.
+10. Provide deterministic preview and test dependencies; never browse from previews.
 
 ### Unit and UI tests
 
@@ -415,24 +404,28 @@ Tests/HomeAssistantSessionTests.swift
 
 1. Add an actor-owned session as the single mutable owner of credentials and refresh work.
 2. Attach bearer tokens only to requests derived from confirmed internal or external URLs.
-3. Prefer the last successful URL.
-4. For idempotent reads, try the alternate URL once after DNS, connection, offline, or bounded
+3. Permit an HTTP bearer request only for a confirmed internal candidate.
+4. Prefer the last successful URL.
+5. For idempotent reads, try the alternate URL once after DNS, connection, offline, or bounded
    connection-timeout failure.
-5. Do not switch silently for TLS, authentication, HTTP, compatibility, or decoding failures.
-6. Do not automatically replay mutating requests after ambiguous transport failure.
-7. Coalesce concurrent refresh requests.
-8. Refresh before expiry and retry one read after a refreshable `401`.
-9. Prevent stale refresh results from replacing newer credentials.
-10. Persist the new credential and last-successful URL only after success.
-11. Clear invalid-refresh credentials and surface reauthentication.
-12. Add a typed authenticated `GET /api/` connection check.
-13. Preserve cancellation through routing, refresh, and HTTP loading.
+6. Reject HTTP external candidates, HTTPS downgrades, and cross-origin authorization redirects.
+7. Do not switch silently for TLS, authentication, HTTP, compatibility, or decoding failures.
+8. Do not automatically replay mutating requests after ambiguous transport failure.
+9. Coalesce concurrent refresh requests.
+10. Refresh before expiry and retry one read after a refreshable `401`.
+11. Prevent stale refresh results from replacing newer credentials.
+12. Persist the new credential and last-successful URL only after success.
+13. Clear invalid-refresh credentials and surface reauthentication.
+14. Add a typed authenticated `GET /api/` connection check.
+15. Preserve cancellation through routing, refresh, and HTTP loading.
 
 ### Unit tests
 
 Cover:
 
 - bearer-header construction and origin restrictions;
+- allowed confirmed HTTP internal requests;
+- rejected HTTP external requests and HTTPS downgrades;
 - internal-first initial check after discovery;
 - internal-to-external and external-to-internal fallback;
 - last-successful-first behaviour after a switch;
@@ -699,6 +692,8 @@ No central Home Assistant developer registration or client secret is required.
 7. Do not copy credentials, codes, or tokens into issue comments, chat, screenshots, or test
    fixtures.
 8. Confirm Bruce reports connected only after its authenticated API check succeeds.
+9. Separately enter the local HTTP URL manually and confirm Bruce requires the unencrypted-
+   connection warning before it opens authentication.
 
 ### F. Verify automatic internal/external switching
 
@@ -715,7 +710,7 @@ No central Home Assistant developer registration or client secret is required.
 
 ## Completion checklist
 
-- [ ] Local HTTP policy selected and documented.
+- [ ] Local HTTP policy implemented and tested.
 - [ ] Baseline tests captured.
 - [ ] Minimal website committed and merged.
 - [ ] GitHub domain verified.

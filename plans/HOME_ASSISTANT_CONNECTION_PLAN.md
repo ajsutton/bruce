@@ -113,6 +113,25 @@ active internal or external instance URL determines which token endpoint is used
 action should revoke the refresh token through an available instance URL before deleting the
 local credentials.
 
+### Transport security
+
+Bruce will support Home Assistant's common local HTTP configuration with these limits:
+
+- an `http://` URL may be used only as a confirmed internal connection candidate;
+- a discovered `internal_url` or resolved mDNS service becomes confirmed only after the user
+  selects that advertised Home Assistant instance;
+- a manually entered HTTP URL is treated as an internal candidate only after Bruce warns that the
+  connection is not encrypted and the user explicitly continues;
+- an external connection candidate must use trusted HTTPS;
+- an advertised HTTP `external_url` is retained as discovery metadata but is not eligible for
+  authentication or API requests;
+- Bruce must never follow a redirect that downgrades HTTPS to HTTP or forwards authorization to
+  another origin; and
+- support for local HTTP must not weaken TLS or App Transport Security globally.
+
+This policy accepts the practical risk of sending credentials without TLS on a user-confirmed
+local network while preventing the same behaviour over the Internet.
+
 ### OAuth client identity and callback
 
 Bruce will use these permanent OAuth values:
@@ -227,6 +246,8 @@ Validation should:
 
 - trim surrounding whitespace;
 - require an `http` or `https` URL with a host;
+- treat a manually entered HTTP URL as internal and require an explicit insecure-connection
+  confirmation before authentication;
 - reject embedded credentials and fragments;
 - preserve an explicit port;
 - normalize away API or authentication endpoint suffixes so the stored value represents the
@@ -420,6 +441,10 @@ Provide distinct, actionable presentations for:
 - local-network access denied: explain how to enable it in System Settings;
 - no server discovered: keep scanning and offer manual entry;
 - malformed manual address: keep the entered value and identify what to correct;
+- manually entered HTTP address: explain that the local connection is not encrypted and require
+  confirmation before sign-in;
+- insecure external address: retain it for diagnostics but explain that remote access requires
+  HTTPS;
 - server unreachable: retry or choose another address;
 - certificate failure: explain that the server's secure connection could not be verified;
 - authentication cancelled: return to the server confirmation screen without treating it as an
@@ -467,7 +492,10 @@ state.
   sign-in state is preferable; otherwise use the system session's normal secure cookie handling.
 - Send bearer tokens only to the internal and external URLs captured from the user-confirmed
   Home Assistant instance, or to a replacement URL the user explicitly confirms.
+- Permit bearer tokens over HTTP only for an internal candidate confirmed under the transport
+  policy above.
 - Reject redirects that would forward an authorization header to another origin.
+- Reject every HTTPS-to-HTTP redirect.
 - Store credentials locally in Keychain and do not sync them.
 - Never weaken App Transport Security or certificate validation globally.
 - Collect no analytics containing home names, local addresses, UUIDs, or authentication outcomes
@@ -483,6 +511,8 @@ Cover:
 - deterministic deduplication and ordering;
 - preservation of distinct internal and external URLs plus service-resolution fallback;
 - manual URL normalization and rejection;
+- manual HTTP warning and confirmation;
+- rejection of HTTP external candidates and HTTPS-to-HTTP redirects;
 - authorization URL query construction;
 - callback validation, including missing/mismatched state and OAuth errors;
 - exact form bodies for code exchange, refresh, and revocation;
@@ -519,7 +549,8 @@ Use an isolated Home Assistant test instance to verify:
   again when only the internal URL is reachable;
 - access-token expiry during concurrent API requests;
 - server restart and temporary network loss;
-- internal HTTP and trusted HTTPS deployments; and
+- internal HTTP and trusted HTTPS deployments;
+- rejection of an HTTP external URL; and
 - no token or authorization code appears in captured logs.
 
 Real-device verification is required for Bonjour permissions, callback routing, and Keychain
@@ -594,18 +625,13 @@ Connection setup is complete when:
 - an authenticated Home Assistant API check succeeds before the UI reports that Bruce is
   connected.
 
-## Decisions required before OAuth implementation
+## Resolved implementation decisions
 
-The client ID, callback, hosting service, and custom domain are decided above. The remaining
-decisions are:
-
-1. Decide whether HTTP Home Assistant URLs are allowed only on local networks or supported
-   wherever the user enters them.
-2. Decide how Bruce should handle privately issued or self-signed HTTPS certificates. The default
-   remains rejection.
-3. Decide whether changing servers replaces the current connection immediately or preserves it
-   until the new server authenticates successfully. Preserving the working connection is
-   recommended.
+- Local HTTP is allowed only for a user-confirmed internal candidate.
+- External access requires trusted HTTPS.
+- Privately issued and self-signed HTTPS certificates are rejected.
+- Changing servers preserves the working connection until the replacement authenticates and
+  verifies successfully.
 
 ## References
 
