@@ -157,16 +157,59 @@ struct HomeAssistantCopy {
     "Sign in to \(instanceName) in the system browser window."
   }
 
-  var connectionFailed: String {
-    "The Home Assistant connection check failed. You can try again."
+  func connectionFailed(_ problem: HomeAssistantSetupStore.ConnectionCheckProblem) -> String {
+    switch problem {
+    case .networkUnavailable:
+      "Bruce could not reach Home Assistant. Check the network and server address, then try again."
+    case .serverRejectedRequest:
+      "Home Assistant responded with an error. Check the server, then try again."
+    case .incompatibleServer:
+      "This address doesn’t appear to be a Home Assistant server. Check the server address, then try again."
+    case .invalidResponse:
+      "Home Assistant returned a response Bruce could not read. Try again."
+    case .other:
+      "The Home Assistant connection check failed. Try again or sign in again."
+    }
   }
 
-  var connectionFailedStatus: String {
-    "Connection check failed"
+  func connectionFailedStatus(
+    _ problem: HomeAssistantSetupStore.ConnectionCheckProblem
+  ) -> String {
+    switch problem {
+    case .networkUnavailable:
+      "Home Assistant could not be reached"
+    case .serverRejectedRequest:
+      "Home Assistant returned an error"
+    case .incompatibleServer:
+      "Address is not a Home Assistant server"
+    case .invalidResponse:
+      "Invalid Home Assistant response"
+    case .other:
+      "Connection check failed"
+    }
   }
 
   var reauthenticationRequired: String {
     "Home Assistant requires you to sign in again."
+  }
+
+  func connectionCheckAnnouncement(
+    _ state: HomeAssistantSetupStore.ConnectionCheckState
+  ) -> String? {
+    switch state {
+    case .idle:
+      nil
+    case .checking:
+      "Checking the Home Assistant connection."
+    case .succeeded:
+      "The Home Assistant connection check succeeded."
+    case .failed(let problem):
+      connectionFailed(problem)
+    case .reauthenticationRequired:
+      reauthenticationRequired
+    case .disconnectFailed:
+      disconnectFailed
+    }
   }
 
   var disconnectFailed: String {

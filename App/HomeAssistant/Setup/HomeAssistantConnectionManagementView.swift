@@ -1,4 +1,5 @@
 #if os(iOS)
+  import Accessibility
   import SwiftUI
 
   struct HomeAssistantConnectionManagementView: View {
@@ -30,8 +31,11 @@
               store.testConnection()
             }
             .disabled(store.connectionCheckState == .checking || store.isDisconnecting)
+            .accessibilityValue(
+              store.connectionCheckState == .checking ? "Checking" : "Ready"
+            )
 
-            if store.connectionCheckState == .reauthenticationRequired {
+            if store.connectionCheckState.canSignInAgain {
               Button("Sign In Again") {
                 store.reauthenticate()
                 dismiss()
@@ -60,6 +64,11 @@
           dismiss()
         }
       }
+      .onChange(of: store.connectionCheckState) { _, state in
+        if let announcement = copy.connectionCheckAnnouncement(state) {
+          AccessibilityNotification.Announcement(announcement).post()
+        }
+      }
       .confirmationDialog(
         "Disconnect from Home Assistant?",
         isPresented: $showsDisconnectConfirmation
@@ -75,30 +84,32 @@
 
     @ViewBuilder
     private var connectionStatus: some View {
-      if store.isDisconnecting {
-        LabeledContent("Status") {
-          ProgressView()
-            .controlSize(.small)
-            .accessibilityLabel("Disconnecting")
-        }
-      } else {
-        switch store.connectionCheckState {
-        case .idle:
-          LabeledContent("Status", value: "Not checked")
-        case .checking:
+      Group {
+        if store.isDisconnecting {
           LabeledContent("Status") {
             ProgressView()
               .controlSize(.small)
-              .accessibilityLabel("Checking connection")
+              .accessibilityLabel("Disconnecting")
           }
-        case .succeeded:
-          LabeledContent("Status", value: copy.connectedStatus)
-        case .failed:
-          LabeledContent("Status", value: copy.connectionFailedStatus)
-        case .reauthenticationRequired:
-          LabeledContent("Status", value: "Sign-in required")
-        case .disconnectFailed:
-          LabeledContent("Status", value: copy.disconnectFailed)
+        } else {
+          switch store.connectionCheckState {
+          case .idle:
+            LabeledContent("Status", value: "Not checked")
+          case .checking:
+            LabeledContent("Status") {
+              ProgressView()
+                .controlSize(.small)
+                .accessibilityLabel("Checking connection")
+            }
+          case .succeeded:
+            LabeledContent("Status", value: copy.connectedStatus)
+          case .failed(let problem):
+            LabeledContent("Status", value: copy.connectionFailedStatus(problem))
+          case .reauthenticationRequired:
+            LabeledContent("Status", value: "Sign-in required")
+          case .disconnectFailed:
+            LabeledContent("Status", value: copy.disconnectFailed)
+          }
         }
       }
     }
@@ -109,4 +120,5 @@
         : "Disconnect from Home Assistant"
     }
   }
+
 #endif

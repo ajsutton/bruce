@@ -69,8 +69,20 @@ final class HomeAssistantCopyTests: XCTestCase {
     XCTAssertEqual(standard.unencryptedMessage, full.unencryptedMessage)
     XCTAssertEqual(standard.onboardingTitle, full.onboardingTitle)
     XCTAssertEqual(standard.openingHomeAssistant, full.openingHomeAssistant)
-    XCTAssertEqual(standard.connectionFailed, full.connectionFailed)
-    XCTAssertEqual(standard.connectionFailedStatus, full.connectionFailedStatus)
+    for problem in connectionCheckProblems {
+      XCTAssertEqual(
+        standard.connectionFailed(problem),
+        full.connectionFailed(problem)
+      )
+      XCTAssertEqual(
+        standard.connectionFailedStatus(problem),
+        full.connectionFailedStatus(problem)
+      )
+      XCTAssertEqual(
+        standard.connectionCheckAnnouncement(.failed(problem)),
+        full.connectionCheckAnnouncement(.failed(problem))
+      )
+    }
     XCTAssertEqual(standard.reauthenticationRequired, full.reauthenticationRequired)
     XCTAssertEqual(standard.disconnectFailed, full.disconnectFailed)
     XCTAssertEqual(
@@ -89,6 +101,16 @@ final class HomeAssistantCopyTests: XCTestCase {
       .invalidCallback,
       .verificationFailed,
       .couldNotSave,
+      .other,
+    ]
+  }
+
+  private var connectionCheckProblems: [HomeAssistantSetupStore.ConnectionCheckProblem] {
+    [
+      .networkUnavailable,
+      .serverRejectedRequest,
+      .incompatibleServer,
+      .invalidResponse,
       .other,
     ]
   }

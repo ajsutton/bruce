@@ -1,3 +1,4 @@
+import Accessibility
 import SwiftUI
 
 #if os(macOS)
@@ -57,8 +58,11 @@ import SwiftUI
             .disabled(
               setupStore.connectionCheckState == .checking || setupStore.isDisconnecting
             )
+            .accessibilityValue(
+              setupStore.connectionCheckState == .checking ? "Checking" : "Ready"
+            )
 
-            if setupStore.connectionCheckState == .reauthenticationRequired {
+            if setupStore.connectionCheckState.canSignInAgain {
               Button("Sign In Again") {
                 setupStore.reauthenticate()
                 openWindow(id: "main")
@@ -97,6 +101,11 @@ import SwiftUI
       .task {
         await modeController.synchronize()
       }
+      .onChange(of: setupStore.connectionCheckState) { _, state in
+        if let announcement = copy.connectionCheckAnnouncement(state) {
+          AccessibilityNotification.Announcement(announcement).post()
+        }
+      }
       .alert(
         "Bruce couldn’t change the app icon",
         isPresented: Binding(
@@ -127,30 +136,32 @@ import SwiftUI
 
     @ViewBuilder
     private var connectionStatus: some View {
-      if setupStore.isDisconnecting {
-        LabeledContent("Status") {
-          ProgressView()
-            .controlSize(.small)
-            .accessibilityLabel("Disconnecting")
-        }
-      } else {
-        switch setupStore.connectionCheckState {
-        case .idle:
-          LabeledContent("Status", value: "Not checked")
-        case .checking:
+      Group {
+        if setupStore.isDisconnecting {
           LabeledContent("Status") {
             ProgressView()
               .controlSize(.small)
-              .accessibilityLabel("Checking connection")
+              .accessibilityLabel("Disconnecting")
           }
-        case .succeeded:
-          LabeledContent("Status", value: copy.connectedStatus)
-        case .failed:
-          LabeledContent("Status", value: copy.connectionFailedStatus)
-        case .reauthenticationRequired:
-          LabeledContent("Status", value: "Sign-in required")
-        case .disconnectFailed:
-          LabeledContent("Status", value: copy.disconnectFailed)
+        } else {
+          switch setupStore.connectionCheckState {
+          case .idle:
+            LabeledContent("Status", value: "Not checked")
+          case .checking:
+            LabeledContent("Status") {
+              ProgressView()
+                .controlSize(.small)
+                .accessibilityLabel("Checking connection")
+            }
+          case .succeeded:
+            LabeledContent("Status", value: copy.connectedStatus)
+          case .failed(let problem):
+            LabeledContent("Status", value: copy.connectionFailedStatus(problem))
+          case .reauthenticationRequired:
+            LabeledContent("Status", value: "Sign-in required")
+          case .disconnectFailed:
+            LabeledContent("Status", value: copy.disconnectFailed)
+          }
         }
       }
     }
@@ -179,4 +190,5 @@ import SwiftUI
       }
     }
   }
+
 #endif

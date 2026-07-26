@@ -51,11 +51,19 @@ final class HomeAssistantSetupStore: ObservableObject {
     case failed
   }
 
+  enum ConnectionCheckProblem: Equatable {
+    case networkUnavailable
+    case serverRejectedRequest
+    case incompatibleServer
+    case invalidResponse
+    case other
+  }
+
   enum ConnectionCheckState: Equatable {
     case idle
     case checking
     case succeeded
-    case failed
+    case failed(ConnectionCheckProblem)
     case reauthenticationRequired
     case disconnectFailed
   }
@@ -289,6 +297,17 @@ final class HomeAssistantSetupStore: ObservableObject {
   func cancel() {
     stopDiscovery()
     connectionController.cancel()
+  }
+}
+
+extension HomeAssistantSetupStore.ConnectionCheckState {
+  var canSignInAgain: Bool {
+    switch self {
+    case .failed, .reauthenticationRequired:
+      true
+    case .idle, .checking, .succeeded, .disconnectFailed:
+      false
+    }
   }
 }
 

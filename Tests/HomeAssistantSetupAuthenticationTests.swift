@@ -145,6 +145,28 @@ final class HomeAssistantSetupAuthenticationTests: XCTestCase {
     XCTAssertEqual(store.connectedCredentials, credentials())
   }
 
+  func testUnauthorizedConnectionCheckOffersSignInAgain() async {
+    let connection = ControlledHomeAssistantConnection()
+    connection.restoredCredentials = credentials()
+    let store = makeStore(connection: connection)
+    await store.restoreSavedConnection()
+    connection.connectionCheckError = HomeAssistantAPIError.unauthorized
+    let checkFinished = expectation(description: "Sign-in recovery shown")
+    checkFinished.assertForOverFulfill = false
+    let subscription = store.objectWillChange.receive(on: RunLoop.main).sink {
+      if store.connectionCheckState == .reauthenticationRequired {
+        checkFinished.fulfill()
+      }
+    }
+
+    store.testConnection()
+    await fulfillment(of: [checkFinished], timeout: 1)
+
+    XCTAssertEqual(store.connectionCheckState, .reauthenticationRequired)
+    XCTAssertEqual(store.connectedCredentials, credentials())
+    withExtendedLifetime(subscription) {}
+  }
+
   func testRestoreFailureShowsRecoveryState() async {
     let connection = ControlledHomeAssistantConnection()
     connection.restoreError = HomeAssistantCredentialStoreError.keychainFailure(-1)
@@ -268,6 +290,7 @@ private final class ControlledHomeAssistantConnection: HomeAssistantConnecting {
   var restoredCredentials: HomeAssistantCredentials?
   var restoreError: (any Error)?
   var disconnectError: (any Error)?
+  var connectionCheckError: (any Error)?
   var blocksRestore = false
   var blocksConnectionCheck = false
   var ignoresCancellation = false
@@ -303,6 +326,9 @@ private final class ControlledHomeAssistantConnection: HomeAssistantConnecting {
   }
 
   func testConnection() async throws -> HomeAssistantCredentials {
+    if let connectionCheckError {
+      throw connectionCheckError
+    }
     if blocksConnectionCheck {
       connectionCheckStarted.fulfill()
       let credentials = try await withCheckedThrowingContinuation { continuation in

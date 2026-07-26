@@ -256,8 +256,8 @@ extension HomeAssistantSetupView {
       Text(copy.connectionChecking)
     case .succeeded:
       Text(copy.connectionSucceeded)
-    case .failed:
-      Text(copy.connectionFailed)
+    case .failed(let problem):
+      Text(copy.connectionFailed(problem))
     case .reauthenticationRequired:
       Text(copy.reauthenticationRequired)
     case .disconnectFailed:

@@ -206,7 +206,7 @@ final class HomeAssistantConnectionController: ObservableObject {
       apply(outcome, generation: generation)
     } catch is CancellationError {
     } catch {
-      applyConfigured(credentials, state: .failed, generation: generation)
+      applyConfigured(credentials, state: .failed(.other), generation: generation)
     }
   }
 
