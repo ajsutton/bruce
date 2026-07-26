@@ -31,6 +31,13 @@ Brand expression, palette, language and the Bruce/Full Bruce presentation modes 
 - Toolbar, menu, and context-menu actions should agree.
 - Disable unavailable commands rather than changing menu shape.
 
+### App settings
+
+- Put every persistent app setting in the native Settings window on macOS and in the Settings app
+  on iOS.
+- Do not place app settings in primary app content or duplicate them in another in-app surface.
+- Keep task controls that act on the house in the relevant app screen; they are not app settings.
+
 ## SwiftUI
 
 - Prefer native controls and semantic system colours.
