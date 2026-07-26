@@ -44,6 +44,26 @@ build-mac: generate
         -derivedDataPath .build \
         CODE_SIGNING_ALLOWED=NO
 
+# Build and launch the macOS app; extra arguments are forwarded to the app.
+[positional-arguments]
+run-mac *args: build-mac
+    #!/usr/bin/env bash
+    set -euo pipefail
+    app_path=".build/Build/Products/Debug/Bruce.app"
+    app_binary="$app_path/Contents/MacOS/Bruce"
+    if [ "$#" -gt 0 ]; then
+        pkill -f "Bruce.app/Contents/MacOS/Bruce" 2>/dev/null || true
+        nohup "$app_binary" "$@" >/dev/null 2>&1 &
+        disown
+    else
+        open "$app_path"
+    fi
+
+# Launch the macOS app and capture this process's unified logs.
+[positional-arguments]
+run-mac-with-logs predicate='subsystem == "net.symphonious.bruce"' *args: generate
+    bash scripts/run-with-logs.sh "$@"
+
 build-ios: generate
     #!/usr/bin/env bash
     set -euo pipefail
