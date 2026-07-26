@@ -264,8 +264,10 @@ final class HomeAssistantSetupStore: ObservableObject {
     connectionController.retryAuthentication()
   }
 
-  func restoreSavedConnection() async {
+  @discardableResult
+  func restoreSavedConnection() async -> Bool {
     await connectionController.restoreSavedConnection()
+    return !Task.isCancelled
   }
 
   func testConnection() {
@@ -287,6 +289,21 @@ final class HomeAssistantSetupStore: ObservableObject {
   func cancel() {
     stopDiscovery()
     connectionController.cancel()
+  }
+}
+
+extension HomeAssistantSetupStore {
+  func startDiscoveryIfUnconfigured() {
+    switch step {
+    case .introduction:
+      startDiscovery()
+    case .chooseServer where !isSearching:
+      startDiscovery()
+    case .restoring, .restoreFailed, .chooseServer, .manualEntry, .confirmation,
+      .unencryptedWarning, .onboardingRequired, .readyForAuthentication, .authenticationFailed,
+      .configured, .connected, .cancelled:
+      break
+    }
   }
 }
 

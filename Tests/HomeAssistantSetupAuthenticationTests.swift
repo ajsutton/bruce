@@ -190,7 +190,7 @@ final class HomeAssistantSetupAuthenticationTests: XCTestCase {
 
     store.changeServer()
     connection.completeRestore(with: credentials())
-    await restore.value
+    _ = await restore.value
 
     XCTAssertEqual(store.step, .introduction)
     XCTAssertNil(store.connectedCredentials)

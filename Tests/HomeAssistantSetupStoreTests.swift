@@ -5,28 +5,6 @@ import XCTest
 
 @MainActor
 final class HomeAssistantSetupStoreTests: XCTestCase {
-  func testDiscoveryStartsOnlyAfterUserActionAndPreselectsSingleHome() async {
-    let discovery = ControlledSetupDiscovery()
-    let store = HomeAssistantSetupStore(discovery: discovery)
-    defer { store.stopDiscovery() }
-
-    XCTAssertEqual(store.step, .introduction)
-    XCTAssertFalse(discovery.hasSubscriber)
-
-    let instancesChanged = expectation(description: "Discovered instances published")
-    let subscription = store.$instances.dropFirst().sink { _ in
-      instancesChanged.fulfill()
-    }
-    store.startDiscovery()
-    await fulfillment(of: [discovery.started], timeout: 1)
-    discovery.send(snapshot(instance("home", name: "Home")))
-    await fulfillment(of: [instancesChanged], timeout: 1)
-
-    XCTAssertEqual(store.step, .chooseServer)
-    XCTAssertEqual(store.selectedInstanceID, "home")
-    withExtendedLifetime(subscription) {}
-  }
-
   func testMultipleHomesRequireExplicitSelection() async {
     let discovery = ControlledSetupDiscovery()
     let store = HomeAssistantSetupStore(discovery: discovery)

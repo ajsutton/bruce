@@ -5,6 +5,7 @@ import SwiftUI
     @ObservedObject var modeController: BruceModeController
     @ObservedObject var setupStore: HomeAssistantSetupStore
     @ObservedObject var settingsNavigation: BruceSettingsNavigation
+    @State private var canAutomaticallyDiscover = false
 
     private var isFullBruce: Binding<Bool> {
       Binding(
@@ -32,7 +33,19 @@ import SwiftUI
       .frame(width: 560, height: 520)
       .task {
         await modeController.synchronize()
-        await setupStore.restoreSavedConnection()
+        guard !Task.isCancelled,
+          await setupStore.restoreSavedConnection()
+        else {
+          return
+        }
+        canAutomaticallyDiscover = true
+        startDiscoveryIfNeeded()
+      }
+      .onChange(of: settingsNavigation.selectedSection) {
+        startDiscoveryIfNeeded()
+      }
+      .onChange(of: setupStore.step) {
+        startDiscoveryIfNeeded()
       }
       .alert(
         "Bruce couldn’t change the app icon",
@@ -61,6 +74,15 @@ import SwiftUI
         }
       }
       .formStyle(.grouped)
+    }
+
+    private func startDiscoveryIfNeeded() {
+      guard canAutomaticallyDiscover,
+        settingsNavigation.selectedSection == .homeAssistant
+      else {
+        return
+      }
+      setupStore.startDiscoveryIfUnconfigured()
     }
   }
 
