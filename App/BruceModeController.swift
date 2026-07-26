@@ -161,6 +161,9 @@ final class BruceModeController: ObservableObject {
       return
     }
 
+    let previousMode = mode
+    mode = request.mode
+
     do {
       try await iconApplier.apply(request.mode)
       lastAppliedIconMode = request.mode
@@ -168,15 +171,19 @@ final class BruceModeController: ObservableObject {
         return
       }
       persist(request.mode, to: request.persistence)
-      mode = request.mode
     } catch is CancellationError {
-      if request.isInitial, request.generation == nextGeneration {
+      guard request.generation == nextGeneration else {
+        return
+      }
+      mode = previousMode
+      if request.isInitial {
         hasStarted = false
       }
     } catch {
       guard request.generation == nextGeneration else {
         return
       }
+      mode = previousMode
       logger.error(
         "Could not apply the selected Bruce app icon: \(String(describing: error), privacy: .private)"
       )
