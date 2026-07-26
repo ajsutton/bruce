@@ -1,0 +1,516 @@
+# Home Assistant Connection Plan
+
+## Status
+
+Proposed specification. No discovery, authentication, credential storage, or Home Assistant API
+code is approved by this document alone.
+
+## Goal
+
+Let a household member connect Bruce to their Home Assistant instance without needing to know its
+network address or create a long-lived access token manually.
+
+The completed setup should:
+
+- discover Home Assistant instances advertised on the local network;
+- let the user confirm the correct home or enter an address manually;
+- authenticate through Home Assistant's OAuth flow;
+- retain the resulting credentials securely on the current device;
+- provide an authenticated session that later features can use to fetch Home Assistant data; and
+- present clear recovery paths when discovery, authentication, or connectivity fails.
+
+The first expected data feature is room temperature. Connection work should enable that feature
+without embedding temperature, room, or dashboard concepts in discovery or authentication types.
+
+## Non-goals
+
+This slice will not:
+
+- build the room-temperature UI;
+- infer rooms from entity names or Home Assistant friendly names;
+- implement a generic entity browser or Home Assistant administration UI;
+- add Home Assistant device registration, notifications, webhooks, or remote commands;
+- sync credentials through iCloud or another service;
+- accept or persist a user-created long-lived access token;
+- bypass TLS validation or trust self-signed certificates silently; or
+- depend on Home Assistant Cloud.
+
+## Product flow
+
+```text
+Connection introduction
+        |
+        v
+Local-network permission and discovery
+        |
+        +-- one or more instances --> user confirms an instance
+        |
+        +-- none / unavailable -----> manual address entry
+                                      |
+                                      v
+                              validate server address
+                                      |
+                                      v
+                         Home Assistant OAuth in system session
+                                      |
+                         +------------+-------------+
+                         |                          |
+                      success              cancel / error
+                         |                          |
+                         v                          v
+                securely save session       actionable recovery
+                         |
+                         v
+              authenticated connection check
+                         |
+                         v
+                    setup complete
+```
+
+Discovery must reduce typing, not remove user control. Bruce must show the selected home and ask
+the user to continue before opening its sign-in page. This prevents an unexpected or malicious
+local advertisement from initiating authentication without confirmation.
+
+## External protocol requirements
+
+### Instance discovery
+
+Home Assistant advertises `_home-assistant._tcp.local.` using mDNS/Zeroconf. Its TXT record may
+contain:
+
+- `uuid`: the stable Home Assistant instance identifier;
+- `location_name`: the user-facing instance name;
+- `version`: the Home Assistant Core version, when known;
+- `internal_url`: the preferred LAN URL, when configured;
+- `external_url`: the remote URL, when configured;
+- `base_url`: a deprecated compatibility URL; and
+- `landingpage`: a marker for an instance that has not completed Home Assistant onboarding.
+
+Bruce should prefer `internal_url` while it is on the local network. If that property is absent,
+the discovery implementation should resolve the advertised service host and port. `base_url`
+should be used only as a compatibility fallback. The obsolete `requires_api_password` property
+must be ignored.
+
+### Authentication
+
+Home Assistant uses OAuth 2 with IndieAuth-style client identification:
+
+1. Bruce opens `<instance>/auth/authorize` with `client_id`, `redirect_uri`, and a cryptographically
+   random `state`.
+2. Home Assistant redirects to Bruce with an authorization `code` and the same `state`.
+3. Bruce verifies `state`.
+4. Bruce exchanges the code at `<instance>/auth/token` using an
+   `application/x-www-form-urlencoded` request.
+5. Home Assistant returns an access token, refresh token, token type, and access-token lifetime.
+6. Bruce uses `Authorization: Bearer <access token>` for API requests.
+
+The refresh token is exchanged at the same token endpoint when the access token expires. A
+disconnect action should revoke the refresh token through `<instance>/auth/revoke` before deleting
+the local credentials when the server is reachable.
+
+### OAuth client identity prerequisite
+
+Before OAuth can ship, Bruce needs an HTTPS client-ID URL on a domain controlled by the project.
+The first 10 kB of that page must include a Home Assistant-approved redirect declaration when the
+app uses a custom callback scheme, for example:
+
+```html
+<link rel="redirect_uri" href="bruce://home-assistant-auth">
+```
+
+The final client-ID URL and redirect URL are release configuration, not values to invent inside
+the networking implementation. The iOS and macOS targets must use the same values that the hosted
+client-ID page declares.
+
+The preferred callback design is a Bruce-owned custom URL scheme handled by an
+`ASWebAuthenticationSession`. A universal-link callback may replace it if Bruce gains a supported
+website and associated-domains configuration before implementation.
+
+## Backend design
+
+### 1. Discovered instance value
+
+Add a `HomeAssistantInstance` value with:
+
+- stable instance identifier;
+- display name;
+- internal URL, when advertised or resolved;
+- external URL, when advertised;
+- Home Assistant version, when advertised; and
+- onboarding state.
+
+It should be an immutable, `Sendable`, `Equatable` value. Discovery metadata must not contain
+credentials.
+
+URL selection should be explicit. The value may expose ordered connection candidates, but it
+must not claim that a URL is reachable until a connection check succeeds.
+
+### 2. Discovery client
+
+Add a focused discovery boundary backed by Network framework Bonjour browsing.
+
+Responsibilities:
+
+- browse `_home-assistant._tcp` in the `local.` domain;
+- parse and validate Home Assistant TXT records;
+- resolve host and port when no usable internal URL is advertised;
+- deduplicate records by stable Home Assistant UUID;
+- publish deterministic snapshots ordered by display name and UUID;
+- update or remove instances as browse results change;
+- surface browser failures and local-network permission failures;
+- stop browsing and release handlers promptly when cancelled; and
+- never retain a discovery task beyond its owning setup screen or store.
+
+The consumer-facing API should provide an asynchronous stream of discovery snapshots. A stream
+matches Bonjour's changing result set and gives the setup UI an honest searching state without
+polling or arbitrary delays.
+
+The Network framework adapter should sit behind a small substitution boundary so tests can feed
+synthetic advertisements without opening sockets. The boundary is justified by operating-system
+I/O and deterministic cancellation tests; it must not become a general networking framework.
+
+### 3. Manual server validation
+
+Manual entry is required even when discovery works.
+
+Validation should:
+
+- trim surrounding whitespace;
+- require an `http` or `https` URL with a host;
+- reject embedded credentials and fragments;
+- preserve an explicit port;
+- normalize away API or authentication endpoint suffixes so the stored value represents the
+  instance root;
+- call the unauthenticated Home Assistant authorization entry point only through the OAuth
+  session, rather than probing arbitrary endpoints for credentials; and
+- report malformed address, DNS, transport, TLS, timeout, and non-Home-Assistant responses
+  distinctly where recovery differs.
+
+Bruce must never disable TLS checks. A Home Assistant instance using a private or self-signed
+certificate needs an explicit future trust design; it is not silently accepted by this slice.
+
+### 4. Authentication client
+
+Add a `HomeAssistantAuthenticationClient` responsible for protocol construction and token
+requests, not browser presentation or credential persistence.
+
+Responsibilities:
+
+- construct the authorization URL from the instance URL and release OAuth configuration;
+- generate or accept a caller-generated high-entropy `state`;
+- validate the callback scheme, host/path, state, authorization code, and OAuth error values;
+- exchange an authorization code for credentials;
+- refresh an access token;
+- revoke a refresh token;
+- form-encode request bodies correctly;
+- decode successful token responses; and
+- preserve useful Home Assistant error descriptions without exposing token values.
+
+Authorization callbacks and token requests must never be logged in full because they contain
+short-lived secrets.
+
+### 5. Credential value and secure storage
+
+Separate the wire responses from the persisted credential value.
+
+The stored credential record should contain:
+
+- instance identifier and selected instance base URL;
+- access token;
+- refresh token;
+- token type;
+- access-token expiry date;
+- OAuth client ID needed for refresh; and
+- a schema version for future migration.
+
+Store credentials in Keychain with device-only accessibility appropriate for use after the user
+unlocks the device. Do not place tokens in `UserDefaults`, ubiquitous key-value storage, logs,
+analytics, previews, test fixtures checked into the repository, or iCloud-synchronizable Keychain
+items.
+
+Each Apple device authenticates independently. Non-secret presentation data such as the selected
+instance name may be stored separately only when a UI feature needs it.
+
+Credential storage needs a narrow protocol because Keychain is an external boundary and tests
+must prove save, replace, load, and delete behaviour without changing the developer's Keychain.
+
+### 6. Authenticated session
+
+Add an actor-owned `HomeAssistantSession` after authentication and storage exist.
+
+Responsibilities:
+
+- own the current credential state;
+- attach the bearer token to requests;
+- refresh before expiry;
+- coalesce concurrent refresh attempts into one operation;
+- update Keychain only after a successful refresh;
+- retry one request after a `401` only when refresh succeeds;
+- distinguish cancellation, offline state, revoked credentials, server errors, and decoding
+  errors;
+- clear unusable local credentials when Home Assistant rejects the refresh token; and
+- never allow an older refresh result to replace newer credentials.
+
+Transport requests should remain cancellable through structured concurrency. Retrying must be
+bounded; authentication failures must not create loops.
+
+### 7. Initial authenticated API check
+
+After token exchange, setup should perform a small authenticated request such as `GET /api/` or
+`GET /api/config` before declaring success. This proves that:
+
+- the selected base URL is usable;
+- the token is accepted; and
+- the endpoint is a compatible Home Assistant instance.
+
+The generic REST client can then expose typed state-fetching methods. `GET /api/states` is the
+expected first data endpoint, but room-temperature mapping belongs to a subsequent vertical
+slice. Home Assistant areas, devices, and entities must be related using their registry data;
+friendly names alone are not a reliable room model.
+
+## UI requirements
+
+### Shared setup states
+
+The setup model should represent these states explicitly:
+
+- introduction;
+- awaiting local-network permission;
+- searching;
+- one or more discovered instances;
+- no instances found yet;
+- manual address entry;
+- validating selection;
+- authenticating;
+- verifying authenticated access;
+- connected;
+- cancelled; and
+- recoverable or terminal error.
+
+The UI must not display an indefinite spinner with no explanation. Searching should continue
+while the setup screen is active, and manual entry should remain available without waiting for a
+timeout.
+
+### iPhone
+
+- Present connection setup as a short `NavigationStack`.
+- Explain why Bruce needs local-network access before starting Bonjour browsing.
+- Start discovery from a clear user action so the system permission prompt has context.
+- Show discovered homes in a native list with name as the primary label and address/version as
+  optional secondary detail.
+- If one home is found, preselect it but still require confirmation.
+- If several homes are found, require an explicit selection.
+- Provide `Enter Address Manually` on the discovery screen.
+- Use a system authentication session for Home Assistant sign-in. Do not embed or imitate the
+  Home Assistant login form.
+- Keep the authentication session cancellable and return to the selected server on cancellation.
+- On success, announce that Bruce is connected and move into the first household feature when it
+  exists.
+
+All controls need 44-point minimum targets and must work at accessibility Dynamic Type sizes.
+
+### macOS
+
+- Present setup in the initial window using a native form or list rather than an iPhone-sized
+  sheet replica.
+- Support keyboard navigation through discovered instances, manual entry, retry, and continue.
+- Use `ASWebAuthenticationSession` with an appropriate presentation anchor.
+- Keep connection management available later from Settings.
+- Do not close the setup window while authentication or verification is still in progress.
+
+### Permission and Info.plist requirements
+
+Before starting Bonjour discovery:
+
+- declare `_home-assistant._tcp` in `NSBonjourServices`;
+- provide a concise `NSLocalNetworkUsageDescription` explaining that Bruce looks for the user's
+  Home Assistant server; and
+- register the final OAuth callback URL scheme or associated domain.
+
+These declarations must be applied only to the platforms that require them and verified on real
+iOS and macOS devices. Simulator success is not sufficient evidence for local-network permission
+behaviour.
+
+Permission, privacy, authentication, and recovery language must remain direct and identical in
+Bruce and Full Bruce modes.
+
+### Error and recovery behaviour
+
+Provide distinct, actionable presentations for:
+
+- local-network access denied: explain how to enable it in System Settings;
+- no server discovered: keep scanning and offer manual entry;
+- malformed manual address: keep the entered value and identify what to correct;
+- server unreachable: retry or choose another address;
+- certificate failure: explain that the server's secure connection could not be verified;
+- authentication cancelled: return to the server confirmation screen without treating it as an
+  error;
+- authentication rejected or expired: offer sign-in again;
+- Home Assistant still onboarding: explain that setup must finish in Home Assistant first; and
+- saved server unavailable later: preserve credentials, show offline state, and allow retry or
+  connection management.
+
+Do not reveal raw tokens, callback URLs containing codes, internal stack details, or full server
+responses in user-facing errors.
+
+### Connection management
+
+Add a Settings connection section when authentication is integrated into the app:
+
+- show the connected Home Assistant instance name and non-secret base URL;
+- allow the user to test or retry the connection;
+- allow reauthentication when credentials are rejected;
+- allow changing to another server through the setup flow; and
+- provide a confirmed `Disconnect from Home Assistant` action.
+
+Disconnect should revoke the refresh token when possible, delete local credentials regardless of
+network availability, cancel active requests and discovery, and return Bruce to its unconnected
+state.
+
+### Accessibility
+
+- Announce discovery result-count changes without repeatedly stealing VoiceOver focus.
+- Give each discovered instance a clear combined label and selected state.
+- Do not use colour alone for reachable, selected, connected, or error states.
+- Keep VoiceOver and keyboard focus stable as Bonjour results update.
+- Label progress by phase: searching, opening Home Assistant, and verifying connection.
+- Respect Reduce Motion and Increase Contrast.
+
+## Security and privacy requirements
+
+- Generate OAuth state with a cryptographically secure random source and compare it exactly.
+- Accept callbacks only for the configured redirect target.
+- Treat access tokens, refresh tokens, authorization codes, and form bodies as secrets.
+- Redact secrets from logs and diagnostics.
+- Use ephemeral browser authentication only if product testing shows that preventing shared
+  sign-in state is preferable; otherwise use the system session's normal secure cookie handling.
+- Send bearer tokens only to URLs derived from the user-confirmed instance root.
+- Reject redirects that would forward an authorization header to another origin.
+- Store credentials locally in Keychain and do not sync them.
+- Never weaken App Transport Security or certificate validation globally.
+- Collect no analytics containing home names, local addresses, UUIDs, or authentication outcomes
+  tied to a household.
+
+## Testing requirements
+
+### Unit tests
+
+Cover:
+
+- complete, partial, malformed, onboarding, and legacy discovery TXT records;
+- deterministic deduplication and ordering;
+- discovered URL preference and service-resolution fallback;
+- manual URL normalization and rejection;
+- authorization URL query construction;
+- callback validation, including missing/mismatched state and OAuth errors;
+- exact form bodies for code exchange, refresh, and revocation;
+- token decoding and expiry calculation;
+- HTTP and Home Assistant error mapping;
+- Keychain save, replace, load, delete, and corrupt-record handling through a test store;
+- access-token attachment without leaking it into errors;
+- refresh coalescing for concurrent requests;
+- one bounded retry after `401`;
+- invalid-refresh cleanup; and
+- cancellation at discovery, authentication, refresh, and API-request boundaries.
+
+Tests must use injected discovery, browser-session, credential-store, clock, randomness, and HTTP
+boundaries. They must not browse the developer's network, open a real authentication session,
+change the developer's Keychain, sleep, retry nondeterministically, or contact a live Home
+Assistant instance.
+
+### Integration and manual verification
+
+Use an isolated Home Assistant test instance to verify:
+
+- discovery from iPhone and Mac on the same LAN;
+- local-network permission grant and denial;
+- multiple advertised instances;
+- manual entry when mDNS is blocked;
+- OAuth success, cancellation, rejection, refresh, and revocation;
+- app relaunch with saved credentials;
+- access-token expiry during concurrent API requests;
+- server restart and temporary network loss;
+- internal HTTP and trusted HTTPS deployments; and
+- no token or authorization code appears in captured logs.
+
+Real-device verification is required for Bonjour permissions, callback routing, and Keychain
+behaviour.
+
+## Implementation sequence
+
+### Phase 1: Discovery backend
+
+1. Add `HomeAssistantInstance` and discovery record parsing.
+2. Add the Network framework browser/resolver adapter.
+3. Add discovery streaming, cancellation, deduplication, and tests.
+4. Add Bonjour and local-network declarations.
+
+### Phase 2: Discovery UI and manual fallback
+
+1. Add a setup store with explicit discovery states.
+2. Add native iPhone and macOS selection flows.
+3. Add manual URL entry and validation.
+4. Verify permission, accessibility, and cancellation behaviour on devices.
+
+### Phase 3: OAuth backend
+
+1. Finalize and host the OAuth client-ID page and callback declaration.
+2. Add release OAuth configuration.
+3. Add authorization URL and callback validation.
+4. Add token exchange, refresh, revocation, and tests.
+5. Add Keychain credential storage and tests.
+6. Add the actor-owned authenticated session.
+
+### Phase 4: Authentication UI and connection management
+
+1. Connect setup to `ASWebAuthenticationSession`.
+2. Add authentication, verification, cancellation, and recovery states.
+3. Add Settings connection status, reauthentication, server change, and disconnect.
+4. Verify both Bruce modes use identical security language.
+
+### Phase 5: First authenticated data
+
+1. Add the smallest typed REST methods needed to fetch current entity state.
+2. Model Home Assistant area, device, and entity relationships required for room temperatures.
+3. Build the room-temperature vertical slice separately, including live, stale, unavailable, and
+   error presentation.
+
+Each phase must run the repository's formatting, build, test, and required reviewer cycle before
+commit. Networking and asynchronous work require both `code-review` and `concurrency-review`;
+setup UI, strings, permissions, and accessibility also require `ui-review`.
+
+## Acceptance criteria
+
+Connection setup is complete when:
+
+- a fresh install can discover all valid Home Assistant advertisements on its LAN;
+- the user can connect by manual URL when discovery is unavailable;
+- the user confirms the server before Bruce opens authentication;
+- OAuth callbacks cannot succeed with a missing or mismatched state;
+- tokens are exchanged, refreshed, stored, and removed without appearing in logs or non-secure
+  storage;
+- concurrent API calls share one refresh and recover from a single expired access token;
+- app relaunch restores an authenticated session from Keychain;
+- disconnect revokes credentials when possible and always clears local access;
+- iPhone and Mac expose native, accessible recovery paths for every setup state; and
+- an authenticated Home Assistant API check succeeds before the UI reports that Bruce is
+  connected.
+
+## Decisions required before OAuth implementation
+
+1. Choose the HTTPS client-ID URL and domain Bruce will control.
+2. Choose and publish the approved callback: custom URL scheme or universal link.
+3. Decide whether HTTP Home Assistant URLs are allowed only on local networks or supported
+   wherever the user enters them.
+4. Decide how Bruce should handle privately issued or self-signed HTTPS certificates. The default
+   remains rejection.
+5. Decide whether changing servers replaces the current connection immediately or preserves it
+   until the new server authenticates successfully. Preserving the working connection is
+   recommended.
+
+## References
+
+- [Home Assistant instance discovery](https://developers.home-assistant.io/docs/api/instance_discovery/)
+- [Home Assistant authentication API](https://developers.home-assistant.io/docs/auth_api/)
+- [Home Assistant REST API](https://developers.home-assistant.io/docs/api/rest/)
+- [Home Assistant native app connection setup](https://developers.home-assistant.io/docs/api/native-app-integration/setup/)
