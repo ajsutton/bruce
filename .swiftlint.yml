@@ -1,11 +1,12 @@
 excluded:
   - .agent-tmp
   - .build
+  - .build-ios
   - .claude
   - .DerivedData-mac
   - .DerivedData-ios
   - .worktrees
-  - SmartHome.xcodeproj
+  - Bruce.xcodeproj
   - build
   - scripts
 

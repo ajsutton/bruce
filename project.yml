@@ -1,10 +1,10 @@
-name: SmartHome
+name: Bruce
 options:
   deploymentTarget:
     iOS: "26.0"
     macOS: "26.0"
   defaultConfig: Debug
-  bundleIdPrefix: net.symphonious.smarthome
+  bundleIdPrefix: net.symphonious.bruce
 
 configs:
   Debug: debug
@@ -30,91 +30,96 @@ fileGroups:
   - project.yml
 
 targets:
-  SmartHome_iOS:
+  Bruce_iOS:
     type: application
     platform: iOS
     sources:
       - path: App
         excludes:
           - Info-macOS.plist
+          - Assets-macOS.xcassets
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.smarthome
-        PRODUCT_NAME: Smart Home
-        PRODUCT_MODULE_NAME: SmartHome
+        PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce
+        PRODUCT_NAME: Bruce
+        PRODUCT_MODULE_NAME: Bruce
         INFOPLIST_FILE: App/Info-iOS.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: AppIconFullBruce
 
-  SmartHome_macOS:
+  Bruce_macOS:
     type: application
     platform: macOS
     sources:
       - path: App
         excludes:
           - Info-iOS.plist
+          - Assets-iOS.xcassets
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.smarthome
-        PRODUCT_NAME: Smart Home
-        PRODUCT_MODULE_NAME: SmartHome
+        PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce
+        PRODUCT_NAME: Bruce
+        PRODUCT_MODULE_NAME: Bruce
         INFOPLIST_FILE: App/Info-macOS.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
-  SmartHomeTests_iOS:
+  BruceTests_iOS:
     type: bundle.unit-test
     platform: iOS
     sources:
       - path: Tests
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.smarthome.tests
+        PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.tests
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGNING_REQUIRED: NO
         CODE_SIGNING_ALLOWED: NO
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Smart Home.app/Smart Home"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Bruce.app/Bruce"
         BUNDLE_LOADER: "$(TEST_HOST)"
     dependencies:
-      - target: SmartHome_iOS
+      - target: Bruce_iOS
 
-  SmartHomeTests_macOS:
+  BruceTests_macOS:
     type: bundle.unit-test
     platform: macOS
     sources:
       - path: Tests
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.smarthome.tests
+        PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.tests
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGNING_REQUIRED: YES
         CODE_SIGNING_ALLOWED: YES
         ENABLE_HARDENED_RUNTIME: NO
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Smart Home.app/Contents/MacOS/Smart Home"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Bruce.app/Contents/MacOS/Bruce"
         BUNDLE_LOADER: "$(TEST_HOST)"
     dependencies:
-      - target: SmartHome_macOS
+      - target: Bruce_macOS
 
 schemes:
-  SmartHome:
+  Bruce:
     build:
       targets:
-        SmartHome_iOS: all
-        SmartHome_macOS: all
+        Bruce_iOS: all
+        Bruce_macOS: all
     run:
-      executable: SmartHome_macOS
+      executable: Bruce_macOS
 
-  SmartHome-iOS:
+  Bruce-iOS:
     build:
       targets:
-        SmartHome_iOS: all
+        Bruce_iOS: all
     test:
       config: Debug
       targets:
-        - SmartHomeTests_iOS
+        - BruceTests_iOS
 
-  SmartHome-macOS:
+  Bruce-macOS:
     build:
       targets:
-        SmartHome_macOS: all
+        Bruce_macOS: all
     test:
       config: Debug
       targets:
-        - SmartHomeTests_macOS
+        - BruceTests_macOS

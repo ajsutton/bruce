@@ -1,4 +1,4 @@
-# Smart Home native app — common development tasks.
+# Bruce native app — common development tasks.
 set dotenv-load
 
 default:
@@ -39,7 +39,7 @@ build: build-mac build-ios
 
 build-mac: generate
     xcodebuild build \
-        -scheme SmartHome-macOS \
+        -scheme Bruce-macOS \
         -destination 'platform=macOS' \
         -derivedDataPath .build \
         CODE_SIGNING_ALLOWED=NO
@@ -49,7 +49,7 @@ build-ios: generate
     set -euo pipefail
     simulator="$(bash scripts/find-simulator.sh)"
     xcodebuild build \
-        -scheme SmartHome-iOS \
+        -scheme Bruce-iOS \
         -destination "platform=iOS Simulator,id=$simulator" \
         -derivedDataPath .build-ios \
         CODE_SIGNING_ALLOWED=NO
@@ -71,7 +71,7 @@ clean:
         .build-ios \
         .DerivedData-ios \
         .DerivedData-mac \
-        SmartHome.xcodeproj
+        Bruce.xcodeproj
 
 open: generate
-    open SmartHome.xcodeproj
+    open Bruce.xcodeproj

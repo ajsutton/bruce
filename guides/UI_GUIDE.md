@@ -1,5 +1,8 @@
 # UI Guide
 
+Brand expression, palette, language and the Bruce/Full Bruce presentation modes follow
+`BRAND_GUIDE.md`.
+
 ## Principles
 
 - The app should feel native on each platform.
@@ -8,6 +11,9 @@
 - Keep the primary path obvious for family members who do not manage the system.
 - Reveal advanced detail progressively.
 - Use colour to communicate state and exceptions, not as decoration.
+- Keep navigation, control placement and meaning identical across Bruce presentation modes.
+- Treat Go The Full Bruce as coordinated app icon, styling and eligible-language presentation,
+  not as a separate feature set.
 
 ## Platform behaviour
 

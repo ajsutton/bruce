@@ -25,6 +25,6 @@ Use at least `code-review` after modifying production Swift. Add:
 - Keep durable rules in `guides/`; keep assistant-specific entry points short.
 - Use `just` targets for generation, formatting, builds, and tests.
 - Store temporary logs and artefacts in `.agent-tmp/`.
-- Never edit `SmartHome.xcodeproj` directly.
+- Never edit `Bruce.xcodeproj` directly.
 - Never add database, iCloud, Android, Watch, widget, App Intent, or CarPlay infrastructure
   without a concrete requirement.

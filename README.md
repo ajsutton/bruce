@@ -1,9 +1,10 @@
-# Smart Home
+# Bruce
 
-Native iPhone and Mac clients for a Home Assistant-backed smart home.
+Bruce is a native iPhone and Mac client for a Home Assistant-backed home. It defaults to a calm,
+quietly premium presentation and includes an opt-in **Go The Full Bruce** mode that changes its
+icon, styling and voice together.
 
-This repository currently contains project infrastructure only. Product functionality will be
-added incrementally around specific household use cases.
+Product functionality is added incrementally around specific household use cases.
 
 ## Requirements
 
@@ -31,7 +32,7 @@ just format
 just format-check
 ```
 
-The Xcode project is generated from `project.yml` and is not committed.
+`Bruce.xcodeproj` is generated from `project.yml` and is not committed.
 
 The iOS commands prefer an iOS 26 simulator. Set `IOS_RUNTIME_MAJOR` to choose another installed
 runtime, or `IOS_SIMULATOR_ID` to select an exact simulator.

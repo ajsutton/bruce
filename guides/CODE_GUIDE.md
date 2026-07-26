@@ -1,4 +1,4 @@
-# Smart Home Swift Code Guide
+# Bruce Swift Code Guide
 
 **Platforms:** iOS 26+ and macOS 26+
 **Status:** Mandatory

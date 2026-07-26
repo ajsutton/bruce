@@ -1,0 +1,7 @@
+{
+  "name": "smart-home-brand-lab",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --hot server.ts"
+  }
+}

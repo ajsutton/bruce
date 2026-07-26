@@ -20,7 +20,7 @@ print_filter_flags() {
   local target="$1"
   local filter
   for filter in ${FILTERS[@]+"${FILTERS[@]}"}; do
-    if [[ "$filter" == SmartHomeTests_* ]]; then
+    if [[ "$filter" == BruceTests_* ]]; then
       printf -- '-only-testing:%s\n' "$filter"
     else
       printf -- '-only-testing:%s/%s\n' "$target" "$filter"
@@ -34,11 +34,11 @@ run_ios() {
   simulator="$(bash "$REPO_ROOT/scripts/find-simulator.sh")"
   while IFS= read -r line; do
     filter_flags+=("$line")
-  done < <(print_filter_flags "SmartHomeTests_iOS")
+  done < <(print_filter_flags "BruceTests_iOS")
 
   xcodebuild test "${COMMON_ARGS[@]}" \
     -derivedDataPath "$REPO_ROOT/.DerivedData-ios" \
-    -scheme SmartHome-iOS \
+    -scheme Bruce-iOS \
     -destination "platform=iOS Simulator,id=$simulator" \
     CODE_SIGNING_ALLOWED=NO \
     ${filter_flags[@]+"${filter_flags[@]}"}
@@ -48,11 +48,11 @@ run_mac() {
   local filter_flags=()
   while IFS= read -r line; do
     filter_flags+=("$line")
-  done < <(print_filter_flags "SmartHomeTests_macOS")
+  done < <(print_filter_flags "BruceTests_macOS")
 
   xcodebuild test "${COMMON_ARGS[@]}" \
     -derivedDataPath "$REPO_ROOT/.DerivedData-mac" \
-    -scheme SmartHome-macOS \
+    -scheme Bruce-macOS \
     -destination "platform=macOS" \
     CODE_SIGNING_ALLOWED=NO \
     ${filter_flags[@]+"${filter_flags[@]}"}
