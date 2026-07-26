@@ -19,35 +19,115 @@ final class ProjectSetupTests: XCTestCase {
     XCTAssertEqual(iconApplier.appliedModes, [.standard])
   }
 
-  func testUserDefaultsStoreDefaultsToStandardForAbsentOrInvalidValues() {
+  func testSyncedStoreTreatsAbsentOrInvalidLocalValuesAsUnset() {
     let suiteName = "BruceTests.\(UUID().uuidString)"
     guard let defaults = UserDefaults(suiteName: suiteName) else {
       return XCTFail("Could not create isolated user defaults.")
     }
     defer { defaults.removePersistentDomain(forName: suiteName) }
-    let store = UserDefaultsBruceModeStore(defaults: defaults)
+    let store = SyncedBruceModeStore(
+      defaults: defaults,
+      ubiquitousStore: TestUbiquitousStore()
+    )
 
-    XCTAssertEqual(store.loadMode(), .standard)
+    XCTAssertNil(store.loadLocalMode())
 
     defaults.set("not-a-bruce-mode", forKey: BruceMode.storageKey)
-    XCTAssertEqual(store.loadMode(), .standard)
+    XCTAssertNil(store.loadLocalMode())
   }
 
-  func testUserDefaultsStoreSavesAndRestoresAValidMode() {
+  func testSyncedStoreSavesModeLocallyAndInUbiquitousPreferences() {
     let suiteName = "BruceTests.\(UUID().uuidString)"
     guard let defaults = UserDefaults(suiteName: suiteName) else {
       return XCTFail("Could not create isolated user defaults.")
     }
     defer { defaults.removePersistentDomain(forName: suiteName) }
-    let store = UserDefaultsBruceModeStore(defaults: defaults)
+    let ubiquitousStore = TestUbiquitousStore()
+    let store = SyncedBruceModeStore(
+      defaults: defaults,
+      ubiquitousStore: ubiquitousStore
+    )
 
     store.saveMode(.full)
 
-    XCTAssertEqual(UserDefaultsBruceModeStore(defaults: defaults).loadMode(), .full)
+    XCTAssertEqual(store.loadLocalMode(), .full)
+    XCTAssertEqual(store.loadSyncedMode(), .full)
+  }
+
+  func testSyncedStoreDetectsAChangeMadeBySystemSettings() {
+    let suiteName = "BruceTests.\(UUID().uuidString)"
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+      return XCTFail("Could not create isolated user defaults.")
+    }
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let store = SyncedBruceModeStore(
+      defaults: defaults,
+      ubiquitousStore: TestUbiquitousStore()
+    )
+    store.saveMode(.standard)
+
+    defaults.set(true, forKey: BruceMode.storageKey)
+
+    XCTAssertTrue(store.hasUnpublishedLocalChange())
+    XCTAssertEqual(store.loadLocalMode(), .full)
+    XCTAssertEqual(store.loadSyncedMode(), .standard)
+  }
+
+  func testSyncedPreferenceWinsDuringInitialSynchronization() async {
+    let store = TestModeStore(localMode: .standard, syncedMode: .full)
+    let iconApplier = TestIconApplier()
+    let controller = BruceModeController(store: store, iconApplier: iconApplier)
+
+    await controller.synchronize()
+
+    XCTAssertTrue(store.didPrepareForSynchronization)
+    XCTAssertEqual(controller.mode, .full)
+    XCTAssertEqual(store.localMode, .full)
+  }
+
+  func testSystemSettingsChangeWinsOverStaleSyncedPreferenceAtLaunch() async {
+    let store = TestModeStore(
+      localMode: .full,
+      syncedMode: .standard,
+      hasUnpublishedLocalChange: true
+    )
+    let iconApplier = TestIconApplier()
+    let controller = BruceModeController(store: store, iconApplier: iconApplier)
+
+    await controller.synchronize()
+
+    XCTAssertEqual(controller.mode, .full)
+    XCTAssertEqual(store.syncedMode, .full)
+  }
+
+  func testRefreshingLocalPreferencePublishesItForOtherDevices() async {
+    let store = TestModeStore(localMode: .standard)
+    let iconApplier = TestIconApplier()
+    let controller = BruceModeController(store: store, iconApplier: iconApplier)
+    await controller.synchronize()
+    store.localMode = .full
+
+    await controller.refreshLocalPreference()
+
+    XCTAssertEqual(controller.mode, .full)
+    XCTAssertEqual(store.syncedMode, .full)
+  }
+
+  func testRefreshingSyncedPreferenceUpdatesTheLocalCopy() async {
+    let store = TestModeStore(localMode: .standard)
+    let iconApplier = TestIconApplier()
+    let controller = BruceModeController(store: store, iconApplier: iconApplier)
+    await controller.synchronize()
+    store.syncedMode = .full
+
+    await controller.refreshSyncedPreference()
+
+    XCTAssertEqual(controller.mode, .full)
+    XCTAssertEqual(store.localMode, .full)
   }
 
   func testPersistedFullBruceIsRestoredAfterItsIconIsApplied() async {
-    let store = TestModeStore(mode: .full)
+    let store = TestModeStore(localMode: .full)
     let iconApplier = TestIconApplier()
     let controller = BruceModeController(store: store, iconApplier: iconApplier)
 
@@ -59,14 +139,14 @@ final class ProjectSetupTests: XCTestCase {
   }
 
   func testCancelledSynchronizationPreservesPreferenceAndCanRetry() async {
-    let store = TestModeStore(mode: .full)
+    let store = TestModeStore(localMode: .full)
     let iconApplier = CancellingOnceIconApplier()
     let controller = BruceModeController(store: store, iconApplier: iconApplier)
 
     await controller.synchronize()
 
     XCTAssertEqual(controller.mode, .standard)
-    XCTAssertEqual(store.mode, .full)
+    XCTAssertEqual(store.localMode, .full)
     XCTAssertNil(controller.appIconErrorMessage)
 
     await controller.synchronize()
@@ -88,8 +168,21 @@ final class ProjectSetupTests: XCTestCase {
       eventRecorder.events,
       [.applyIcon(.standard), .applyIcon(.full), .saveMode(.full)]
     )
-    XCTAssertEqual(store.mode, .full)
+    XCTAssertEqual(store.localMode, .full)
     XCTAssertEqual(controller.mode, .full)
+  }
+
+  func testSelectionBeforeSynchronizationRemainsTheNewestRequest() async {
+    let store = TestModeStore(localMode: .standard)
+    let iconApplier = TestIconApplier()
+    let controller = BruceModeController(store: store, iconApplier: iconApplier)
+
+    controller.requestSelection(.full)
+    await controller.synchronize()
+
+    XCTAssertEqual(controller.mode, .full)
+    XCTAssertEqual(store.localMode, .full)
+    XCTAssertEqual(store.syncedMode, .full)
   }
 
   func testIconFailureKeepsTheCurrentCoordinatedMode() async {
@@ -100,7 +193,7 @@ final class ProjectSetupTests: XCTestCase {
 
     await controller.select(.full)
 
-    XCTAssertEqual(store.mode, .standard)
+    XCTAssertEqual(store.localMode, .standard)
     XCTAssertEqual(controller.mode, .standard)
     XCTAssertEqual(
       controller.appIconErrorMessage,
@@ -118,75 +211,102 @@ final class ProjectSetupTests: XCTestCase {
 
     XCTAssertFalse(controller.mode.isFullBruce)
   }
-}
 
-private final class TestModeStore: BruceModeStoring {
-  var mode: BruceMode
-  private let eventRecorder: TestEventRecorder?
+  func testNewSelectionReplacesOneWaitingForItsIcon() async {
+    let store = TestModeStore()
+    let didSuspend = expectation(description: "Full Bruce icon application suspended")
+    let iconApplier = SuspendingIconApplier(suspendingMode: .full, didSuspend: didSuspend)
+    let controller = BruceModeController(store: store, iconApplier: iconApplier)
+    await controller.synchronize()
 
-  init(mode: BruceMode = .standard, eventRecorder: TestEventRecorder? = nil) {
-    self.mode = mode
-    self.eventRecorder = eventRecorder
+    controller.requestSelection(.full)
+    await fulfillment(of: [didSuspend], timeout: 1)
+    controller.requestSelection(.standard)
+    iconApplier.resume()
+    await controller.waitForTransitions()
+
+    XCTAssertEqual(iconApplier.appliedModes, [.standard, .full, .standard])
+    XCTAssertEqual(controller.mode, .standard)
+    XCTAssertEqual(store.localMode, .standard)
+    XCTAssertEqual(store.syncedMode, .standard)
   }
 
-  func loadMode() -> BruceMode {
-    mode
+  func testSyncedChangeReplacesLocalChangeWaitingForItsIcon() async {
+    let store = TestModeStore()
+    let didSuspend = expectation(description: "Full Bruce icon application suspended")
+    let iconApplier = SuspendingIconApplier(suspendingMode: .full, didSuspend: didSuspend)
+    let controller = BruceModeController(store: store, iconApplier: iconApplier)
+    await controller.synchronize()
+
+    controller.requestSelection(.full)
+    await fulfillment(of: [didSuspend], timeout: 1)
+    store.syncedMode = .standard
+    store.sendSyncedPreferenceChange()
+    iconApplier.resume()
+    await controller.waitForTransitions()
+
+    XCTAssertEqual(controller.mode, .standard)
+    XCTAssertEqual(store.localMode, .standard)
+    XCTAssertEqual(store.syncedMode, .standard)
   }
 
-  func saveMode(_ mode: BruceMode) {
-    eventRecorder?.events.append(.saveMode(mode))
-    self.mode = mode
-  }
-}
+  func testSystemSettingsChangeMatchingPublishedModeReplacesPendingSelection() async {
+    let store = TestModeStore()
+    let didSuspend = expectation(description: "Full Bruce icon application suspended")
+    let iconApplier = SuspendingIconApplier(suspendingMode: .full, didSuspend: didSuspend)
+    let controller = BruceModeController(store: store, iconApplier: iconApplier)
+    await controller.synchronize()
 
-@MainActor
-private final class TestIconApplier: AppIconApplying {
-  private(set) var appliedModes: [BruceMode] = []
-  private let failingMode: BruceMode?
-  private let error: TestIconError
-  private let eventRecorder: TestEventRecorder?
+    controller.requestSelection(.full)
+    await fulfillment(of: [didSuspend], timeout: 1)
+    store.setLocalModeFromSystemSettings(.standard)
+    controller.requestLocalPreferenceRefresh()
+    iconApplier.resume()
+    await controller.waitForTransitions()
 
-  init(
-    failingMode: BruceMode? = nil,
-    error: TestIconError = .unavailable,
-    eventRecorder: TestEventRecorder? = nil
-  ) {
-    self.failingMode = failingMode
-    self.error = error
-    self.eventRecorder = eventRecorder
+    XCTAssertEqual(iconApplier.appliedModes, [.standard, .full, .standard])
+    XCTAssertEqual(controller.mode, .standard)
+    XCTAssertEqual(store.syncedMode, .standard)
   }
 
-  func apply(_ mode: BruceMode) async throws {
-    appliedModes.append(mode)
-    eventRecorder?.events.append(.applyIcon(mode))
-    if mode == failingMode {
-      throw error
+  func testSyncedNotificationDoesNotOverrideUnpublishedSystemSettingsChange() async {
+    let store = TestModeStore()
+    let didSuspend = expectation(description: "Full Bruce icon application suspended")
+    let iconApplier = SuspendingIconApplier(suspendingMode: .full, didSuspend: didSuspend)
+    let controller = BruceModeController(store: store, iconApplier: iconApplier)
+    await controller.synchronize()
+
+    controller.requestSelection(.full)
+    await fulfillment(of: [didSuspend], timeout: 1)
+    store.setLocalModeFromSystemSettings(.standard)
+    store.syncedMode = .full
+    store.sendSyncedPreferenceChange()
+    iconApplier.resume()
+    await controller.waitForTransitions()
+
+    XCTAssertEqual(iconApplier.appliedModes, [.standard, .full, .standard])
+    XCTAssertEqual(controller.mode, .standard)
+    XCTAssertEqual(store.syncedMode, .standard)
+  }
+
+  func testConcurrentSynchronizationWaitsForTheSharedTransition() async {
+    let store = TestModeStore(localMode: .full)
+    let didSuspend = expectation(description: "Full Bruce icon application suspended")
+    let iconApplier = SuspendingIconApplier(suspendingMode: .full, didSuspend: didSuspend)
+    let controller = BruceModeController(store: store, iconApplier: iconApplier)
+
+    let firstSynchronization = Task { @MainActor in
+      await controller.synchronize()
     }
-  }
-}
-
-private enum TestIconError: Error {
-  case unavailable
-  case unsupported
-}
-
-@MainActor
-private final class CancellingOnceIconApplier: AppIconApplying {
-  private(set) var attemptCount = 0
-
-  func apply(_ mode: BruceMode) async throws {
-    attemptCount += 1
-    if attemptCount == 1 {
-      throw CancellationError()
+    await fulfillment(of: [didSuspend], timeout: 1)
+    firstSynchronization.cancel()
+    let secondSynchronization = Task { @MainActor in
+      await controller.synchronize()
     }
+    iconApplier.resume()
+    await secondSynchronization.value
+
+    XCTAssertEqual(controller.mode, .full)
+    XCTAssertFalse(controller.isTransitioning)
   }
-}
-
-private final class TestEventRecorder {
-  var events: [TestEvent] = []
-}
-
-private enum TestEvent: Equatable {
-  case applyIcon(BruceMode)
-  case saveMode(BruceMode)
 }

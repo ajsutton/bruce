@@ -2,21 +2,11 @@ import SwiftUI
 
 struct ContentView: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.scenePhase) private var scenePhase
   @ObservedObject var modeController: BruceModeController
 
   private var mode: BruceMode {
     modeController.mode
-  }
-
-  private var isFullBruce: Binding<Bool> {
-    Binding(
-      get: { mode.isFullBruce },
-      set: { isEnabled in
-        Task {
-          await modeController.select(isEnabled ? .full : .standard)
-        }
-      }
-    )
   }
 
   var body: some View {
@@ -30,17 +20,6 @@ struct ContentView: View {
           } description: {
             Text(mode.introduction)
           }
-
-          VStack(spacing: 8) {
-            Toggle("Go The Full Bruce", isOn: isFullBruce)
-              .toggleStyle(.switch)
-              .disabled(modeController.isTransitioning)
-
-            Text(mode.settingDescription)
-              .font(.footnote)
-              .foregroundStyle(mode.foregroundColor)
-          }
-          .frame(maxWidth: 320)
         }
         .padding(32)
         .frame(maxWidth: .infinity, minHeight: geometry.size.height)
@@ -52,6 +31,12 @@ struct ContentView: View {
     .background(mode.backgroundColor)
     .task {
       await modeController.synchronize()
+    }
+    .onChange(of: scenePhase) { _, newScenePhase in
+      guard newScenePhase == .active else {
+        return
+      }
+      modeController.requestLocalPreferenceRefresh()
     }
     .alert(
       "Bruce couldn’t change the app icon",

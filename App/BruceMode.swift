@@ -28,15 +28,6 @@ enum BruceMode: String, CaseIterable {
     }
   }
 
-  var settingDescription: String {
-    switch self {
-    case .standard:
-      "Quietly capable. No carry-on."
-    case .full:
-      "More colour, more character, full noise."
-    }
-  }
-
   var accentColor: Color {
     switch self {
     case .standard:

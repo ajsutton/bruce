@@ -44,6 +44,7 @@ targets:
         PRODUCT_NAME: Bruce
         PRODUCT_MODULE_NAME: Bruce
         INFOPLIST_FILE: App/Info-iOS.plist
+        CODE_SIGN_ENTITLEMENTS: App/Bruce.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: AppIconFullBruce
 
@@ -55,12 +56,14 @@ targets:
         excludes:
           - Info-iOS.plist
           - Assets-iOS.xcassets
+          - Settings.bundle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce
         PRODUCT_NAME: Bruce
         PRODUCT_MODULE_NAME: Bruce
         INFOPLIST_FILE: App/Info-macOS.plist
+        CODE_SIGN_ENTITLEMENTS: App/Bruce.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   BruceTests_iOS:

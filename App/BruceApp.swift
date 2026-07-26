@@ -10,5 +10,12 @@ struct BruceApp: App {
       ContentView(modeController: modeController)
         .tint(modeController.mode.accentColor)
     }
+
+    #if os(macOS)
+      Settings {
+        BruceSettingsView(modeController: modeController)
+          .tint(modeController.mode.accentColor)
+      }
+    #endif
   }
 }
