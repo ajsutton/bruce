@@ -65,6 +65,7 @@ struct ContentView: View {
     if presentation.screen == .temperatures {
       HomeAssistantTemperatureView(
         store: temperatureStore,
+        mode: mode,
         isConnecting: presentation.isConnecting,
         connectionProblem: presentation.connectionProblem,
         manageConnection: manageConnection,

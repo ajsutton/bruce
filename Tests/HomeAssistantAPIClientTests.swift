@@ -130,7 +130,8 @@ final class HomeAssistantAPIClientTests: XCTestCase {
           value: 23.5,
           unit: "°C",
           updatedAt: try Date.ISO8601FormatStyle(includingFractionalSeconds: true)
-            .parse("2026-07-27T01:02:03.456Z")
+            .parse("2026-07-27T01:02:03.456Z"),
+          icon: "mdi:sofa"
         ),
       ]
     )
@@ -187,7 +188,8 @@ final class HomeAssistantAPIClientTests: XCTestCase {
           "state": "cool",
           "attributes": {
             "current_temperature": 23.5,
-            "friendly_name": "Living Room"
+            "friendly_name": "Living Room",
+            "icon": "mdi:sofa"
           },
           "last_updated": "2026-07-27T01:02:03.456Z"
         },

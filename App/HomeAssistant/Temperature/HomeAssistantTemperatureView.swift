@@ -1,8 +1,10 @@
 import SwiftUI
 
 struct HomeAssistantTemperatureView: View {
+  @Environment(\.colorScheme) private var colorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @ObservedObject var store: HomeAssistantTemperatureStore
+  let mode: BruceMode
   let isConnecting: Bool
   let connectionProblem: String?
   let manageConnection: () -> Void
@@ -21,6 +23,49 @@ struct HomeAssistantTemperatureView: View {
     connectionProblem != nil || store.problem == .signInRequired
   }
 
+  private var usesStackedCards: Bool {
+    dynamicTypeSize.isAccessibilitySize || dynamicTypeSize == .xxxLarge
+  }
+
+  private var screenBackground: Color {
+    if mode.isFullBruce {
+      return mode.backgroundColor
+    }
+    if colorScheme == .dark {
+      return Color(red: 0.13, green: 0.14, blue: 0.13)
+    }
+    return mode.backgroundColor
+  }
+
+  private var cardBackground: AnyShapeStyle {
+    if mode.isFullBruce {
+      return AnyShapeStyle(Color(red: 0.00, green: 0.25, blue: 0.18))
+    }
+    return AnyShapeStyle(.background)
+  }
+
+  private var primaryCardForeground: AnyShapeStyle {
+    mode.isFullBruce ? AnyShapeStyle(mode.foregroundColor) : AnyShapeStyle(.primary)
+  }
+
+  private var secondaryCardForeground: AnyShapeStyle {
+    mode.isFullBruce
+      ? AnyShapeStyle(Color.white.opacity(0.78))
+      : AnyShapeStyle(.secondary)
+  }
+
+  private var emphasizedForeground: Color {
+    mode.isFullBruce ? mode.foregroundColor : mode.accentColor
+  }
+
+  private var iconForeground: Color {
+    mode.isFullBruce ? mode.backgroundColor : mode.foregroundColor
+  }
+
+  private var problemForeground: AnyShapeStyle {
+    mode.isFullBruce ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary)
+  }
+
   var body: some View {
     NavigationStack {
       VStack(spacing: 0) {
@@ -29,7 +74,11 @@ struct HomeAssistantTemperatureView: View {
         }
         temperatureContent
       }
-      .navigationTitle("Current Temperatures")
+      .background(screenBackground)
+      .navigationTitle("Temperatures")
+      .toolbarTitleDisplayMode(.inline)
+      .tint(mode.accentColor)
+      .modifier(TemperatureNavigationStyle(mode: mode))
     }
   }
 
@@ -39,21 +88,18 @@ struct HomeAssistantTemperatureView: View {
       emptyState
     } else {
       ScrollView {
-        LazyVStack(spacing: 12) {
+        LazyVStack(spacing: 14) {
           ForEach(store.readings) { reading in
             temperatureCard(reading)
           }
+
+          updateStatus
+            .padding(.horizontal, 4)
+            .padding(.top, 2)
         }
         .padding()
         .frame(maxWidth: 720)
         .frame(maxWidth: .infinity)
-      }
-      .safeAreaInset(edge: .bottom) {
-        updateStatus
-          .padding(.horizontal)
-          .padding(.vertical, 8)
-          .frame(maxWidth: .infinity)
-          .background(.bar)
       }
     }
   }
@@ -75,55 +121,78 @@ struct HomeAssistantTemperatureView: View {
       }
     }
     .padding()
+    .foregroundStyle(primaryCardForeground)
   }
 
   private func temperatureCard(_ reading: HomeAssistantTemperatureReading) -> some View {
     Group {
-      if dynamicTypeSize.isAccessibilitySize {
+      if usesStackedCards {
         VStack(alignment: .leading, spacing: 16) {
           temperatureLocation(reading)
           Divider()
+            .overlay(mode.isFullBruce ? Color.white.opacity(0.22) : .clear)
           currentTemperature(reading)
         }
       } else {
-        HStack(spacing: 20) {
+        HStack(spacing: 12) {
           temperatureLocation(reading)
             .frame(maxWidth: .infinity, alignment: .leading)
           Divider()
+            .overlay(mode.isFullBruce ? Color.white.opacity(0.22) : .clear)
           currentTemperature(reading)
-            .frame(minWidth: 132, alignment: .leading)
+            .frame(minWidth: 108, alignment: .leading)
         }
-        .frame(minHeight: 88)
+        .frame(minHeight: 76)
       }
     }
-    .padding(.horizontal, 20)
-    .padding(.vertical, 16)
-    .background(.background, in: RoundedRectangle(cornerRadius: 18))
+    .padding(16)
+    .background(cardBackground, in: RoundedRectangle(cornerRadius: 20))
     .overlay {
-      RoundedRectangle(cornerRadius: 18)
-        .stroke(.separator.opacity(0.35), lineWidth: 0.5)
+      RoundedRectangle(cornerRadius: 20)
+        .stroke(
+          mode.isFullBruce ? mode.foregroundColor.opacity(0.22) : .clear,
+          lineWidth: 1
+        )
     }
+    .shadow(
+      color: .black.opacity(mode.isFullBruce ? 0.2 : 0.1),
+      radius: 10,
+      y: 4
+    )
     .accessibilityElement(children: .combine)
   }
 
   private func temperatureLocation(
     _ reading: HomeAssistantTemperatureReading
   ) -> some View {
-    VStack(alignment: .leading, spacing: 6) {
-      Text(reading.name)
-        .font(.headline)
+    HStack(spacing: 12) {
+      Image(systemName: HomeAssistantTemperatureIcon.systemImageName(for: reading.icon))
+        .font(.title2.weight(.semibold))
+        .foregroundStyle(iconForeground)
+        .frame(width: 52, height: 52)
+        .background(
+          mode.isFullBruce ? mode.foregroundColor : mode.backgroundColor,
+          in: RoundedRectangle(cornerRadius: 14)
+        )
+        .accessibilityHidden(true)
 
-      if let updatedAt = reading.updatedAt {
-        HStack(spacing: 4) {
-          Text("Updated")
-          Text(updatedAt, style: .relative)
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      } else {
-        Text("Update time unavailable")
+      VStack(alignment: .leading, spacing: 5) {
+        Text(reading.name)
+          .font(.headline)
+          .foregroundStyle(primaryCardForeground)
+
+        if let updatedAt = reading.updatedAt {
+          HStack(spacing: 4) {
+            Text("Updated")
+            relativeDateText(updatedAt)
+          }
           .font(.caption)
-          .foregroundStyle(.secondary)
+          .foregroundStyle(secondaryCardForeground)
+        } else {
+          Text("Update time unavailable")
+            .font(.caption)
+            .foregroundStyle(secondaryCardForeground)
+        }
       }
     }
   }
@@ -134,7 +203,7 @@ struct HomeAssistantTemperatureView: View {
     VStack(alignment: .leading, spacing: 2) {
       Text("Current")
         .font(.subheadline)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(secondaryCardForeground)
 
       HStack(alignment: .firstTextBaseline, spacing: 2) {
         Text(reading.value, format: .number.precision(.fractionLength(0...1)))
@@ -144,6 +213,7 @@ struct HomeAssistantTemperatureView: View {
         }
       }
       .font(.system(.largeTitle, design: .rounded, weight: .medium))
+      .foregroundStyle(emphasizedForeground)
       .monospacedDigit()
     }
   }
@@ -156,6 +226,7 @@ struct HomeAssistantTemperatureView: View {
 
       Text(message)
         .font(.callout)
+        .foregroundStyle(problemForeground)
         .frame(maxWidth: .infinity, alignment: .leading)
 
       if problemNeedsConnectionManagement {
@@ -182,7 +253,7 @@ struct HomeAssistantTemperatureView: View {
         Text("Removing connection")
       } else if let lastChecked = store.lastChecked {
         Text("Checked")
-        Text(lastChecked, style: .relative)
+        relativeDateText(lastChecked)
       } else if isConnecting {
         Text("Checking connection")
       } else if store.isLoading {
@@ -191,7 +262,7 @@ struct HomeAssistantTemperatureView: View {
       Spacer()
     }
     .font(.caption)
-    .foregroundStyle(.secondary)
+    .foregroundStyle(secondaryCardForeground)
     .accessibilityElement(children: .combine)
   }
 
@@ -203,54 +274,25 @@ struct HomeAssistantTemperatureView: View {
   }
 }
 
-#Preview("Temperatures") {
-  let store = HomeAssistantTemperatureStore(
-    loader: PreviewHomeAssistantTemperatureLoader()
+private func relativeDateText(_ date: Date) -> Text {
+  Text(
+    .currentDate,
+    format: Date.AnchoredRelativeFormatStyle(
+      anchor: date,
+      presentation: .named,
+      unitsStyle: .wide
+    )
   )
-  HomeAssistantTemperatureView(
-    store: store,
-    isConnecting: false,
-    connectionProblem: nil,
-    manageConnection: {},
-    requestRefresh: {},
-    isRemovingConnection: false
-  )
-  .task {
-    await store.load()
-  }
 }
 
-private struct PreviewHomeAssistantTemperatureLoader: HomeAssistantTemperatureLoading {
-  func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
-    [
-      HomeAssistantTemperatureReading(
-        id: "climate.living_room",
-        name: "Living Room",
-        value: 23.4,
-        unit: "°C",
-        updatedAt: .now
-      ),
-      HomeAssistantTemperatureReading(
-        id: "climate.bedroom",
-        name: "Master Bedroom",
-        value: 21.8,
-        unit: "°C",
-        updatedAt: .now
-      ),
-      HomeAssistantTemperatureReading(
-        id: "climate.study",
-        name: "Study",
-        value: 22.6,
-        unit: "°C",
-        updatedAt: .now.addingTimeInterval(-180)
-      ),
-      HomeAssistantTemperatureReading(
-        id: "climate.dining_room",
-        name: "Dining Room",
-        value: 24.1,
-        unit: "°C",
-        updatedAt: nil
-      ),
-    ]
+private struct TemperatureNavigationStyle: ViewModifier {
+  let mode: BruceMode
+
+  func body(content: Content) -> some View {
+    #if os(iOS)
+      content.toolbarColorScheme(mode.isFullBruce ? .dark : nil, for: .navigationBar)
+    #else
+      content
+    #endif
   }
 }

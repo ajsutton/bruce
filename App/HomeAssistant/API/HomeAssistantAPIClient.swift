@@ -99,7 +99,8 @@ private struct HomeAssistantState: Decodable {
       name: attributes.friendlyName ?? fallbackName,
       value: value,
       unit: unit,
-      updatedAt: parsedLastUpdated
+      updatedAt: parsedLastUpdated,
+      icon: attributes.icon
     )
   }
 
@@ -123,9 +124,11 @@ private struct HomeAssistantState: Decodable {
 private struct HomeAssistantStateAttributes: Decodable {
   let currentTemperature: Double?
   let friendlyName: String?
+  let icon: String?
 
   enum CodingKeys: String, CodingKey {
     case currentTemperature = "current_temperature"
     case friendlyName = "friendly_name"
+    case icon
   }
 }
