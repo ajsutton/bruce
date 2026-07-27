@@ -8,8 +8,8 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
   func testSuccessfulLoadPublishesReadingsAndCheckTime() async {
     let checkTime = Date(timeIntervalSince1970: 300)
     let readings = [
-      reading(id: "first", updatedAt: Date(timeIntervalSince1970: 100)),
-      reading(id: "second", updatedAt: Date(timeIntervalSince1970: 200)),
+      reading(id: "first"),
+      reading(id: "second"),
     ]
     let store = HomeAssistantTemperatureStore(
       loader: QueueTemperatureLoader(results: [.success(readings)]),
@@ -25,7 +25,7 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
   }
 
   func testFailedRefreshKeepsPreviousReadingsAndReportsProblem() async {
-    let originalReadings = [reading(id: "temperature", updatedAt: .now)]
+    let originalReadings = [reading(id: "temperature")]
     let loader = QueueTemperatureLoader(
       results: [
         .success(originalReadings),
@@ -66,7 +66,7 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
   func testDisconnectedSynchronizationClearsLoadedState() async {
     let store = HomeAssistantTemperatureStore(
       loader: QueueTemperatureLoader(
-        results: [.success([reading(id: "temperature", updatedAt: .now)])]
+        results: [.success([reading(id: "temperature")])]
       )
     )
     await store.load()
@@ -87,7 +87,7 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
     await fulfillment(of: [loader.started(at: 0)], timeout: 1)
 
     await store.synchronize(with: .unavailable)
-    loader.succeedRequest(0, with: [reading(id: "late", updatedAt: .now)])
+    loader.succeedRequest(0, with: [reading(id: "late")])
     await load.value
 
     XCTAssertTrue(store.readings.isEmpty)
@@ -106,10 +106,10 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
     }
     await fulfillment(of: [loader.started(at: 1)], timeout: 1)
 
-    let newest = [reading(id: "newest", updatedAt: .now)]
+    let newest = [reading(id: "newest")]
     loader.succeedRequest(1, with: newest)
     await secondLoad.value
-    loader.succeedRequest(0, with: [reading(id: "old", updatedAt: .now)])
+    loader.succeedRequest(0, with: [reading(id: "old")])
     await firstLoad.value
 
     XCTAssertEqual(store.readings, newest)
@@ -132,8 +132,8 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
   }
 
   func testReconnectKeepsReadingsAndClearsWarningAfterFreshSnapshot() async {
-    let original = [reading(id: "original", updatedAt: .now)]
-    let refreshed = [reading(id: "refreshed", updatedAt: .now)]
+    let original = [reading(id: "original")]
+    let refreshed = [reading(id: "refreshed")]
     let loader = ControlledTemperatureLoader(requestCount: 1)
     let store = HomeAssistantTemperatureStore(loader: loader)
     let load = Task {
@@ -186,7 +186,7 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
 
     loader.yieldRequest(
       0,
-      update: .live([reading(id: "temperature", updatedAt: .now)])
+      update: .live([reading(id: "temperature")])
     )
     await fulfillment(of: [livePublished], timeout: 1)
     loader.failRequest(0, with: HomeAssistantAPIError.invalidResponse)
@@ -197,16 +197,12 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
     withExtendedLifetime(liveSubscription) {}
   }
 
-  private func reading(
-    id: String,
-    updatedAt: Date?
-  ) -> HomeAssistantTemperatureReading {
+  private func reading(id: String) -> HomeAssistantTemperatureReading {
     HomeAssistantTemperatureReading(
       id: id,
       name: id.localizedCapitalized,
       value: 22,
-      unit: "°C",
-      updatedAt: updatedAt
+      unit: "°C"
     )
   }
 

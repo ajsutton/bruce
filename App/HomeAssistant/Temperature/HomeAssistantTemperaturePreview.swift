@@ -49,7 +49,6 @@ private enum HomeAssistantTemperaturePreview {
       name: "Living Room",
       value: 23.4,
       unit: "°C",
-      updatedAt: .now,
       icon: "mdi:sofa"
     ),
     HomeAssistantTemperatureReading(
@@ -57,7 +56,6 @@ private enum HomeAssistantTemperaturePreview {
       name: "Master Bedroom",
       value: 21.8,
       unit: "°C",
-      updatedAt: .now,
       icon: "mdi:bed"
     ),
     HomeAssistantTemperatureReading(
@@ -65,7 +63,6 @@ private enum HomeAssistantTemperaturePreview {
       name: "Study",
       value: 22.6,
       unit: "°C",
-      updatedAt: .now.addingTimeInterval(-180),
       icon: "mdi:desk"
     ),
     HomeAssistantTemperatureReading(
@@ -73,7 +70,6 @@ private enum HomeAssistantTemperaturePreview {
       name: "Dining Room",
       value: 24.1,
       unit: "°C",
-      updatedAt: nil,
       icon: "mdi:table-chair"
     ),
   ]

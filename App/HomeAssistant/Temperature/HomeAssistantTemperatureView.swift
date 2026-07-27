@@ -175,24 +175,9 @@ struct HomeAssistantTemperatureView: View {
         )
         .accessibilityHidden(true)
 
-      VStack(alignment: .leading, spacing: 5) {
-        Text(reading.name)
-          .font(.headline)
-          .foregroundStyle(primaryCardForeground)
-
-        if let updatedAt = reading.updatedAt {
-          HStack(spacing: 4) {
-            Text("Updated")
-            relativeDateText(updatedAt)
-          }
-          .font(.caption)
-          .foregroundStyle(secondaryCardForeground)
-        } else {
-          Text("Update time unavailable")
-            .font(.caption)
-            .foregroundStyle(secondaryCardForeground)
-        }
-      }
+      Text(reading.name)
+        .font(.headline)
+        .foregroundStyle(primaryCardForeground)
     }
   }
 

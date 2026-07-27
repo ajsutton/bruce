@@ -80,8 +80,7 @@ final class HomeAssistantTemperatureReconnectTests: XCTestCase {
       id: "climate.bedroom",
       name: "Bedroom",
       value: 21,
-      unit: "°C",
-      updatedAt: try Date.ISO8601FormatStyle().parse("2026-07-27T01:02:03Z")
+      unit: "°C"
     )
     XCTAssertEqual(reconnecting, .reconnecting([expected]))
   }

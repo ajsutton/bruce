@@ -137,12 +137,10 @@ private struct HomeAssistantUnitSystem: Decodable {
 struct HomeAssistantState: Decodable {
   let entityID: String
   private let attributes: HomeAssistantStateAttributes
-  private let lastUpdated: String?
 
   enum CodingKeys: String, CodingKey {
     case entityID = "entity_id"
     case attributes
-    case lastUpdated = "last_updated"
   }
 
   func temperatureReading(
@@ -161,7 +159,6 @@ struct HomeAssistantState: Decodable {
       name: attributes.friendlyName ?? fallbackName,
       value: value,
       unit: unit,
-      updatedAt: parsedLastUpdated,
       icon: attributes.icon ?? registryIcon
     )
   }
@@ -171,16 +168,6 @@ struct HomeAssistantState: Decodable {
     return objectID.replacingOccurrences(of: "_", with: " ").localizedCapitalized
   }
 
-  private var parsedLastUpdated: Date? {
-    guard let lastUpdated else {
-      return nil
-    }
-    if let date = try? Date.ISO8601FormatStyle(includingFractionalSeconds: true).parse(lastUpdated)
-    {
-      return date
-    }
-    return try? Date.ISO8601FormatStyle().parse(lastUpdated)
-  }
 }
 
 private struct HomeAssistantStateAttributes: Decodable {

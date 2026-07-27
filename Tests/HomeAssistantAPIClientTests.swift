@@ -124,16 +124,13 @@ final class HomeAssistantAPIClientTests: XCTestCase {
           id: "climate.bedroom",
           name: "Bedroom Air Conditioner",
           value: 21,
-          unit: "°C",
-          updatedAt: try Date.ISO8601FormatStyle().parse("2026-07-27T01:01:00Z")
+          unit: "°C"
         ),
         HomeAssistantTemperatureReading(
           id: "climate.living_room",
           name: "Living Room",
           value: 23.5,
           unit: "°C",
-          updatedAt: try Date.ISO8601FormatStyle(includingFractionalSeconds: true)
-            .parse("2026-07-27T01:02:03.456Z"),
           icon: "mdi:sofa"
         ),
       ]
