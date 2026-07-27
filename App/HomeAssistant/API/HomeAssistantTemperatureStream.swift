@@ -149,7 +149,7 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
         }
         if let reading = event.event.data.newState?.temperatureReading(
           unit: snapshot.unit,
-          registryIcon: snapshot.climateIcons[entityID]
+          metadata: snapshot.climateMetadata[entityID]
         ) {
           readingsByID[entityID] = reading
         } else {

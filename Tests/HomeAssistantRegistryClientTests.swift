@@ -4,8 +4,8 @@ import XCTest
 @testable import Bruce
 
 final class HomeAssistantRegistryClientTests: XCTestCase {
-  func testRegistryResolvesClimateIconsThroughEntityAndDeviceAreas() {
-    let icons = HomeAssistantRegistryClient.climateIcons(
+  func testRegistryResolvesClimateMetadataThroughEntityAndDeviceAreas() {
+    let metadata = HomeAssistantRegistryClient.climateMetadata(
       entities: [
         HomeAssistantRegistryEntity(
           id: "climate.dining",
@@ -40,16 +40,22 @@ final class HomeAssistantRegistryClientTests: XCTestCase {
     )
 
     XCTAssertEqual(
-      icons,
+      metadata,
       [
-        "climate.dining": "mdi:table-furniture",
-        "climate.retreat": "mdi:air-conditioner",
+        "climate.dining": HomeAssistantClimateMetadata(
+          icon: "mdi:table-furniture",
+          kind: .other
+        ),
+        "climate.retreat": HomeAssistantClimateMetadata(
+          icon: "mdi:air-conditioner",
+          kind: .other
+        ),
       ]
     )
   }
 
   func testRegistryUsesOriginalIconOnlyWhenNoExplicitOrAreaIconExists() {
-    let icons = HomeAssistantRegistryClient.climateIcons(
+    let metadata = HomeAssistantRegistryClient.climateMetadata(
       entities: [
         HomeAssistantRegistryEntity(
           id: "climate.lounge",
@@ -63,7 +69,55 @@ final class HomeAssistantRegistryClientTests: XCTestCase {
       areas: []
     )
 
-    XCTAssertEqual(icons, ["climate.lounge": "mdi:thermostat"])
+    XCTAssertEqual(
+      metadata,
+      [
+        "climate.lounge": HomeAssistantClimateMetadata(
+          icon: "mdi:thermostat",
+          kind: .other
+        )
+      ]
+    )
+  }
+
+  func testRegistryNormalizesAirTouchEntityKinds() {
+    let metadata = HomeAssistantRegistryClient.climateMetadata(
+      entities: [
+        HomeAssistantRegistryEntity(
+          id: "climate.ac_0",
+          platform: "airtouch5",
+          uniqueID: "ac_0",
+          deviceID: nil,
+          areaID: nil,
+          icon: nil,
+          originalIcon: nil
+        ),
+        HomeAssistantRegistryEntity(
+          id: "climate.dining",
+          platform: "airtouch5",
+          uniqueID: "zone_0",
+          deviceID: nil,
+          areaID: nil,
+          icon: nil,
+          originalIcon: nil
+        ),
+        HomeAssistantRegistryEntity(
+          id: "climate.other",
+          platform: "another_platform",
+          uniqueID: "ac_0",
+          deviceID: nil,
+          areaID: nil,
+          icon: nil,
+          originalIcon: nil
+        ),
+      ],
+      devices: [],
+      areas: []
+    )
+
+    XCTAssertEqual(metadata["climate.ac_0"]?.kind, .airConditioner)
+    XCTAssertEqual(metadata["climate.dining"]?.kind, .zone)
+    XCTAssertEqual(metadata["climate.other"]?.kind, .other)
   }
 
   func testWebSocketLoadsRegistriesAfterAuthenticating() async throws {
@@ -76,8 +130,8 @@ final class HomeAssistantRegistryClientTests: XCTestCase {
         #"{"type":"auth_ok"}"#,
         """
         {"id":1,"type":"result","success":true,"result":[
-          {"entity_id":"climate.dining","device_id":"dining-device","area_id":null,
-           "icon":null,"original_icon":null}
+          {"entity_id":"climate.dining","platform":"airtouch5","unique_id":"zone_0",
+           "device_id":"dining-device","area_id":null,"icon":null,"original_icon":null}
         ]}
         """,
         """
@@ -97,9 +151,17 @@ final class HomeAssistantRegistryClientTests: XCTestCase {
       connector: StubHomeAssistantWebSocketConnector(connection: connection)
     )
 
-    let icons = try await client.loadClimateIcons()
+    let metadata = try await client.loadClimateMetadata()
 
-    XCTAssertEqual(icons, ["climate.dining": "mdi:table-furniture"])
+    XCTAssertEqual(
+      metadata,
+      [
+        "climate.dining": HomeAssistantClimateMetadata(
+          icon: "mdi:table-furniture",
+          kind: .zone
+        )
+      ]
+    )
     XCTAssertEqual(connection.connectedURL?.absoluteString, "ws://home.local:8123/api/websocket")
     XCTAssertEqual(
       connection.sentMessageTypes,
@@ -129,7 +191,7 @@ final class HomeAssistantRegistryClientTests: XCTestCase {
     )
 
     do {
-      _ = try await client.loadClimateIcons()
+      _ = try await client.loadClimateMetadata()
       XCTFail("Expected WebSocket authentication to be rejected.")
     } catch HomeAssistantAPIError.unauthorized {
     } catch {
@@ -148,7 +210,7 @@ final class HomeAssistantRegistryClientTests: XCTestCase {
       connector: BlockingHomeAssistantWebSocketConnector(connection: connection)
     )
     let load = Task {
-      try await client.loadClimateIcons()
+      try await client.loadClimateMetadata()
     }
     await fulfillment(of: [connection.blockedReceiveStarted], timeout: 1)
 

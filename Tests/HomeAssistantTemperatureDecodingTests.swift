@@ -19,6 +19,42 @@ final class HomeAssistantTemperatureDecodingTests: XCTestCase {
     )
 
     XCTAssertEqual(temperatures.first?.powerState, .off)
+    XCTAssertEqual(temperatures.first?.operatingMode, .off)
+  }
+
+  func testTemperatureLoadingMapsAirConditionerModes() throws {
+    let states: [(String, HomeAssistantTemperatureReading.OperatingMode)] = [
+      ("auto", .automatic),
+      ("cool", .cooling),
+      ("dry", .drying),
+      ("fan_only", .fanOnly),
+      ("heat", .heating),
+    ]
+
+    for (state, expectedMode) in states {
+      let temperatures = try decodeTemperature(
+        state: state,
+        attributes: #""current_temperature": 27.5, "temperature": 24"#
+      )
+
+      XCTAssertEqual(temperatures.first?.operatingMode, expectedMode)
+    }
+  }
+
+  func testTemperatureLoadingUsesNormalizedRegistryKind() throws {
+    let data = temperatureData(
+      state: "cool",
+      attributes: #""current_temperature": 27.5, "temperature": 24"#
+    )
+    let metadata = HomeAssistantClimateMetadata(icon: nil, kind: .airConditioner)
+
+    let temperatures = try HomeAssistantAPIClient.temperatures(
+      from: data,
+      unit: "°C",
+      climateMetadata: ["climate.upstairs_air_conditioner": metadata]
+    )
+
+    XCTAssertEqual(temperatures.first?.kind, .airConditioner)
   }
 
   func testTemperatureLoadingAllowsMissingTarget() throws {
@@ -58,7 +94,14 @@ final class HomeAssistantTemperatureDecodingTests: XCTestCase {
     state: String,
     attributes: String
   ) throws -> [HomeAssistantTemperatureReading] {
-    let data = Data(
+    try HomeAssistantAPIClient.temperatures(
+      from: temperatureData(state: state, attributes: attributes),
+      unit: "°C"
+    )
+  }
+
+  private func temperatureData(state: String, attributes: String) -> Data {
+    Data(
       """
       [{
         "entity_id": "climate.upstairs_air_conditioner",
@@ -69,7 +112,5 @@ final class HomeAssistantTemperatureDecodingTests: XCTestCase {
       }]
       """.utf8
     )
-
-    return try HomeAssistantAPIClient.temperatures(from: data, unit: "°C")
   }
 }

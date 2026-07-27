@@ -63,7 +63,7 @@ final class HomeAssistantAPIClientTests: XCTestCase {
 
     let temperatures = try await HomeAssistantAPIClient(
       session: session,
-      climateIconLoader: StubClimateIconLoader()
+      climateMetadataLoader: StubClimateMetadataLoader()
     ).loadTemperatures()
 
     XCTAssertEqual(temperatures.map(\.unit), ["°F", "°F"])
@@ -126,7 +126,8 @@ final class HomeAssistantAPIClientTests: XCTestCase {
           value: 21,
           targetValue: 22,
           unit: "°C",
-          powerState: .poweredOn
+          powerState: .poweredOn,
+          operatingMode: .heating
         ),
         HomeAssistantTemperatureReading(
           id: "climate.living_room",
@@ -135,6 +136,7 @@ final class HomeAssistantAPIClientTests: XCTestCase {
           targetValue: 24,
           unit: "°C",
           powerState: .poweredOn,
+          operatingMode: .cooling,
           icon: "mdi:sofa"
         ),
       ]
@@ -145,9 +147,12 @@ final class HomeAssistantAPIClientTests: XCTestCase {
     let temperatures = try HomeAssistantAPIClient.temperatures(
       from: temperatureStatesData,
       unit: "°C",
-      climateIcons: [
-        "climate.bedroom": "mdi:bed",
-        "climate.living_room": "mdi:office-building",
+      climateMetadata: [
+        "climate.bedroom": HomeAssistantClimateMetadata(icon: "mdi:bed", kind: .other),
+        "climate.living_room": HomeAssistantClimateMetadata(
+          icon: "mdi:office-building",
+          kind: .other
+        ),
       ]
     )
 
@@ -158,7 +163,7 @@ final class HomeAssistantAPIClientTests: XCTestCase {
     )
   }
 
-  func testTemperatureLoadingContinuesWhenRegistryIconsAreUnavailable() async throws {
+  func testTemperatureLoadingContinuesWhenClimateMetadataIsUnavailable() async throws {
     let fixture = SessionFixture()
     let session = fixture.makeSession(
       apiResponses: [
@@ -169,7 +174,7 @@ final class HomeAssistantAPIClientTests: XCTestCase {
     try await session.install(fixture.credentials())
     let client = HomeAssistantAPIClient(
       session: session,
-      climateIconLoader: StubClimateIconLoader(fails: true)
+      climateMetadataLoader: StubClimateMetadataLoader(fails: true)
     )
 
     let temperatures = try await client.loadTemperatures()
@@ -178,7 +183,7 @@ final class HomeAssistantAPIClientTests: XCTestCase {
     XCTAssertNil(temperatures.first(where: { $0.id == "climate.bedroom" })?.icon)
   }
 
-  func testTemperatureLoadingDoesNotWaitForBlockedRegistryIcons() async throws {
+  func testTemperatureLoadingDoesNotWaitForBlockedClimateMetadata() async throws {
     let fixture = SessionFixture()
     let session = fixture.makeSession(
       apiResponses: [
@@ -187,25 +192,25 @@ final class HomeAssistantAPIClientTests: XCTestCase {
       ]
     )
     try await session.install(fixture.credentials())
-    let iconLoader = NonCooperativeClimateIconLoader()
+    let metadataLoader = NonCooperativeClimateMetadataLoader()
     let client = HomeAssistantAPIClient(
       session: session,
-      climateIconLoader: iconLoader,
-      climateIconTimeout: .milliseconds(50)
+      climateMetadataLoader: metadataLoader,
+      climateMetadataTimeout: .milliseconds(50)
     )
 
     let load = Task {
       try await client.loadTemperatures()
     }
-    await fulfillment(of: [iconLoader.started], timeout: 1)
+    await fulfillment(of: [metadataLoader.started], timeout: 1)
     let temperatures = try await load.value
 
     XCTAssertEqual(temperatures.count, 2)
-    XCTAssertTrue(iconLoader.wasCancelled)
-    iconLoader.finish()
+    XCTAssertTrue(metadataLoader.wasCancelled)
+    metadataLoader.finish()
   }
 
-  func testCancellingTemperatureLoadCancelsBlockedRegistryIcons() async throws {
+  func testCancellingTemperatureLoadCancelsBlockedClimateMetadata() async throws {
     let fixture = SessionFixture()
     let session = fixture.makeSession(
       apiResponses: [
@@ -216,16 +221,16 @@ final class HomeAssistantAPIClientTests: XCTestCase {
       ]
     )
     try await session.install(fixture.credentials())
-    let iconLoader = NonCooperativeClimateIconLoader()
+    let metadataLoader = NonCooperativeClimateMetadataLoader()
     let client = HomeAssistantAPIClient(
       session: session,
-      climateIconLoader: iconLoader,
-      climateIconTimeout: .seconds(10)
+      climateMetadataLoader: metadataLoader,
+      climateMetadataTimeout: .seconds(10)
     )
     let load = Task {
       try await client.loadTemperatures()
     }
-    await fulfillment(of: [iconLoader.started], timeout: 1)
+    await fulfillment(of: [metadataLoader.started], timeout: 1)
 
     load.cancel()
 
@@ -236,11 +241,11 @@ final class HomeAssistantAPIClientTests: XCTestCase {
     } catch {
       XCTFail("Unexpected error: \(error)")
     }
-    XCTAssertTrue(iconLoader.wasCancelled)
+    XCTAssertTrue(metadataLoader.wasCancelled)
     let replacementTemperatures = try await client.loadTemperatures()
     XCTAssertEqual(replacementTemperatures.count, 2)
-    XCTAssertEqual(iconLoader.loadCount, 1)
-    iconLoader.finish()
+    XCTAssertEqual(metadataLoader.loadCount, 1)
+    metadataLoader.finish()
   }
 
 }
@@ -302,19 +307,30 @@ private let temperatureStatesData = Data(
   """#.utf8
 )
 
-private struct StubClimateIconLoader: HomeAssistantClimateIconLoading {
+private struct StubClimateMetadataLoader: HomeAssistantClimateMetadataLoading {
   let icons: [String: String]
+  let kinds: [String: HomeAssistantTemperatureReading.Kind]
   let fails: Bool
 
-  init(icons: [String: String] = [:], fails: Bool = false) {
+  init(
+    icons: [String: String] = [:],
+    kinds: [String: HomeAssistantTemperatureReading.Kind] = [:],
+    fails: Bool = false
+  ) {
     self.icons = icons
+    self.kinds = kinds
     self.fails = fails
   }
 
-  func loadClimateIcons() async throws -> [String: String] {
+  func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata] {
     if fails {
       throw HomeAssistantAPIError.invalidResponse
     }
-    return icons
+    return Set(icons.keys).union(kinds.keys).reduce(into: [:]) { metadata, entityID in
+      metadata[entityID] = HomeAssistantClimateMetadata(
+        icon: icons[entityID],
+        kind: kinds[entityID] ?? .other
+      )
+    }
   }
 }

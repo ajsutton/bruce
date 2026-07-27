@@ -19,7 +19,7 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
           stateChangedEvent(
             entityID: "climate.bedroom",
             value: 24,
-            state: "off",
+            state: "auto",
             target: 22
           )
         ),
@@ -28,7 +28,8 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
     let client = makeClient(
       session: session,
       connections: [connection],
-      icons: ["climate.bedroom": "mdi:bed"]
+      icons: ["climate.bedroom": "mdi:bed"],
+      kinds: ["climate.bedroom": .airConditioner]
     )
     var updates = client.temperatureUpdates().makeAsyncIterator()
 
@@ -40,9 +41,13 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
     XCTAssertEqual(initial.map(\.value), [21])
     XCTAssertEqual(initial.map(\.targetValue), [22])
     XCTAssertEqual(initial.map(\.powerState), [.poweredOn])
+    XCTAssertEqual(initial.map(\.kind), [.airConditioner])
+    XCTAssertEqual(initial.map(\.operatingMode), [.cooling])
     XCTAssertEqual(live.map(\.value), [24])
     XCTAssertEqual(live.map(\.targetValue), [22])
-    XCTAssertEqual(live.map(\.powerState), [.off])
+    XCTAssertEqual(live.map(\.powerState), [.poweredOn])
+    XCTAssertEqual(live.map(\.kind), [.airConditioner])
+    XCTAssertEqual(live.map(\.operatingMode), [.automatic])
     XCTAssertEqual(live.first?.icon, "mdi:bed")
     XCTAssertNil(finished)
     XCTAssertEqual(connection.sentMessageTypes, ["auth", "subscribe_events"])

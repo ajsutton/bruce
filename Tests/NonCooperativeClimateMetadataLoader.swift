@@ -2,13 +2,13 @@ import XCTest
 
 @testable import Bruce
 
-final class NonCooperativeClimateIconLoader:
-  HomeAssistantClimateIconLoading, @unchecked Sendable
+final class NonCooperativeClimateMetadataLoader:
+  HomeAssistantClimateMetadataLoading, @unchecked Sendable
 {
-  let started = XCTestExpectation(description: "Climate icon load started")
+  let started = XCTestExpectation(description: "Climate metadata load started")
 
   private let lock = NSLock()
-  private var continuation: UnsafeContinuation<[String: String], Never>?
+  private var continuation: UnsafeContinuation<[String: HomeAssistantClimateMetadata], Never>?
   private var cancellationRequested = false
   private var storedLoadCount = 0
 
@@ -20,7 +20,7 @@ final class NonCooperativeClimateIconLoader:
     lock.withLock { storedLoadCount }
   }
 
-  func loadClimateIcons() async throws -> [String: String] {
+  func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata] {
     await withTaskCancellationHandler {
       await withUnsafeContinuation { continuation in
         lock.withLock {

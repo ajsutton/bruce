@@ -82,7 +82,8 @@ final class HomeAssistantTemperatureReconnectTests: XCTestCase {
       value: 21,
       targetValue: 22,
       unit: "°C",
-      powerState: .poweredOn
+      powerState: .poweredOn,
+      operatingMode: .cooling
     )
     XCTAssertEqual(reconnecting, .reconnecting([expected]))
   }
@@ -111,7 +112,7 @@ final class HomeAssistantTemperatureReconnectTests: XCTestCase {
       session: session,
       apiClient: HomeAssistantAPIClient(
         session: session,
-        climateIconLoader: TemperatureSubscriptionIconLoader(icons: [:])
+        climateMetadataLoader: TemperatureSubscriptionMetadataLoader(metadata: [:])
       ),
       connector: connector,
       retryDelays: [.zero],

@@ -1,6 +1,23 @@
 import Foundation
 
 struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
+  enum Kind: Equatable, Sendable {
+    case airConditioner
+    case zone
+    case other
+  }
+
+  enum OperatingMode: Equatable, Sendable {
+    case automatic
+    case cooling
+    case drying
+    case fanOnly
+    case heating
+    case off
+    case active
+    case unavailable
+  }
+
   enum PowerState: Equatable, Sendable {
     case poweredOn
     case off
@@ -13,6 +30,8 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
   let targetValue: Double?
   let unit: String?
   let powerState: PowerState
+  let kind: Kind
+  let operatingMode: OperatingMode
   let icon: String?
 
   init(
@@ -22,6 +41,8 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     targetValue: Double?,
     unit: String?,
     powerState: PowerState,
+    kind: Kind = .other,
+    operatingMode: OperatingMode = .active,
     icon: String? = nil
   ) {
     self.id = id
@@ -30,6 +51,8 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     self.targetValue = targetValue
     self.unit = unit
     self.powerState = powerState
+    self.kind = kind
+    self.operatingMode = operatingMode
     self.icon = icon
   }
 }

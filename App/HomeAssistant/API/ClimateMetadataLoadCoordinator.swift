@@ -1,20 +1,20 @@
 import Foundation
 
-final class HomeAssistantClimateIconLoadCoordinator: @unchecked Sendable {
-  typealias Output = [String: String]
+final class ClimateMetadataLoadCoordinator: @unchecked Sendable {
+  typealias Output = [String: HomeAssistantClimateMetadata]
 
   private typealias LoadResult = Result<Output, any Error>
 
   private let lock = NSLock()
   private var activeLoad: Task<Void, Never>?
-  private var waiters: [UUID: ClimateIconLoadWaiter] = [:]
+  private var waiters: [UUID: ClimateMetadataLoadWaiter] = [:]
   private var isDraining = false
 
   func load(
     timeout: Duration,
     operation: @escaping @Sendable () async throws -> Output
   ) async throws -> Output {
-    let waiter = ClimateIconLoadWaiter()
+    let waiter = ClimateMetadataLoadWaiter()
     register(waiter, timeout: timeout, operation: operation)
     let result = await withTaskCancellationHandler {
       await waiter.result()
@@ -25,7 +25,7 @@ final class HomeAssistantClimateIconLoadCoordinator: @unchecked Sendable {
   }
 
   private func register(
-    _ waiter: ClimateIconLoadWaiter,
+    _ waiter: ClimateMetadataLoadWaiter,
     timeout: Duration,
     operation: @escaping @Sendable () async throws -> Output
   ) {
@@ -57,7 +57,7 @@ final class HomeAssistantClimateIconLoadCoordinator: @unchecked Sendable {
     }
   }
 
-  private func complete(_ waiter: ClimateIconLoadWaiter, with result: LoadResult) {
+  private func complete(_ waiter: ClimateMetadataLoadWaiter, with result: LoadResult) {
     let loadToCancel = lock.withLock {
       guard waiters.removeValue(forKey: waiter.id) != nil else {
         return Optional<Task<Void, Never>>.none
@@ -86,8 +86,8 @@ final class HomeAssistantClimateIconLoadCoordinator: @unchecked Sendable {
   }
 }
 
-private final class ClimateIconLoadWaiter: @unchecked Sendable {
-  typealias LoadResult = Result<[String: String], any Error>
+private final class ClimateMetadataLoadWaiter: @unchecked Sendable {
+  typealias LoadResult = Result<[String: HomeAssistantClimateMetadata], any Error>
 
   let id = UUID()
 

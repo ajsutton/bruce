@@ -3,11 +3,11 @@ import XCTest
 
 @testable import Bruce
 
-struct TemperatureSubscriptionIconLoader: HomeAssistantClimateIconLoading {
-  let icons: [String: String]
+struct TemperatureSubscriptionMetadataLoader: HomeAssistantClimateMetadataLoading {
+  let metadata: [String: HomeAssistantClimateMetadata]
 
-  func loadClimateIcons() async throws -> [String: String] {
-    icons
+  func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata] {
+    metadata
   }
 }
 
@@ -177,6 +177,7 @@ func makeClient(
   session: HomeAssistantSession,
   connections: [TemperatureSubscriptionConnection],
   icons: [String: String] = [:],
+  kinds: [String: HomeAssistantTemperatureReading.Kind] = [:],
   retryDelays: [Duration] = [],
   sleep: @escaping @Sendable (Duration) async throws -> Void = { _ in }
 ) -> HomeAssistantTemperatureStream {
@@ -184,7 +185,14 @@ func makeClient(
     session: session,
     apiClient: HomeAssistantAPIClient(
       session: session,
-      climateIconLoader: TemperatureSubscriptionIconLoader(icons: icons)
+      climateMetadataLoader: TemperatureSubscriptionMetadataLoader(
+        metadata: Set(icons.keys).union(kinds.keys).reduce(into: [:]) { metadata, entityID in
+          metadata[entityID] = HomeAssistantClimateMetadata(
+            icon: icons[entityID],
+            kind: kinds[entityID] ?? .other
+          )
+        }
+      )
     ),
     connector: TemperatureSubscriptionConnector(connections: connections),
     retryDelays: retryDelays,

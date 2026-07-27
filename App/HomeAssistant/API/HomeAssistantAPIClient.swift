@@ -8,7 +8,7 @@ struct HomeAssistantAPIStatus: Decodable, Equatable, Sendable {
 struct HomeAssistantTemperatureSnapshot: Sendable {
   let readings: [HomeAssistantTemperatureReading]
   let unit: String
-  let climateIcons: [String: String]
+  let climateMetadata: [String: HomeAssistantClimateMetadata]
 }
 
 struct HomeAssistantAPIClient: Sendable {
@@ -18,26 +18,26 @@ struct HomeAssistantAPIClient: Sendable {
   )
 
   private let session: HomeAssistantSession
-  private let climateIconLoader: any HomeAssistantClimateIconLoading
-  private let climateIconTimeout: Duration
-  private let climateIconCoordinator: HomeAssistantClimateIconLoadCoordinator
+  private let climateMetadataLoader: any HomeAssistantClimateMetadataLoading
+  private let climateMetadataTimeout: Duration
+  private let climateMetadataCoordinator: ClimateMetadataLoadCoordinator
 
   init(session: HomeAssistantSession) {
     self.session = session
-    climateIconLoader = HomeAssistantRegistryClient(session: session)
-    climateIconTimeout = .seconds(2)
-    climateIconCoordinator = HomeAssistantClimateIconLoadCoordinator()
+    climateMetadataLoader = HomeAssistantRegistryClient(session: session)
+    climateMetadataTimeout = .seconds(2)
+    climateMetadataCoordinator = ClimateMetadataLoadCoordinator()
   }
 
   init(
     session: HomeAssistantSession,
-    climateIconLoader: any HomeAssistantClimateIconLoading,
-    climateIconTimeout: Duration = .seconds(2)
+    climateMetadataLoader: any HomeAssistantClimateMetadataLoading,
+    climateMetadataTimeout: Duration = .seconds(2)
   ) {
     self.session = session
-    self.climateIconLoader = climateIconLoader
-    self.climateIconTimeout = climateIconTimeout
-    climateIconCoordinator = HomeAssistantClimateIconLoadCoordinator()
+    self.climateMetadataLoader = climateMetadataLoader
+    self.climateMetadataTimeout = climateMetadataTimeout
+    climateMetadataCoordinator = ClimateMetadataLoadCoordinator()
   }
 
   func checkConnection() async throws -> HomeAssistantAPIStatus {
@@ -56,16 +56,16 @@ struct HomeAssistantAPIClient: Sendable {
     try Task.checkCancellation()
     let statesData = try await session.authenticatedGET(path: "api/states")
     try Task.checkCancellation()
-    let climateIcons = try await loadClimateIcons()
+    let climateMetadata = try await loadClimateMetadata()
     try Task.checkCancellation()
     return try HomeAssistantTemperatureSnapshot(
       readings: Self.temperatures(
         from: statesData,
         unit: unit,
-        climateIcons: climateIcons
+        climateMetadata: climateMetadata
       ),
       unit: unit,
-      climateIcons: climateIcons
+      climateMetadata: climateMetadata
     )
   }
 
@@ -91,7 +91,7 @@ struct HomeAssistantAPIClient: Sendable {
   static func temperatures(
     from data: Data,
     unit: String,
-    climateIcons: [String: String] = [:]
+    climateMetadata: [String: HomeAssistantClimateMetadata] = [:]
   ) throws -> [HomeAssistantTemperatureReading] {
     let states: [HomeAssistantState]
     do {
@@ -100,21 +100,21 @@ struct HomeAssistantAPIClient: Sendable {
       throw HomeAssistantAPIError.invalidResponse
     }
     return states.compactMap {
-      $0.temperatureReading(unit: unit, registryIcon: climateIcons[$0.entityID])
+      $0.temperatureReading(unit: unit, metadata: climateMetadata[$0.entityID])
     }.sorted {
       $0.name.localizedStandardCompare($1.name) == .orderedAscending
     }
   }
 
-  private func loadClimateIcons() async throws -> [String: String] {
-    try await climateIconCoordinator.load(timeout: climateIconTimeout) {
+  private func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata] {
+    try await climateMetadataCoordinator.load(timeout: climateMetadataTimeout) {
       do {
-        return try await climateIconLoader.loadClimateIcons()
+        return try await climateMetadataLoader.loadClimateMetadata()
       } catch is CancellationError {
         throw CancellationError()
       } catch {
         Self.logger.error(
-          "Couldn’t load Home Assistant room icons: \(String(describing: error), privacy: .private)"
+          "Couldn’t load Home Assistant climate metadata: \(String(describing: error), privacy: .private)"
         )
         return [:]
       }
@@ -147,7 +147,7 @@ struct HomeAssistantState: Decodable {
 
   func temperatureReading(
     unit: String,
-    registryIcon: String?
+    metadata: HomeAssistantClimateMetadata?
   ) -> HomeAssistantTemperatureReading? {
     guard
       entityID.hasPrefix("climate."),
@@ -163,7 +163,9 @@ struct HomeAssistantState: Decodable {
       targetValue: finiteTargetTemperature,
       unit: unit,
       powerState: powerState,
-      icon: attributes.icon ?? registryIcon
+      kind: metadata?.kind ?? .other,
+      operatingMode: operatingMode,
+      icon: attributes.icon ?? metadata?.icon
     )
   }
 
@@ -187,6 +189,27 @@ struct HomeAssistantState: Decodable {
       .unavailable
     default:
       .poweredOn
+    }
+  }
+
+  private var operatingMode: HomeAssistantTemperatureReading.OperatingMode {
+    switch state {
+    case "auto", "heat_cool":
+      .automatic
+    case "cool":
+      .cooling
+    case "dry":
+      .drying
+    case "fan_only":
+      .fanOnly
+    case "heat":
+      .heating
+    case "off":
+      .off
+    case "unavailable", "unknown":
+      .unavailable
+    default:
+      .active
     }
   }
 }

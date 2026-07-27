@@ -22,6 +22,10 @@ struct HomeAssistantTemperatureView: View {
     connectionProblem != nil || store.problem == .signInRequired
   }
 
+  private var summary: HomeAssistantTemperatureSummary {
+    HomeAssistantTemperatureSummary(readings: store.readings)
+  }
+
   private var screenBackground: Color {
     if mode.isFullBruce {
       return mode.backgroundColor
@@ -55,7 +59,7 @@ struct HomeAssistantTemperatureView: View {
         temperatureContent
       }
       .background(screenBackground)
-      .navigationTitle("Temperatures")
+      .navigationTitle("Climate")
       .toolbarTitleDisplayMode(.inline)
       .tint(mode.accentColor)
       .modifier(TemperatureNavigationStyle(mode: mode))
@@ -69,7 +73,17 @@ struct HomeAssistantTemperatureView: View {
     } else {
       ScrollView {
         LazyVStack(spacing: 14) {
-          ForEach(store.readings) { reading in
+          ForEach(summary.airConditioners) { reading in
+            HomeAssistantAirConditionerCard(
+              reading: reading,
+              averageValue: summary.averageRoomTemperature,
+              mode: mode,
+              showsName: summary.airConditioners.count > 1
+            )
+            .padding(.bottom, 4)
+          }
+
+          ForEach(summary.rooms) { reading in
             HomeAssistantTemperatureCard(reading: reading, mode: mode)
           }
 

@@ -1,10 +1,15 @@
 import Foundation
 
-protocol HomeAssistantClimateIconLoading: Sendable {
-  func loadClimateIcons() async throws -> [String: String]
+protocol HomeAssistantClimateMetadataLoading: Sendable {
+  func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata]
 }
 
-struct HomeAssistantRegistryClient: HomeAssistantClimateIconLoading {
+struct HomeAssistantClimateMetadata: Equatable, Sendable {
+  let icon: String?
+  let kind: HomeAssistantTemperatureReading.Kind
+}
+
+struct HomeAssistantRegistryClient: HomeAssistantClimateMetadataLoading {
   private let session: HomeAssistantSession
   private let connector: any HomeAssistantWebSocketConnecting
 
@@ -17,7 +22,7 @@ struct HomeAssistantRegistryClient: HomeAssistantClimateIconLoading {
     self.connector = connector
   }
 
-  func loadClimateIcons() async throws -> [String: String] {
+  func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata] {
     let access = try await session.authenticatedWebSocketAccess()
     let connection = connector.connect(to: access.url)
     return try await withTaskCancellationHandler {
@@ -41,17 +46,17 @@ struct HomeAssistantRegistryClient: HomeAssistantClimateIconLoading {
         over: connection
       )
       try Task.checkCancellation()
-      return Self.climateIcons(entities: entities, devices: devices, areas: areas)
+      return Self.climateMetadata(entities: entities, devices: devices, areas: areas)
     } onCancel: {
       connection.cancel()
     }
   }
 
-  static func climateIcons(
+  static func climateMetadata(
     entities: [HomeAssistantRegistryEntity],
     devices: [HomeAssistantRegistryDevice],
     areas: [HomeAssistantRegistryArea]
-  ) -> [String: String] {
+  ) -> [String: HomeAssistantClimateMetadata] {
     let devicesByID = devices.reduce(into: [:]) { devicesByID, device in
       devicesByID[device.id] = device
     }
@@ -59,16 +64,39 @@ struct HomeAssistantRegistryClient: HomeAssistantClimateIconLoading {
       areasByID[area.id] = area
     }
 
-    return entities.reduce(into: [:]) { icons, entity in
+    return entities.reduce(into: [:]) { metadata, entity in
       guard entity.id.hasPrefix("climate.") else {
         return
       }
       let areaID = entity.areaID ?? entity.deviceID.flatMap { devicesByID[$0]?.areaID }
       let areaIcon = areaID.flatMap { areasByID[$0]?.icon }
-      if let icon = entity.icon ?? areaIcon ?? entity.originalIcon {
-        icons[entity.id] = icon
-      }
+      metadata[entity.id] = HomeAssistantClimateMetadata(
+        icon: entity.icon ?? areaIcon ?? entity.originalIcon,
+        kind: kind(for: entity)
+      )
     }
+  }
+
+  private static func kind(
+    for entity: HomeAssistantRegistryEntity
+  ) -> HomeAssistantTemperatureReading.Kind {
+    guard entity.platform == "airtouch5", let uniqueID = entity.uniqueID else {
+      return .other
+    }
+    if identifier(uniqueID, hasPrefix: "ac_") {
+      return .airConditioner
+    }
+    if identifier(uniqueID, hasPrefix: "zone_") {
+      return .zone
+    }
+    return .other
+  }
+
+  private static func identifier(_ identifier: String, hasPrefix prefix: String) -> Bool {
+    guard identifier.hasPrefix(prefix) else {
+      return false
+    }
+    return Int(identifier.dropFirst(prefix.count)) != nil
   }
 
   private func authenticate(
@@ -141,13 +169,35 @@ struct HomeAssistantRegistryClient: HomeAssistantClimateIconLoading {
 
 struct HomeAssistantRegistryEntity: Decodable, Equatable, Sendable {
   let id: String
+  let platform: String?
+  let uniqueID: String?
   let deviceID: String?
   let areaID: String?
   let icon: String?
   let originalIcon: String?
 
+  init(
+    id: String,
+    platform: String? = nil,
+    uniqueID: String? = nil,
+    deviceID: String?,
+    areaID: String?,
+    icon: String?,
+    originalIcon: String?
+  ) {
+    self.id = id
+    self.platform = platform
+    self.uniqueID = uniqueID
+    self.deviceID = deviceID
+    self.areaID = areaID
+    self.icon = icon
+    self.originalIcon = originalIcon
+  }
+
   enum CodingKeys: String, CodingKey {
     case id = "entity_id"
+    case platform
+    case uniqueID = "unique_id"
     case deviceID = "device_id"
     case areaID = "area_id"
     case icon

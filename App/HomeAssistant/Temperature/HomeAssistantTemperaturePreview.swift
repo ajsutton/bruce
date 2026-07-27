@@ -19,6 +19,25 @@ import SwiftUI
   )
 }
 
+#Preview("Bruce AC") {
+  HomeAssistantAirConditionerCard(
+    reading: HomeAssistantTemperaturePreview.airConditioner,
+    averageValue: 22.8,
+    mode: .standard
+  )
+  .padding()
+}
+
+#Preview("Full Bruce AC") {
+  HomeAssistantAirConditionerCard(
+    reading: HomeAssistantTemperaturePreview.airConditioner,
+    averageValue: 22.8,
+    mode: .full
+  )
+  .padding()
+  .background(BruceMode.full.backgroundColor)
+}
+
 private enum HomeAssistantTemperaturePreview {
   @MainActor
   static func view(
@@ -43,7 +62,19 @@ private enum HomeAssistantTemperaturePreview {
     }
   }
 
+  static let airConditioner = HomeAssistantTemperatureReading(
+    id: "climate.ac_0",
+    name: "AC 0",
+    value: 24,
+    targetValue: 18,
+    unit: "°C",
+    powerState: .poweredOn,
+    kind: .airConditioner,
+    operatingMode: .cooling
+  )
+
   private static let previewTemperatureReadings = [
+    airConditioner,
     HomeAssistantTemperatureReading(
       id: "climate.living_room",
       name: "Living Room",
@@ -51,6 +82,8 @@ private enum HomeAssistantTemperaturePreview {
       targetValue: 18,
       unit: "°C",
       powerState: .poweredOn,
+      kind: .zone,
+      operatingMode: .fanOnly,
       icon: "mdi:sofa"
     ),
     HomeAssistantTemperatureReading(
@@ -60,6 +93,8 @@ private enum HomeAssistantTemperaturePreview {
       targetValue: 22,
       unit: "°C",
       powerState: .poweredOn,
+      kind: .zone,
+      operatingMode: .fanOnly,
       icon: "mdi:bed"
     ),
     HomeAssistantTemperatureReading(
@@ -69,6 +104,8 @@ private enum HomeAssistantTemperaturePreview {
       targetValue: nil,
       unit: "°C",
       powerState: .off,
+      kind: .zone,
+      operatingMode: .off,
       icon: "mdi:desk"
     ),
     HomeAssistantTemperatureReading(
@@ -78,6 +115,8 @@ private enum HomeAssistantTemperaturePreview {
       targetValue: 24.5,
       unit: "°C",
       powerState: .unavailable,
+      kind: .zone,
+      operatingMode: .unavailable,
       icon: "mdi:table-chair"
     ),
   ]
