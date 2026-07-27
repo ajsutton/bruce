@@ -19,6 +19,8 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
     await fulfillment(of: [controller.started], timeout: 1)
 
     XCTAssertTrue(store.isControlling(entityID: reading.id))
+    XCTAssertTrue(store.isControllingClimateState(entityID: reading.id))
+    XCTAssertFalse(store.isAdjustingTarget(entityID: reading.id))
     XCTAssertEqual(store.readings.first?.powerState, .off)
     controller.succeed()
     await command.value
@@ -98,6 +100,8 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
     await fulfillment(of: [controller.started], timeout: 1)
 
     XCTAssertEqual(store.readings.first?.targetValue, 24.5)
+    XCTAssertTrue(store.isAdjustingTarget(entityID: reading.id))
+    XCTAssertFalse(store.isControllingClimateState(entityID: reading.id))
     controller.succeed()
     await command.value
     XCTAssertTrue(store.isControlling(entityID: reading.id))
@@ -113,6 +117,38 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
     XCTAssertEqual(commands, [.targetValue(entityID: reading.id, value: 24.5)])
     loader.finishRequest(0)
     await load.value
+  }
+
+  func testPowerCommandIsIgnoredWhileTargetCommandIsPending() async {
+    let loader = ControlledTemperatureLoader(requestCount: 1)
+    let controller = BlockingClimateController()
+    let fixture = await loadedStore(
+      loader: loader,
+      controller: controller,
+      reading: controllableReading(kind: .zone)
+    )
+    let store = fixture.store
+    let reading = fixture.reading
+
+    let targetCommand = Task {
+      await store.setTargetValue(24.5, for: reading)
+    }
+    await fulfillment(of: [controller.started], timeout: 1)
+
+    await store.setPower(for: reading, isOn: false)
+
+    XCTAssertEqual(store.readings.first?.targetValue, 24.5)
+    XCTAssertEqual(store.readings.first?.powerState, reading.powerState)
+    let commands = await controller.commands
+    XCTAssertEqual(
+      commands,
+      [.targetValue(entityID: reading.id, value: 24.5)]
+    )
+
+    controller.succeed()
+    await targetCommand.value
+    loader.finishRequest(0)
+    await fixture.load.value
   }
 
   func testAirConditionerTargetCannotBeChanged() async {

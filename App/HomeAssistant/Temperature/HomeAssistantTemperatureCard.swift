@@ -9,6 +9,7 @@ struct HomeAssistantTemperatureCard: View {
   let showsControl: Bool
   let isControlEnabled: Bool
   let isControlling: Bool
+  let isTargetControlling: Bool
   let showsTargetControl: Bool
   let targetValueFractionLength: Int
   let setPower: (Bool) -> Void
@@ -20,6 +21,7 @@ struct HomeAssistantTemperatureCard: View {
     showsControl: Bool = false,
     isControlEnabled: Bool = false,
     isControlling: Bool = false,
+    isTargetControlling: Bool = false,
     showsTargetControl: Bool = false,
     targetValueFractionLength: Int = 1,
     setPower: @escaping (Bool) -> Void = { _ in },
@@ -30,6 +32,7 @@ struct HomeAssistantTemperatureCard: View {
     self.showsControl = showsControl
     self.isControlEnabled = isControlEnabled
     self.isControlling = isControlling
+    self.isTargetControlling = isTargetControlling
     self.showsTargetControl = showsTargetControl
     self.targetValueFractionLength = targetValueFractionLength
     self.setPower = setPower
@@ -274,6 +277,9 @@ extension HomeAssistantTemperatureCard {
     let targetControlAlignment: Alignment =
       usesBottomTargetControlAlignment ? .bottomTrailing : .trailing
     return Button {
+      guard !isTargetControlling else {
+        return
+      }
       setPower(reading.powerState == .off)
     } label: {
       cardSurface(content: content)
@@ -282,12 +288,15 @@ extension HomeAssistantTemperatureCard {
     .disabled(!isControlEnabled || isControlling)
     .accessibilityLabel(powerAccessibilityLabel)
     .accessibilityValue(powerAccessibilityValue)
+    .allowsHitTesting(!isTargetControlling)
+    .focusable(!isTargetControlling)
+    .accessibilityRespondsToUserInteraction(!isTargetControlling)
     .overlay(alignment: targetControlAlignment) {
       ZoneTargetTemperatureControl(
         reading: reading,
         mode: mode,
         isEnabled: isControlEnabled,
-        isControlling: isControlling,
+        isControlling: isTargetControlling,
         fractionLength: targetValueFractionLength,
         setTargetValue: setTargetValue
       )
@@ -367,30 +376,5 @@ extension HomeAssistantTemperatureCard {
       .number.precision(.fractionLength(fractionLength))
     )
     return "\(formattedValue)\(reading.unit ?? "")"
-  }
-}
-
-private enum TemperatureRowDensity {
-  case spacious
-  case condensed
-
-  var spacing: CGFloat {
-    self == .spacious ? 12 : 6
-  }
-
-  var locationMinimumWidth: CGFloat {
-    self == .spacious ? 180 : 144
-  }
-
-  var locationMaximumWidth: CGFloat {
-    self == .spacious ? .infinity : 144
-  }
-
-  var temperatureMinimumWidth: CGFloat {
-    self == .spacious ? 96 : 68
-  }
-
-  var minimumHeight: CGFloat {
-    self == .spacious ? 76 : 68
   }
 }

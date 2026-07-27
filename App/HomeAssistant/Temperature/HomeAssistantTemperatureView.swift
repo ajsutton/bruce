@@ -118,7 +118,8 @@ struct HomeAssistantTemperatureView: View {
               mode: mode,
               showsControl: reading.kind == .zone && store.supportsControl,
               isControlEnabled: store.canControl(reading),
-              isControlling: store.isControlling(entityID: reading.id),
+              isControlling: store.isControllingClimateState(entityID: reading.id),
+              isTargetControlling: store.isAdjustingTarget(entityID: reading.id),
               showsTargetControl: reading.kind == .zone
                 && reading.targetValue != nil
                 && store.supportsControl,

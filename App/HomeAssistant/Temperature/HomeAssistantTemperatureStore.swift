@@ -1,23 +1,5 @@
 import Foundation
 
-enum HomeAssistantTemperatureUpdate: Equatable, Sendable {
-  case live([HomeAssistantTemperatureReading])
-  case reconnecting([HomeAssistantTemperatureReading])
-}
-
-protocol HomeAssistantTemperatureLoading: Sendable {
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  >
-}
-
-enum HomeAssistantTemperatureConnection: Equatable {
-  case disconnected
-  case connecting
-  case connected(HomeAssistantCredentials)
-  case unavailable
-}
-
 @MainActor
 final class HomeAssistantTemperatureStore: ObservableObject {
   struct ControlProblem: Equatable {
@@ -97,6 +79,20 @@ final class HomeAssistantTemperatureStore: ObservableObject {
 
   func isControlling(entityID: String) -> Bool {
     controllingEntityIDs.contains(entityID)
+  }
+
+  func isAdjustingTarget(entityID: String) -> Bool {
+    guard let pendingControl = pendingControls[entityID] else {
+      return false
+    }
+    if case .targetValue = pendingControl.intent {
+      return true
+    }
+    return false
+  }
+
+  func isControllingClimateState(entityID: String) -> Bool {
+    isControlling(entityID: entityID) && !isAdjustingTarget(entityID: entityID)
   }
 
   func setPower(

@@ -67,10 +67,11 @@ import SwiftUI
 
 #Preview("Narrow Zone Controls") {
   HomeAssistantTemperatureCard(
-    reading: HomeAssistantTemperaturePreview.livingRoom,
+    reading: HomeAssistantTemperaturePreview.livingRoom.replacingTargetValue(18.5),
     mode: .standard,
     showsControl: true,
     isControlEnabled: true,
+    isTargetControlling: true,
     showsTargetControl: true,
     targetValueFractionLength: 1
   )
