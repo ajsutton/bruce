@@ -68,7 +68,8 @@ struct ContentView: View {
         isConnecting: presentation.isConnecting,
         connectionProblem: presentation.connectionProblem,
         manageConnection: manageConnection,
-        requestRefresh: requestTemperatureRefresh
+        requestRefresh: requestTemperatureRefresh,
+        isRemovingConnection: setupStore.isDisconnecting
       )
     } else {
       #if os(macOS)

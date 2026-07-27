@@ -127,6 +127,7 @@ final class HomeAssistantConnectionController: ObservableObject {
     }
     let generation = beginConnectionOperation()
     isDisconnecting = true
+    connectionCheckState = .idle
     connectionTask = Task { [weak self, connection] in
       do {
         try await connection.disconnect()

@@ -17,8 +17,13 @@ struct HomeAssistantAPIClient: Sendable {
   }
 
   func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
-    let data = try await session.authenticatedGET(path: "api/states")
-    return try Self.temperatures(from: data)
+    let configurationData = try await session.authenticatedGET(path: "api/config")
+    try Task.checkCancellation()
+    let unit = try Self.temperatureUnit(from: configurationData)
+    try Task.checkCancellation()
+    let statesData = try await session.authenticatedGET(path: "api/states")
+    try Task.checkCancellation()
+    return try Self.temperatures(from: statesData, unit: unit)
   }
 
   static func status(from data: Data) throws -> HomeAssistantAPIStatus {
@@ -31,14 +36,26 @@ struct HomeAssistantAPIClient: Sendable {
     return status
   }
 
-  static func temperatures(from data: Data) throws -> [HomeAssistantTemperatureReading] {
+  static func temperatureUnit(from data: Data) throws -> String {
+    do {
+      return try JSONDecoder().decode(HomeAssistantAPIConfiguration.self, from: data)
+        .unitSystem.temperature
+    } catch {
+      throw HomeAssistantAPIError.invalidResponse
+    }
+  }
+
+  static func temperatures(
+    from data: Data,
+    unit: String
+  ) throws -> [HomeAssistantTemperatureReading] {
     let states: [HomeAssistantState]
     do {
       states = try JSONDecoder().decode([HomeAssistantState].self, from: data)
     } catch {
       throw HomeAssistantAPIError.invalidResponse
     }
-    return states.compactMap(\.temperatureReading).sorted {
+    return states.compactMap { $0.temperatureReading(unit: unit) }.sorted {
       $0.name.localizedStandardCompare($1.name) == .orderedAscending
     }
   }
@@ -46,23 +63,33 @@ struct HomeAssistantAPIClient: Sendable {
 
 extension HomeAssistantAPIClient: HomeAssistantTemperatureLoading {}
 
+private struct HomeAssistantAPIConfiguration: Decodable {
+  let unitSystem: HomeAssistantUnitSystem
+
+  enum CodingKeys: String, CodingKey {
+    case unitSystem = "unit_system"
+  }
+}
+
+private struct HomeAssistantUnitSystem: Decodable {
+  let temperature: String
+}
+
 private struct HomeAssistantState: Decodable {
   let entityID: String
-  let state: String
   let attributes: HomeAssistantStateAttributes
   let lastUpdated: String?
 
   enum CodingKeys: String, CodingKey {
     case entityID = "entity_id"
-    case state
     case attributes
     case lastUpdated = "last_updated"
   }
 
-  var temperatureReading: HomeAssistantTemperatureReading? {
+  func temperatureReading(unit: String) -> HomeAssistantTemperatureReading? {
     guard
-      attributes.deviceClass == "temperature",
-      let value = Double(state),
+      entityID.hasPrefix("climate."),
+      let value = attributes.currentTemperature,
       value.isFinite
     else {
       return nil
@@ -71,7 +98,7 @@ private struct HomeAssistantState: Decodable {
       id: entityID,
       name: attributes.friendlyName ?? fallbackName,
       value: value,
-      unit: attributes.unitOfMeasurement,
+      unit: unit,
       updatedAt: parsedLastUpdated
     )
   }
@@ -94,13 +121,11 @@ private struct HomeAssistantState: Decodable {
 }
 
 private struct HomeAssistantStateAttributes: Decodable {
-  let deviceClass: String?
+  let currentTemperature: Double?
   let friendlyName: String?
-  let unitOfMeasurement: String?
 
   enum CodingKeys: String, CodingKey {
-    case deviceClass = "device_class"
+    case currentTemperature = "current_temperature"
     case friendlyName = "friendly_name"
-    case unitOfMeasurement = "unit_of_measurement"
   }
 }

@@ -23,7 +23,9 @@ struct HomeAssistantTemperaturePresentation: Equatable {
     connectionCheckState: HomeAssistantSetupStore.ConnectionCheckState
   ) {
     screen = Self.screen(for: step)
-    isConnecting = step == .restoring || connectionCheckState == .checking
+    isConnecting =
+      (step == .restoring && connectionCheckState != .disconnectFailed)
+      || connectionCheckState == .checking
     connectionProblem = Self.connectionProblem(
       for: step,
       connectionCheckState: connectionCheckState
@@ -68,6 +70,8 @@ struct HomeAssistantTemperaturePresentation: Equatable {
     connectionCheckState: HomeAssistantSetupStore.ConnectionCheckState
   ) -> String? {
     switch step {
+    case .restoring where connectionCheckState == .disconnectFailed:
+      "Bruce couldn’t remove the saved Home Assistant connection."
     case .restoreFailed:
       "The saved Home Assistant connection couldn’t be restored."
     case .configured:

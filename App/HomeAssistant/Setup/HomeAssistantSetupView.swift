@@ -9,6 +9,7 @@ struct HomeAssistantSetupView: View {
   @State private var webAuthenticationOwnerID = UUID()
   @State private var showsAuthenticationTechnicalDetails = false
   @State private var showsDisconnectConfirmation = false
+  @State private var showsRestoreRemovalConfirmation = false
 
   private var copy: HomeAssistantCopy {
     HomeAssistantCopy(mode: mode)
@@ -19,7 +20,14 @@ struct HomeAssistantSetupView: View {
       Group {
         switch store.step {
         case .restoring:
-          HomeAssistantProgressView(title: copy.restoringTitle, detail: copy.restoringDetail)
+          HomeAssistantRestoringView(
+            store: store,
+            title: copy.restoringTitle,
+            detail: copy.restoringDetail,
+            requestRemoval: {
+              showsRestoreRemovalConfirmation = true
+            }
+          )
         case .restoreFailed:
           restoreFailed
         case .introduction:
@@ -83,6 +91,17 @@ struct HomeAssistantSetupView: View {
       isPresented: $showsDisconnectConfirmation
     ) {
       Button("Disconnect", role: .destructive) {
+        store.disconnect()
+      }
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      Text("Bruce will remove the saved Home Assistant connection from this device.")
+    }
+    .confirmationDialog(
+      "Remove Home Assistant Connection?",
+      isPresented: $showsRestoreRemovalConfirmation
+    ) {
+      Button("Remove Connection", role: .destructive) {
         store.disconnect()
       }
       Button("Cancel", role: .cancel) {}

@@ -7,6 +7,7 @@ struct HomeAssistantTemperatureView: View {
   let connectionProblem: String?
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
+  let isRemovingConnection: Bool
 
   private var displayedProblem: String? {
     connectionProblem ?? store.problem?.message
@@ -35,20 +36,13 @@ struct HomeAssistantTemperatureView: View {
         }
         temperatureContent
       }
-      .navigationTitle("Temperatures")
-      .toolbar {
-        ToolbarItem {
-          Button("Manage Connection", systemImage: "gearshape") {
-            manageConnection()
-          }
-        }
-      }
+      .navigationTitle("Current Temperatures")
     }
   }
 
   @ViewBuilder
   private var temperatureContent: some View {
-    if store.readings.isEmpty {
+    if store.readings.isEmpty && !showsActivity {
       emptyState
     } else {
       ScrollView {
@@ -72,28 +66,20 @@ struct HomeAssistantTemperatureView: View {
     }
   }
 
+  private var showsActivity: Bool {
+    isRemovingConnection || isConnecting || store.isLoading || isAwaitingFirstLoad
+  }
+
   private var emptyState: some View {
     ContentUnavailableView {
-      if isConnecting || store.isLoading || isAwaitingFirstLoad {
-        Label("Loading Temperatures", systemImage: "thermometer.medium")
-      } else if displayedProblem != nil {
+      if displayedProblem != nil {
         Label("Temperatures Unavailable", systemImage: "thermometer.medium.slash")
       } else {
-        Label("No Temperature Sensors", systemImage: "thermometer.medium")
+        Label("No Current Temperatures", systemImage: "thermometer.medium")
       }
     } description: {
-      if isConnecting {
-        Text("Connecting to Home Assistant.")
-      } else if store.isLoading || isAwaitingFirstLoad {
-        Text("Checking the available sensors.")
-      } else if displayedProblem == nil {
-        Text("Bruce couldn’t find any available temperature sensors.")
-      }
-    } actions: {
-      if isConnecting || store.isLoading || isAwaitingFirstLoad {
-        ProgressView()
-          .controlSize(.small)
-          .accessibilityLabel(isConnecting ? "Connecting" : "Loading temperatures")
+      if displayedProblem == nil {
+        Text("Bruce couldn’t find a current temperature from any air conditioner.")
       }
     }
     .padding()
@@ -158,23 +144,33 @@ struct HomeAssistantTemperatureView: View {
 
   private var updateStatus: some View {
     HStack(spacing: 8) {
-      if isConnecting || store.isLoading {
+      if showsActivity {
         ProgressView()
           .controlSize(.small)
-          .accessibilityLabel(isConnecting ? "Connecting" : "Updating temperatures")
+          .accessibilityLabel(progressAccessibilityLabel)
       }
-      if let lastChecked = store.lastChecked {
+      if isRemovingConnection {
+        Text("Removing connection")
+      } else if let lastChecked = store.lastChecked {
         Text("Checked")
         Text(lastChecked, style: .relative)
       } else if isConnecting {
-        Text("Connecting")
+        Text("Checking connection")
       } else if store.isLoading {
         Text("Updating")
       }
+      Spacer()
     }
     .font(.caption)
     .foregroundStyle(.secondary)
     .accessibilityElement(children: .combine)
+  }
+
+  private var progressAccessibilityLabel: String {
+    if isRemovingConnection {
+      return "Removing connection"
+    }
+    return isConnecting ? "Checking connection" : "Updating temperatures"
   }
 }
 
@@ -187,7 +183,8 @@ struct HomeAssistantTemperatureView: View {
     isConnecting: false,
     connectionProblem: nil,
     manageConnection: {},
-    requestRefresh: {}
+    requestRefresh: {},
+    isRemovingConnection: false
   )
   .task {
     await store.load()
@@ -198,14 +195,14 @@ private struct PreviewHomeAssistantTemperatureLoader: HomeAssistantTemperatureLo
   func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
     [
       HomeAssistantTemperatureReading(
-        id: "sensor.living_room_temperature",
+        id: "climate.living_room",
         name: "Living Room",
         value: 23.4,
         unit: "°C",
         updatedAt: .now
       ),
       HomeAssistantTemperatureReading(
-        id: "sensor.bedroom_temperature",
+        id: "climate.bedroom",
         name: "Bedroom",
         value: 21.8,
         unit: "°C",

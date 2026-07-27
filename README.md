@@ -44,8 +44,7 @@ macOS can become confused when multiple development builds of the same app have 
 
 For a smoother day-to-day development loop, macOS 15.5 and later can exempt a development subnet
 from Local Network privacy. This is optional and applies to every program on the Mac, so use it
-only on a trusted development network. For example, the current `YOUR_DEVELOPMENT_SUBNET` Wi-Fi subnet can
-be allowed with:
+only on a trusted development network. Replace `YOUR_DEVELOPMENT_SUBNET` with the subnet to allow:
 
 ```sh
 sudo defaults write com.apple.network.local-network \
