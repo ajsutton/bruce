@@ -23,7 +23,9 @@ import SwiftUI
   HomeAssistantAirConditionerCard(
     reading: HomeAssistantTemperaturePreview.airConditioner,
     averageValue: 22.8,
-    mode: .standard
+    mode: .standard,
+    showsControls: true,
+    isControlEnabled: true
   )
   .padding()
 }
@@ -32,7 +34,9 @@ import SwiftUI
   HomeAssistantAirConditionerCard(
     reading: HomeAssistantTemperaturePreview.airConditioner,
     averageValue: 22.8,
-    mode: .full
+    mode: .full,
+    showsControls: true,
+    isControlEnabled: true
   )
   .padding()
   .background(BruceMode.full.backgroundColor)
@@ -70,7 +74,8 @@ private enum HomeAssistantTemperaturePreview {
     unit: "°C",
     powerState: .poweredOn,
     kind: .airConditioner,
-    operatingMode: .cooling
+    operatingMode: .cooling,
+    availableModes: [.heating, .cooling, .automatic, .drying, .fanOnly]
   )
 
   private static let previewTemperatureReadings = [

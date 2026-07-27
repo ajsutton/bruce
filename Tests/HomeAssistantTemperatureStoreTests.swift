@@ -262,7 +262,7 @@ private final class QueueTemperatureLoader:
   }
 }
 
-private final class ControlledTemperatureLoader:
+final class ControlledTemperatureLoader:
   HomeAssistantTemperatureLoading, @unchecked Sendable
 {
   private let lock = NSLock()

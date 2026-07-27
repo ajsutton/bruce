@@ -17,6 +17,30 @@ actor HomeAssistantAuthenticatedTransport {
     path: String,
     credentials: HomeAssistantCredentials
   ) async throws -> HomeAssistantAuthenticatedResponse {
+    try await request(path: path, credentials: credentials, allowsFallback: true)
+  }
+
+  func post(
+    path: String,
+    body: Data,
+    credentials: HomeAssistantCredentials
+  ) async throws -> HomeAssistantAuthenticatedResponse {
+    try await request(
+      path: path,
+      method: "POST",
+      body: body,
+      credentials: credentials,
+      allowsFallback: false
+    )
+  }
+
+  private func request(
+    path: String,
+    method: String = "GET",
+    body: Data? = nil,
+    credentials: HomeAssistantCredentials,
+    allowsFallback: Bool
+  ) async throws -> HomeAssistantAuthenticatedResponse {
     let candidates = try HomeAssistantRequestRouter.candidates(for: credentials)
     var lastConnectivityError: (any Error)?
     for (index, baseURL) in candidates.enumerated() {
@@ -24,7 +48,9 @@ actor HomeAssistantAuthenticatedTransport {
         let request = try HomeAssistantRequestRouter.authenticatedRequest(
           baseURL: baseURL,
           path: path,
-          token: credentials.accessToken
+          token: credentials.accessToken,
+          method: method,
+          body: body
         )
         let (data, response) = try await load(request)
         guard response.statusCode != 401 else {
@@ -39,6 +65,7 @@ actor HomeAssistantAuthenticatedTransport {
         throw CancellationError()
       } catch {
         guard
+          allowsFallback,
           HomeAssistantRequestRouter.isConnectivityFailure(error),
           index + 1 < candidates.count
         else {

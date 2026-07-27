@@ -20,6 +20,10 @@ enum HomeAssistantTemperatureConnection: Equatable {
 
 @MainActor
 final class HomeAssistantTemperatureStore: ObservableObject {
+  struct ControlProblem: Equatable {
+    let message: String
+  }
+
   enum Problem: Equatable {
     case connectionUnavailable
     case reconnecting
@@ -48,20 +52,69 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   @Published private(set) var isLoading = false
   @Published private(set) var isLive = false
   @Published private(set) var problem: Problem?
+  @Published private(set) var controllingEntityIDs: Set<String> = []
+  @Published private(set) var controlProblem: ControlProblem?
 
   private let loader: any HomeAssistantTemperatureLoading
+  private let controller: (any HomeAssistantClimateControlling)?
   private let now: @Sendable () -> Date
   private let onAuthenticationRequired: @MainActor @Sendable () -> Void
   private var loadGeneration = UUID()
+  private var controlGeneration = UUID()
+  private var latestControlSequence = 0
+  private var presentedControlProblemSequence: Int?
 
   init(
     loader: any HomeAssistantTemperatureLoading,
+    controller: (any HomeAssistantClimateControlling)? = nil,
     now: @escaping @Sendable () -> Date = Date.init,
     onAuthenticationRequired: @escaping @MainActor @Sendable () -> Void = {}
   ) {
     self.loader = loader
+    self.controller = controller
     self.now = now
     self.onAuthenticationRequired = onAuthenticationRequired
+  }
+
+  func canControl(_ reading: HomeAssistantTemperatureReading) -> Bool {
+    controller != nil && isLive && reading.powerState != .unavailable
+  }
+
+  var supportsControl: Bool {
+    controller != nil
+  }
+
+  func isControlling(entityID: String) -> Bool {
+    controllingEntityIDs.contains(entityID)
+  }
+
+  func setPower(
+    for reading: HomeAssistantTemperatureReading,
+    isOn: Bool
+  ) async {
+    guard let controller else {
+      return
+    }
+    await performControl(for: reading) {
+      try await controller.setPower(entityID: reading.id, isOn: isOn)
+    }
+  }
+
+  func setMode(
+    _ mode: HomeAssistantTemperatureReading.ClimateMode,
+    for reading: HomeAssistantTemperatureReading
+  ) async {
+    guard let controller, reading.availableModes.contains(mode) else {
+      return
+    }
+    await performControl(for: reading) {
+      try await controller.setMode(mode, entityID: reading.id)
+    }
+  }
+
+  func dismissControlProblem() {
+    controlProblem = nil
+    presentedControlProblemSequence = nil
   }
 
   func synchronize(with connection: HomeAssistantTemperatureConnection) async {
@@ -122,6 +175,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
 
   func reset() {
     invalidateLoad()
+    invalidateControls()
     readings = []
     lastChecked = nil
     isLive = false
@@ -132,6 +186,62 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     loadGeneration = UUID()
     isLoading = false
     isLive = false
+  }
+
+  private func invalidateControls() {
+    controlGeneration = UUID()
+    latestControlSequence += 1
+    controllingEntityIDs = []
+    controlProblem = nil
+    presentedControlProblemSequence = nil
+  }
+
+  private func performControl(
+    for reading: HomeAssistantTemperatureReading,
+    operation: () async throws -> Void
+  ) async {
+    guard canControl(reading), !controllingEntityIDs.contains(reading.id) else {
+      return
+    }
+    let generation = controlGeneration
+    latestControlSequence += 1
+    let sequence = latestControlSequence
+    controllingEntityIDs.insert(reading.id)
+    controlProblem = nil
+    presentedControlProblemSequence = nil
+    defer {
+      if controlGeneration == generation {
+        controllingEntityIDs.remove(reading.id)
+      }
+    }
+    do {
+      try await operation()
+    } catch is CancellationError {
+      return
+    } catch {
+      guard !Self.isCancellation(error) else {
+        return
+      }
+      guard
+        controlGeneration == generation,
+        !Task.isCancelled
+      else {
+        return
+      }
+      let commandProblem = Self.problem(for: error)
+      if commandProblem == .signInRequired {
+        onAuthenticationRequired()
+      }
+      if let presentedControlProblemSequence,
+        presentedControlProblemSequence > sequence
+      {
+        return
+      }
+      presentedControlProblemSequence = sequence
+      controlProblem = ControlProblem(
+        message: "Bruce couldn’t update \(reading.name)."
+      )
+    }
   }
 
   private func apply(_ update: HomeAssistantTemperatureUpdate) {
@@ -150,7 +260,10 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     }
   }
 
-  private static func problem(for error: any Error) -> Problem {
+}
+
+extension HomeAssistantTemperatureStore {
+  fileprivate static func problem(for error: any Error) -> Problem {
     if HomeAssistantRequestRouter.isConnectivityFailure(error) {
       return .connectionUnavailable
     }
@@ -169,7 +282,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     }
   }
 
-  private static func isCancellation(_ error: any Error) -> Bool {
+  fileprivate static func isCancellation(_ error: any Error) -> Bool {
     (error as? URLError)?.code == .cancelled
   }
 }

@@ -39,10 +39,15 @@ struct BruceApp: App {
       connection: connection,
       webAuthenticationPresenter: webAuthenticationPresenter
     )
+    let apiClient = HomeAssistantAPIClient(session: session)
     _setupStore = StateObject(wrappedValue: setupStore)
     _temperatureStore = StateObject(
       wrappedValue: HomeAssistantTemperatureStore(
-        loader: HomeAssistantTemperatureStream(session: session),
+        loader: HomeAssistantTemperatureStream(
+          session: session,
+          apiClient: apiClient
+        ),
+        controller: apiClient,
         onAuthenticationRequired: {
           setupStore.requireReauthentication()
         }

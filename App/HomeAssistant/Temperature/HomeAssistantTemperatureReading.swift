@@ -1,6 +1,14 @@
 import Foundation
 
 struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
+  enum ClimateMode: String, CaseIterable, Equatable, Hashable, Sendable {
+    case automatic = "auto"
+    case cooling = "cool"
+    case drying = "dry"
+    case fanOnly = "fan_only"
+    case heating = "heat"
+  }
+
   enum Kind: Equatable, Sendable {
     case airConditioner
     case zone
@@ -32,6 +40,7 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
   let powerState: PowerState
   let kind: Kind
   let operatingMode: OperatingMode
+  let availableModes: [ClimateMode]
   let icon: String?
 
   init(
@@ -43,6 +52,7 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     powerState: PowerState,
     kind: Kind = .other,
     operatingMode: OperatingMode = .active,
+    availableModes: [ClimateMode] = [],
     icon: String? = nil
   ) {
     self.id = id
@@ -53,6 +63,8 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     self.powerState = powerState
     self.kind = kind
     self.operatingMode = operatingMode
+    self.availableModes = availableModes
     self.icon = icon
   }
+
 }

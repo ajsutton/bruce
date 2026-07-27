@@ -11,7 +11,15 @@ struct HomeAssistantTemperatureSnapshot: Sendable {
   let climateMetadata: [String: HomeAssistantClimateMetadata]
 }
 
-struct HomeAssistantAPIClient: Sendable {
+protocol HomeAssistantClimateControlling: Sendable {
+  func setPower(entityID: String, isOn: Bool) async throws
+  func setMode(
+    _ mode: HomeAssistantTemperatureReading.ClimateMode,
+    entityID: String
+  ) async throws
+}
+
+struct HomeAssistantAPIClient: HomeAssistantClimateControlling, Sendable {
   private static let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "net.symphonious.bruce",
     category: "HomeAssistantAPI"
@@ -43,6 +51,28 @@ struct HomeAssistantAPIClient: Sendable {
   func checkConnection() async throws -> HomeAssistantAPIStatus {
     let data = try await session.authenticatedGET(path: "api/")
     return try Self.status(from: data)
+  }
+
+  func setPower(entityID: String, isOn: Bool) async throws {
+    let service = isOn ? "turn_on" : "turn_off"
+    let body = try JSONEncoder().encode(HomeAssistantClimateTarget(entityID: entityID))
+    _ = try await session.authenticatedPOST(
+      path: "api/services/climate/\(service)",
+      body: body
+    )
+  }
+
+  func setMode(
+    _ mode: HomeAssistantTemperatureReading.ClimateMode,
+    entityID: String
+  ) async throws {
+    let body = try JSONEncoder().encode(
+      HomeAssistantClimateModeRequest(entityID: entityID, mode: mode.rawValue)
+    )
+    _ = try await session.authenticatedPOST(
+      path: "api/services/climate/set_hvac_mode",
+      body: body
+    )
   }
 
   func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
@@ -165,6 +195,7 @@ struct HomeAssistantState: Decodable {
       powerState: powerState,
       kind: metadata?.kind ?? .other,
       operatingMode: operatingMode,
+      availableModes: availableModes,
       icon: attributes.icon ?? metadata?.icon
     )
   }
@@ -212,6 +243,13 @@ struct HomeAssistantState: Decodable {
       .active
     }
   }
+
+  private var availableModes: [HomeAssistantTemperatureReading.ClimateMode] {
+    attributes.hvacModes?.compactMap(
+      HomeAssistantTemperatureReading.ClimateMode.init(rawValue:)
+    ) ?? []
+  }
+
 }
 
 private struct HomeAssistantStateAttributes: Decodable {
@@ -219,11 +257,31 @@ private struct HomeAssistantStateAttributes: Decodable {
   let targetTemperature: Double?
   let friendlyName: String?
   let icon: String?
+  let hvacModes: [String]?
 
   enum CodingKeys: String, CodingKey {
     case currentTemperature = "current_temperature"
     case targetTemperature = "temperature"
     case friendlyName = "friendly_name"
     case icon
+    case hvacModes = "hvac_modes"
+  }
+}
+
+private struct HomeAssistantClimateTarget: Encodable {
+  let entityID: String
+
+  enum CodingKeys: String, CodingKey {
+    case entityID = "entity_id"
+  }
+}
+
+private struct HomeAssistantClimateModeRequest: Encodable {
+  let entityID: String
+  let mode: String
+
+  enum CodingKeys: String, CodingKey {
+    case entityID = "entity_id"
+    case mode = "hvac_mode"
   }
 }

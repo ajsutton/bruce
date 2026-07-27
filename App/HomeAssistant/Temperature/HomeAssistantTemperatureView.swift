@@ -63,6 +63,21 @@ struct HomeAssistantTemperatureView: View {
       .toolbarTitleDisplayMode(.inline)
       .tint(mode.accentColor)
       .modifier(TemperatureNavigationStyle(mode: mode))
+      .alert(
+        "Climate Control Failed",
+        isPresented: Binding(
+          get: { store.controlProblem != nil },
+          set: { isPresented in
+            if !isPresented {
+              store.dismissControlProblem()
+            }
+          }
+        )
+      ) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(store.controlProblem?.message ?? "")
+      }
     }
   }
 
@@ -78,7 +93,20 @@ struct HomeAssistantTemperatureView: View {
               reading: reading,
               averageValue: summary.averageRoomTemperature,
               mode: mode,
-              showsName: summary.airConditioners.count > 1
+              showsName: summary.airConditioners.count > 1,
+              showsControls: store.supportsControl,
+              isControlEnabled: store.canControl(reading),
+              isControlling: store.isControlling(entityID: reading.id),
+              setPower: { isOn in
+                Task {
+                  await store.setPower(for: reading, isOn: isOn)
+                }
+              },
+              setMode: { climateMode in
+                Task {
+                  await store.setMode(climateMode, for: reading)
+                }
+              }
             )
             .padding(.bottom, 4)
           }

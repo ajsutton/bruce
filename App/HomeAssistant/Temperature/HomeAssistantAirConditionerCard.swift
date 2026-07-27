@@ -3,22 +3,38 @@ import SwiftUI
 struct HomeAssistantAirConditionerCard: View {
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @State private var isShowingModePicker = false
 
   let reading: HomeAssistantTemperatureReading
   let averageValue: Double?
   let mode: BruceMode
   let showsName: Bool
+  let showsControls: Bool
+  let isControlEnabled: Bool
+  let isControlling: Bool
+  let setPower: (Bool) -> Void
+  let setMode: (HomeAssistantTemperatureReading.ClimateMode) -> Void
 
   init(
     reading: HomeAssistantTemperatureReading,
     averageValue: Double?,
     mode: BruceMode,
-    showsName: Bool = false
+    showsName: Bool = false,
+    showsControls: Bool = false,
+    isControlEnabled: Bool = false,
+    isControlling: Bool = false,
+    setPower: @escaping (Bool) -> Void = { _ in },
+    setMode: @escaping (HomeAssistantTemperatureReading.ClimateMode) -> Void = { _ in }
   ) {
     self.reading = reading
     self.averageValue = averageValue
     self.mode = mode
     self.showsName = showsName
+    self.showsControls = showsControls
+    self.isControlEnabled = isControlEnabled
+    self.isControlling = isControlling
+    self.setPower = setPower
+    self.setMode = setMode
   }
 
   private var style: AirConditionerCardStyle {
@@ -63,7 +79,9 @@ struct HomeAssistantAirConditionerCard: View {
       radius: 14,
       y: 5
     )
-    .accessibilityElement(children: .combine)
+    .accessibilityElement(children: .contain)
+    .onChange(of: isControlEnabled, dismissModePickerWhenDisabled)
+    .onChange(of: isControlling, dismissModePickerWhenUpdating)
   }
 
   private func rowLayout(_ density: AirConditionerCardDensity) -> some View {
@@ -121,28 +139,97 @@ struct HomeAssistantAirConditionerCard: View {
   }
 
   private func status(isCondensed: Bool) -> some View {
-    let iconSize: CGFloat = isCondensed ? 40 : 60
+    let iconSize: CGFloat = isCondensed ? 44 : 60
 
     return HStack(spacing: isCondensed ? 6 : 14) {
-      Image(systemName: modePresentation.symbol)
-        .font(.system(size: isCondensed ? 20 : 28, weight: .semibold))
-        .foregroundStyle(modePresentation.iconForeground)
-        .frame(width: iconSize, height: iconSize)
-        .background(modePresentation.iconBackground, in: Circle())
-        .accessibilityHidden(true)
+      powerControl(iconSize: iconSize, isCondensed: isCondensed)
 
       VStack(alignment: .leading, spacing: 3) {
         Text(modePresentation.statusLabel)
           .font(isCondensed ? .caption : .subheadline)
           .foregroundStyle(style.secondaryForeground)
 
-        Text(modePresentation.label)
-          .font(isCondensed ? .subheadline.weight(.semibold) : .title2.weight(.semibold))
-          .foregroundStyle(modePresentation.foreground)
-          .lineLimit(1)
-          .minimumScaleFactor(0.8)
+        modeControl(isCondensed: isCondensed)
       }
     }
+  }
+
+  @ViewBuilder
+  private func powerControl(iconSize: CGFloat, isCondensed: Bool) -> some View {
+    if showsControls {
+      Button {
+        setPower(reading.powerState == .off)
+      } label: {
+        Group {
+          if isControlling {
+            ProgressView()
+              .controlSize(isCondensed ? .small : .regular)
+          } else {
+            Image(systemName: modePresentation.symbol)
+              .font(.system(size: isCondensed ? 20 : 28, weight: .semibold))
+          }
+        }
+        .foregroundStyle(modePresentation.iconForeground)
+        .frame(width: iconSize, height: iconSize)
+        .background(modePresentation.iconBackground, in: Circle())
+      }
+      .buttonStyle(.plain)
+      .disabled(!isControlEnabled || isControlling)
+      .accessibilityLabel(
+        modePresentation.powerAccessibilityLabel(isControlling: isControlling)
+      )
+    } else {
+      Image(systemName: modePresentation.symbol)
+        .font(.system(size: isCondensed ? 20 : 28, weight: .semibold))
+        .foregroundStyle(modePresentation.iconForeground)
+        .frame(width: iconSize, height: iconSize)
+        .background(modePresentation.iconBackground, in: Circle())
+        .accessibilityHidden(true)
+    }
+  }
+
+  @ViewBuilder
+  private func modeControl(isCondensed: Bool) -> some View {
+    if showsControls, !reading.availableModes.isEmpty {
+      Button {
+        isShowingModePicker.toggle()
+      } label: {
+        HStack(spacing: 5) {
+          modeText(isCondensed: isCondensed)
+          Image(systemName: "chevron.down")
+            .font(.caption.weight(.semibold))
+        }
+        .frame(minWidth: 44, minHeight: 44, alignment: .leading)
+        .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .disabled(!isControlEnabled || isControlling)
+      .popover(isPresented: $isShowingModePicker, arrowEdge: .top) {
+        HomeAssistantClimateModePicker(
+          modes: reading.availableModes,
+          operatingMode: reading.operatingMode,
+          isCondensed: isCondensed
+        ) { selectedMode in
+          isShowingModePicker = false
+          setMode(selectedMode)
+        }
+        .presentationCompactAdaptation(.popover)
+      }
+      .accessibilityLabel(
+        isControlling ? "Updating \(reading.name)" : "\(reading.name) mode"
+      )
+      .accessibilityValue(isControlling ? "In progress" : modePresentation.label)
+    } else {
+      modeText(isCondensed: isCondensed)
+    }
+  }
+
+  private func modeText(isCondensed: Bool) -> some View {
+    Text(modePresentation.label)
+      .font(modeFont(isCondensed: isCondensed))
+      .foregroundStyle(modePresentation.foreground)
+      .lineLimit(1)
+      .minimumScaleFactor(0.8)
   }
 
   private func temperature(
@@ -182,209 +269,31 @@ struct HomeAssistantAirConditionerCard: View {
     }
   }
 
-  private var cardDivider: some View {
+}
+
+extension HomeAssistantAirConditionerCard {
+  fileprivate func modeFont(isCondensed: Bool) -> Font {
+    isCondensed ? .subheadline.weight(.semibold) : .title2.weight(.semibold)
+  }
+
+  fileprivate var averageLabel: String {
+    showsName ? "House avg." : "Average"
+  }
+
+  fileprivate var cardDivider: some View {
     Divider()
       .overlay(mode.isFullBruce ? Color.white.opacity(0.22) : .clear)
   }
 
-  private var averageLabel: String {
-    showsName ? "House avg." : "Average"
-  }
-}
-
-private struct AirConditionerModePresentation {
-  let reading: HomeAssistantTemperatureReading
-  let mode: BruceMode
-  let showsName: Bool
-  let style: AirConditionerCardStyle
-
-  var label: String {
-    switch reading.operatingMode {
-    case .automatic:
-      "Auto"
-    case .cooling:
-      "Cool"
-    case .drying:
-      "Dry"
-    case .fanOnly:
-      "Fan"
-    case .heating:
-      "Heat"
-    case .off:
-      "Off"
-    case .active:
-      "On"
-    case .unavailable:
-      "Unavailable"
+  fileprivate func dismissModePickerWhenDisabled(from _: Bool, to isEnabled: Bool) {
+    if !isEnabled {
+      isShowingModePicker = false
     }
   }
 
-  var statusLabel: String {
-    if showsName {
-      return "\(reading.name) mode"
+  fileprivate func dismissModePickerWhenUpdating(from _: Bool, to isUpdating: Bool) {
+    if isUpdating {
+      isShowingModePicker = false
     }
-    return mode.isFullBruce ? "Air-con mode" : "Mode"
-  }
-
-  var foreground: AnyShapeStyle {
-    switch reading.operatingMode {
-    case .off:
-      style.secondaryForeground
-    case .unavailable:
-      AnyShapeStyle(Color.red)
-    default:
-      AnyShapeStyle(style.accentForeground)
-    }
-  }
-
-  var iconForeground: Color {
-    switch reading.operatingMode {
-    case .off:
-      mode.isFullBruce ? Color.white.opacity(0.76) : Color.secondary
-    case .unavailable:
-      mode.isFullBruce ? Color.white : Color.red
-    default:
-      style.iconForeground
-    }
-  }
-
-  var iconBackground: Color {
-    switch reading.operatingMode {
-    case .off:
-      if mode.isFullBruce {
-        return Color.white.opacity(0.14)
-      }
-      return Color.secondary.opacity(0.12)
-    case .unavailable:
-      if mode.isFullBruce {
-        return Color.red
-      }
-      return Color.red.opacity(0.12)
-    default:
-      return style.iconBackground
-    }
-  }
-
-  var symbol: String {
-    switch reading.operatingMode {
-    case .automatic:
-      "arrow.trianglehead.2.clockwise.rotate.90"
-    case .cooling:
-      "snowflake"
-    case .drying:
-      "drop.fill"
-    case .fanOnly:
-      "fan.fill"
-    case .heating:
-      "flame.fill"
-    case .off:
-      "power"
-    case .active:
-      "air.conditioner.horizontal"
-    case .unavailable:
-      "exclamationmark.triangle.fill"
-    }
-  }
-}
-
-private enum AirConditionerCardDensity {
-  case spacious
-  case condensed
-
-  var spacing: CGFloat {
-    self == .spacious ? 12 : 6
-  }
-
-  var statusMinimumWidth: CGFloat {
-    self == .spacious ? 180 : 144
-  }
-
-  var statusMaximumWidth: CGFloat {
-    self == .spacious ? .infinity : 144
-  }
-
-  var temperatureMinimumWidth: CGFloat {
-    self == .spacious ? 96 : 68
-  }
-
-  var minimumHeight: CGFloat {
-    self == .spacious ? 76 : 68
-  }
-}
-
-private struct AirConditionerCardStyle {
-  let mode: BruceMode
-  let colorScheme: ColorScheme
-
-  var primaryForeground: AnyShapeStyle {
-    if mode.isFullBruce {
-      return AnyShapeStyle(Color.white)
-    }
-    return colorScheme == .dark
-      ? AnyShapeStyle(.primary)
-      : AnyShapeStyle(mode.foregroundColor)
-  }
-
-  var secondaryForeground: AnyShapeStyle {
-    mode.isFullBruce
-      ? AnyShapeStyle(Color.white.opacity(0.76))
-      : AnyShapeStyle(.secondary)
-  }
-
-  var accentForeground: Color {
-    mode.accentColor
-  }
-
-  var iconForeground: Color {
-    if mode.isFullBruce {
-      return mode.backgroundColor
-    }
-    return colorScheme == .dark ? mode.backgroundColor : mode.foregroundColor
-  }
-
-  var iconBackground: Color {
-    if mode.isFullBruce {
-      return mode.accentColor
-    }
-    return colorScheme == .dark
-      ? mode.foregroundColor.opacity(0.72)
-      : Color.white.opacity(0.82)
-  }
-
-  var cardBackground: AnyShapeStyle {
-    mode.isFullBruce
-      ? AnyShapeStyle(Color(red: 0.00, green: 0.25, blue: 0.18))
-      : AnyShapeStyle(.background)
-  }
-
-  var cardTint: AnyShapeStyle {
-    if mode.isFullBruce {
-      return AnyShapeStyle(
-        LinearGradient(
-          colors: [Color.white.opacity(0.06), .clear],
-          startPoint: .topLeading,
-          endPoint: .bottomTrailing
-        )
-      )
-    }
-    return AnyShapeStyle(
-      LinearGradient(
-        colors: [
-          mode.backgroundColor.opacity(colorScheme == .dark ? 0.12 : 0.72),
-          .clear,
-        ],
-        startPoint: .leading,
-        endPoint: .trailing
-      )
-    )
-  }
-
-  var borderColor: Color {
-    if mode.isFullBruce {
-      return mode.accentColor.opacity(0.28)
-    }
-    return colorScheme == .dark
-      ? Color.white.opacity(0.08)
-      : mode.foregroundColor.opacity(0.08)
   }
 }

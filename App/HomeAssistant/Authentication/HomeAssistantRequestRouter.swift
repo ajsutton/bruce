@@ -20,14 +20,20 @@ enum HomeAssistantRequestRouter {
   static func authenticatedRequest(
     baseURL: URL,
     path: String,
-    token: String
+    token: String,
+    method: String = "GET",
+    body: Data? = nil
   ) throws -> URLRequest {
     guard !path.hasPrefix("http://"), !path.hasPrefix("https://") else {
       throw HomeAssistantAPIError.invalidServerURL
     }
     var request = URLRequest(url: baseURL.appending(path: path))
-    request.httpMethod = "GET"
+    request.httpMethod = method
+    request.httpBody = body
     request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    if body != nil {
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    }
     return request
   }
 

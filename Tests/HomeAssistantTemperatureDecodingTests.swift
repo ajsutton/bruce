@@ -41,6 +41,31 @@ final class HomeAssistantTemperatureDecodingTests: XCTestCase {
     }
   }
 
+  func testTemperatureLoadingIncludesAdvertisedControllableModes() throws {
+    let temperatures = try decodeTemperature(
+      state: "cool",
+      attributes: """
+        "current_temperature": 27.5,
+        "temperature": 24,
+        "hvac_modes": ["off", "heat", "cool", "auto", "dry", "fan_only", "unknown"]
+        """
+    )
+
+    XCTAssertEqual(
+      temperatures.first?.availableModes,
+      [.heating, .cooling, .automatic, .drying, .fanOnly]
+    )
+  }
+
+  func testTemperatureLoadingUsesNoModesWhenCapabilitiesAreMissing() throws {
+    let temperatures = try decodeTemperature(
+      state: "cool",
+      attributes: #""current_temperature": 27.5, "temperature": 24"#
+    )
+
+    XCTAssertEqual(temperatures.first?.availableModes, [])
+  }
+
   func testTemperatureLoadingUsesNormalizedRegistryKind() throws {
     let data = temperatureData(
       state: "cool",

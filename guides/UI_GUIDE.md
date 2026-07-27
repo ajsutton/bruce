@@ -53,6 +53,8 @@ Brand expression, palette, language and the Bruce/Full Bruce presentation modes 
 
 - Distinguish live, stale, unavailable, and in-progress state.
 - Do not display cached state as though it were live.
+- Prefer integrating write controls with the current-status display they change. Use a separate
+  control when the integrated affordance would be unclear, hard to discover, or awkward to use.
 - Provide immediate acknowledgement for every command.
 - Avoid optimistic updates for safety-sensitive actions unless the pending state is explicit.
 - Confirm remote or safety-sensitive operations; do not confirm routine reversible actions.

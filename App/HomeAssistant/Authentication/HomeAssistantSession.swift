@@ -17,6 +17,7 @@ actor HomeAssistantSession {
 
   private var credentials: HomeAssistantCredentials?
   private var credentialGeneration = 0
+  private var authenticationSessionEpoch = 0
   private var rejectedCredentialGeneration: Int?, successfulRouteSourceGeneration: Int?
 
   init(
@@ -93,15 +94,11 @@ actor HomeAssistantSession {
 
   func currentCredentials() -> HomeAssistantCredentials? { credentials }
 
-  func authenticatedGET(path: String) async throws -> Data {
-    try await refreshIfNeeded(force: false)
-    return try await performGET(path: path, canRefreshAfterUnauthorized: true)
-  }
-
   func disconnect() async throws {
     let disconnectedCredentials = credentials
     credentials = nil
     credentialGeneration += 1
+    authenticationSessionEpoch += 1
     rejectedCredentialGeneration = nil
     successfulRouteSourceGeneration = nil
     let disconnectedGeneration = credentialGeneration
@@ -118,31 +115,6 @@ actor HomeAssistantSession {
       credentials =
         credentialGeneration == disconnectedGeneration ? disconnectedCredentials : credentials
       throw error
-    }
-  }
-
-  private func performGET(
-    path: String,
-    canRefreshAfterUnauthorized: Bool
-  ) async throws -> Data {
-    guard let credentials else {
-      throw HomeAssistantAPIError.noCredentials
-    }
-    let generation = credentialGeneration
-    do {
-      let response = try await transport.get(path: path, credentials: credentials)
-      try await rememberSuccessful(
-        response.baseURL,
-        original: credentials,
-        generation: generation
-      )
-      return response.data
-    } catch HomeAssistantAPIError.unauthorized {
-      guard canRefreshAfterUnauthorized else {
-        throw HomeAssistantAPIError.unauthorized
-      }
-      try await refreshIfNeeded(force: true)
-      return try await performGET(path: path, canRefreshAfterUnauthorized: false)
     }
   }
 
@@ -215,6 +187,7 @@ actor HomeAssistantSession {
     }
     credentials = nil
     credentialGeneration += 1
+    authenticationSessionEpoch += 1
     rejectedCredentialGeneration = generation
     successfulRouteSourceGeneration = nil
     let rejectedGeneration = credentialGeneration
@@ -268,6 +241,7 @@ actor HomeAssistantSession {
 
   private func reserveCredentialGeneration() -> Int {
     credentialGeneration += 1
+    authenticationSessionEpoch += 1
     rejectedCredentialGeneration = nil
     successfulRouteSourceGeneration = nil
     return credentialGeneration
@@ -276,6 +250,74 @@ actor HomeAssistantSession {
 }
 
 extension HomeAssistantSession {
+  func authenticatedGET(path: String) async throws -> Data {
+    try await refreshIfNeeded(force: false)
+    return try await performRequest(
+      path: path,
+      body: nil,
+      canRefreshAfterUnauthorized: true
+    )
+  }
+
+  func authenticatedPOST(path: String, body: Data) async throws -> Data {
+    try await refreshIfNeeded(force: false)
+    return try await performRequest(
+      path: path,
+      body: body,
+      canRefreshAfterUnauthorized: true
+    )
+  }
+
+  private func performRequest(
+    path: String,
+    body: Data?,
+    canRefreshAfterUnauthorized: Bool
+  ) async throws -> Data {
+    guard let credentials else {
+      throw HomeAssistantAPIError.noCredentials
+    }
+    let generation = credentialGeneration
+    let sessionEpoch = authenticationSessionEpoch
+    do {
+      let response =
+        if let body {
+          try await transport.post(
+            path: path,
+            body: body,
+            credentials: credentials
+          )
+        } else {
+          try await transport.get(path: path, credentials: credentials)
+        }
+      if body == nil {
+        try await rememberSuccessful(
+          response.baseURL,
+          original: credentials,
+          generation: generation
+        )
+      }
+      return response.data
+    } catch HomeAssistantAPIError.unauthorized {
+      guard canRefreshAfterUnauthorized else {
+        throw HomeAssistantAPIError.unauthorized
+      }
+      guard authenticationSessionEpoch == sessionEpoch else {
+        throw HomeAssistantAPIError.staleOperation
+      }
+      guard let currentCredentials = self.credentials else {
+        throw HomeAssistantAPIError.noCredentials
+      }
+      if currentCredentials.accessToken == credentials.accessToken {
+        try await refreshIfNeeded(force: true)
+      }
+      return try await performRequest(
+        path: path,
+        body: body,
+        canRefreshAfterUnauthorized: false
+      )
+    }
+  }
+
   func authenticatedWebSocketAccess() async throws -> HomeAssistantWebSocketAccess {
     guard let access = try await authenticatedWebSocketAccesses().first else {
       throw HomeAssistantAPIError.invalidServerURL

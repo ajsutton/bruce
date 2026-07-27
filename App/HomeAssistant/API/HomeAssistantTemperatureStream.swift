@@ -15,6 +15,7 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
 
   init(
     session: HomeAssistantSession,
+    apiClient: HomeAssistantAPIClient? = nil,
     connector: any HomeAssistantWebSocketConnecting = URLSessionWebSocketConnector(),
     retryDelays: [Duration] = [
       .seconds(1),
@@ -28,21 +29,7 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
     }
   ) {
     self.session = session
-    apiClient = HomeAssistantAPIClient(session: session)
-    self.connector = connector
-    self.retryDelays = retryDelays
-    self.sleep = sleep
-  }
-
-  init(
-    session: HomeAssistantSession,
-    apiClient: HomeAssistantAPIClient,
-    connector: any HomeAssistantWebSocketConnecting,
-    retryDelays: [Duration],
-    sleep: @escaping @Sendable (Duration) async throws -> Void
-  ) {
-    self.session = session
-    self.apiClient = apiClient
+    self.apiClient = apiClient ?? HomeAssistantAPIClient(session: session)
     self.connector = connector
     self.retryDelays = retryDelays
     self.sleep = sleep
