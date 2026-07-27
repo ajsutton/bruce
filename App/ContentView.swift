@@ -177,8 +177,13 @@ private struct PreviewHomeAssistantDiscovery: HomeAssistantDiscovering {
 }
 
 private struct PreviewContentTemperatureLoader: HomeAssistantTemperatureLoading {
-  func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
-    []
+  func temperatureUpdates() -> AsyncThrowingStream<
+    HomeAssistantTemperatureUpdate, any Error
+  > {
+    AsyncThrowingStream { continuation in
+      continuation.yield(.live([]))
+      continuation.finish()
+    }
   }
 }
 

@@ -82,7 +82,12 @@ private enum HomeAssistantTemperaturePreview {
 private struct PreviewHomeAssistantTemperatureLoader: HomeAssistantTemperatureLoading {
   let readings: [HomeAssistantTemperatureReading]
 
-  func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
-    readings
+  func temperatureUpdates() -> AsyncThrowingStream<
+    HomeAssistantTemperatureUpdate, any Error
+  > {
+    AsyncThrowingStream { continuation in
+      continuation.yield(.live(readings))
+      continuation.finish()
+    }
   }
 }

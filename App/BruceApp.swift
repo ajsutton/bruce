@@ -42,7 +42,7 @@ struct BruceApp: App {
     _setupStore = StateObject(wrappedValue: setupStore)
     _temperatureStore = StateObject(
       wrappedValue: HomeAssistantTemperatureStore(
-        loader: HomeAssistantAPIClient(session: session),
+        loader: HomeAssistantTemperatureStream(session: session),
         onAuthenticationRequired: {
           setupStore.requireReauthentication()
         }

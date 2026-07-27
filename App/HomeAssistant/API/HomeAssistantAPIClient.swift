@@ -5,6 +5,12 @@ struct HomeAssistantAPIStatus: Decodable, Equatable, Sendable {
   let message: String
 }
 
+struct HomeAssistantTemperatureSnapshot: Sendable {
+  let readings: [HomeAssistantTemperatureReading]
+  let unit: String
+  let climateIcons: [String: String]
+}
+
 struct HomeAssistantAPIClient: Sendable {
   private static let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "net.symphonious.bruce",
@@ -40,6 +46,10 @@ struct HomeAssistantAPIClient: Sendable {
   }
 
   func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
+    try await loadTemperatureSnapshot().readings
+  }
+
+  func loadTemperatureSnapshot() async throws -> HomeAssistantTemperatureSnapshot {
     let configurationData = try await session.authenticatedGET(path: "api/config")
     try Task.checkCancellation()
     let unit = try Self.temperatureUnit(from: configurationData)
@@ -48,8 +58,12 @@ struct HomeAssistantAPIClient: Sendable {
     try Task.checkCancellation()
     let climateIcons = try await loadClimateIcons()
     try Task.checkCancellation()
-    return try Self.temperatures(
-      from: statesData,
+    return try HomeAssistantTemperatureSnapshot(
+      readings: Self.temperatures(
+        from: statesData,
+        unit: unit,
+        climateIcons: climateIcons
+      ),
       unit: unit,
       climateIcons: climateIcons
     )
@@ -108,8 +122,6 @@ struct HomeAssistantAPIClient: Sendable {
   }
 }
 
-extension HomeAssistantAPIClient: HomeAssistantTemperatureLoading {}
-
 private struct HomeAssistantAPIConfiguration: Decodable {
   let unitSystem: HomeAssistantUnitSystem
 
@@ -122,10 +134,10 @@ private struct HomeAssistantUnitSystem: Decodable {
   let temperature: String
 }
 
-private struct HomeAssistantState: Decodable {
+struct HomeAssistantState: Decodable {
   let entityID: String
-  let attributes: HomeAssistantStateAttributes
-  let lastUpdated: String?
+  private let attributes: HomeAssistantStateAttributes
+  private let lastUpdated: String?
 
   enum CodingKeys: String, CodingKey {
     case entityID = "entity_id"

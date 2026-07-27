@@ -1,8 +1,10 @@
 import Foundation
 
 struct HomeAssistantWebSocketAccess: Sendable {
+  let baseURL: URL
   let url: URL
   let accessToken: String
+  let credentialGeneration: Int
 }
 
 actor HomeAssistantSession {
@@ -275,16 +277,43 @@ actor HomeAssistantSession {
 
 extension HomeAssistantSession {
   func authenticatedWebSocketAccess() async throws -> HomeAssistantWebSocketAccess {
+    guard let access = try await authenticatedWebSocketAccesses().first else {
+      throw HomeAssistantAPIError.invalidServerURL
+    }
+    return access
+  }
+
+  func authenticatedWebSocketAccesses() async throws -> [HomeAssistantWebSocketAccess] {
     try await refreshIfNeeded(force: false)
     guard let credentials else {
       throw HomeAssistantAPIError.noCredentials
     }
-    guard let baseURL = try HomeAssistantRequestRouter.candidates(for: credentials).first else {
-      throw HomeAssistantAPIError.invalidServerURL
+    return try HomeAssistantRequestRouter.candidates(for: credentials).map { baseURL in
+      HomeAssistantWebSocketAccess(
+        baseURL: baseURL,
+        url: try HomeAssistantRequestRouter.webSocketURL(baseURL: baseURL),
+        accessToken: credentials.accessToken,
+        credentialGeneration: credentialGeneration
+      )
     }
-    return HomeAssistantWebSocketAccess(
-      url: try HomeAssistantRequestRouter.webSocketURL(baseURL: baseURL),
-      accessToken: credentials.accessToken
+  }
+
+  func rememberSuccessfulWebSocketAccess(
+    _ access: HomeAssistantWebSocketAccess
+  ) async throws {
+    guard let credentials else {
+      throw HomeAssistantAPIError.noCredentials
+    }
+    guard
+      access.accessToken == credentials.accessToken,
+      access.credentialGeneration == credentialGeneration
+    else {
+      throw HomeAssistantAPIError.staleOperation
+    }
+    try await rememberSuccessful(
+      access.baseURL,
+      original: credentials,
+      generation: access.credentialGeneration
     )
   }
 }

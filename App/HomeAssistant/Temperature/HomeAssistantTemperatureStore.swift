@@ -1,7 +1,14 @@
 import Foundation
 
+enum HomeAssistantTemperatureUpdate: Equatable, Sendable {
+  case live([HomeAssistantTemperatureReading])
+  case reconnecting([HomeAssistantTemperatureReading])
+}
+
 protocol HomeAssistantTemperatureLoading: Sendable {
-  func loadTemperatures() async throws -> [HomeAssistantTemperatureReading]
+  func temperatureUpdates() -> AsyncThrowingStream<
+    HomeAssistantTemperatureUpdate, any Error
+  >
 }
 
 enum HomeAssistantTemperatureConnection: Equatable {
@@ -15,6 +22,7 @@ enum HomeAssistantTemperatureConnection: Equatable {
 final class HomeAssistantTemperatureStore: ObservableObject {
   enum Problem: Equatable {
     case connectionUnavailable
+    case reconnecting
     case signInRequired
     case invalidResponse
     case other
@@ -23,6 +31,8 @@ final class HomeAssistantTemperatureStore: ObservableObject {
       switch self {
       case .connectionUnavailable:
         "Home Assistant can’t be reached. Temperatures may be out of date."
+      case .reconnecting:
+        "Reconnecting to Home Assistant. Temperatures may be out of date."
       case .signInRequired:
         "Sign in to Home Assistant again to update temperatures."
       case .invalidResponse:
@@ -36,6 +46,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   @Published private(set) var readings: [HomeAssistantTemperatureReading] = []
   @Published private(set) var lastChecked: Date?
   @Published private(set) var isLoading = false
+  @Published private(set) var isLive = false
   @Published private(set) var problem: Problem?
 
   private let loader: any HomeAssistantTemperatureLoading
@@ -68,33 +79,41 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     let generation = UUID()
     loadGeneration = generation
     isLoading = true
+    isLive = false
     problem = nil
 
     do {
-      let loadedReadings = try await loader.loadTemperatures()
-      try Task.checkCancellation()
-      guard loadGeneration == generation else {
-        return
+      for try await update in loader.temperatureUpdates() {
+        try Task.checkCancellation()
+        guard loadGeneration == generation else {
+          return
+        }
+        apply(update)
       }
-      readings = loadedReadings
-      lastChecked = now()
-      isLoading = false
+      try Task.checkCancellation()
+      if loadGeneration == generation {
+        isLoading = false
+        isLive = false
+      }
     } catch is CancellationError {
       guard loadGeneration == generation else {
         return
       }
       isLoading = false
+      isLive = false
     } catch {
       guard loadGeneration == generation else {
         return
       }
       guard !Task.isCancelled, !Self.isCancellation(error) else {
         isLoading = false
+        isLive = false
         return
       }
       let loadProblem = Self.problem(for: error)
       problem = loadProblem
       isLoading = false
+      isLive = false
       if loadProblem == .signInRequired {
         onAuthenticationRequired()
       }
@@ -105,12 +124,30 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     invalidateLoad()
     readings = []
     lastChecked = nil
+    isLive = false
     problem = nil
   }
 
   private func invalidateLoad() {
     loadGeneration = UUID()
     isLoading = false
+    isLive = false
+  }
+
+  private func apply(_ update: HomeAssistantTemperatureUpdate) {
+    switch update {
+    case .live(let loadedReadings):
+      readings = loadedReadings
+      lastChecked = now()
+      isLoading = false
+      isLive = true
+      problem = nil
+    case .reconnecting(let loadedReadings):
+      readings = loadedReadings
+      isLoading = false
+      isLive = false
+      problem = .reconnecting
+    }
   }
 
   private static func problem(for error: any Error) -> Problem {

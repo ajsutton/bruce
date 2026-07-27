@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 
 @testable import Bruce
@@ -124,9 +125,76 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
 
     load.cancel()
     await load.value
+    await fulfillment(of: [loader.cancelled], timeout: 1)
 
     XCTAssertNil(store.problem)
     XCTAssertFalse(store.isLoading)
+  }
+
+  func testReconnectKeepsReadingsAndClearsWarningAfterFreshSnapshot() async {
+    let original = [reading(id: "original", updatedAt: .now)]
+    let refreshed = [reading(id: "refreshed", updatedAt: .now)]
+    let loader = ControlledTemperatureLoader(requestCount: 1)
+    let store = HomeAssistantTemperatureStore(loader: loader)
+    let load = Task {
+      await store.load()
+    }
+    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
+    let warningPublished = expectation(description: "Reconnect warning published")
+    let warningSubscription = store.$problem.compactMap(\.self).sink { problem in
+      if problem == .reconnecting {
+        warningPublished.fulfill()
+      }
+    }
+
+    loader.yieldRequest(0, update: .live(original))
+    loader.yieldRequest(0, update: .reconnecting(original))
+    await fulfillment(of: [warningPublished], timeout: 1)
+
+    XCTAssertEqual(store.readings, original)
+    XCTAssertEqual(store.problem, .reconnecting)
+
+    let refreshedReadingsPublished = expectation(description: "Fresh readings published")
+    let readingsSubscription = store.$readings.dropFirst().sink { readings in
+      if readings == refreshed {
+        refreshedReadingsPublished.fulfill()
+      }
+    }
+    loader.yieldRequest(0, update: .live(refreshed))
+    await fulfillment(of: [refreshedReadingsPublished], timeout: 1)
+    loader.finishRequest(0)
+    await load.value
+
+    XCTAssertEqual(store.readings, refreshed)
+    XCTAssertNil(store.problem)
+    withExtendedLifetime((warningSubscription, readingsSubscription)) {}
+  }
+
+  func testTerminalFailureClearsLiveStatus() async {
+    let loader = ControlledTemperatureLoader(requestCount: 1)
+    let store = HomeAssistantTemperatureStore(loader: loader)
+    let load = Task {
+      await store.load()
+    }
+    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
+    let livePublished = expectation(description: "Live status published")
+    let liveSubscription = store.$isLive.dropFirst().sink { isLive in
+      if isLive {
+        livePublished.fulfill()
+      }
+    }
+
+    loader.yieldRequest(
+      0,
+      update: .live([reading(id: "temperature", updatedAt: .now)])
+    )
+    await fulfillment(of: [livePublished], timeout: 1)
+    loader.failRequest(0, with: HomeAssistantAPIError.invalidResponse)
+    await load.value
+
+    XCTAssertFalse(store.isLive)
+    XCTAssertEqual(store.problem, .invalidResponse)
+    withExtendedLifetime(liveSubscription) {}
   }
 
   private func reading(
@@ -164,7 +232,10 @@ private enum TemperatureLoaderError: Error, Sendable {
   case signInRequired
 }
 
-private actor QueueTemperatureLoader: HomeAssistantTemperatureLoading {
+private final class QueueTemperatureLoader:
+  HomeAssistantTemperatureLoading, @unchecked Sendable
+{
+  private let lock = NSLock()
   private var results: [Result<[HomeAssistantTemperatureReading], TemperatureLoaderError>]
 
   init(
@@ -173,15 +244,22 @@ private actor QueueTemperatureLoader: HomeAssistantTemperatureLoading {
     self.results = results
   }
 
-  func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
-    let result = results.removeFirst()
-    switch result {
-    case .success(let readings):
-      return readings
-    case .failure(.connectionUnavailable):
-      throw URLError(.notConnectedToInternet)
-    case .failure(.signInRequired):
-      throw HomeAssistantAPIError.reauthenticationRequired
+  func temperatureUpdates() -> AsyncThrowingStream<
+    HomeAssistantTemperatureUpdate, any Error
+  > {
+    let result = lock.withLock {
+      results.removeFirst()
+    }
+    return AsyncThrowingStream { continuation in
+      switch result {
+      case .success(let readings):
+        continuation.yield(.live(readings))
+        continuation.finish()
+      case .failure(.connectionUnavailable):
+        continuation.finish(throwing: URLError(.notConnectedToInternet))
+      case .failure(.signInRequired):
+        continuation.finish(throwing: HomeAssistantAPIError.reauthenticationRequired)
+      }
     }
   }
 }
@@ -192,7 +270,9 @@ private final class ControlledTemperatureLoader:
   private let lock = NSLock()
   private let startedExpectations: [XCTestExpectation]
   private var continuations:
-    [Int: CheckedContinuation<[HomeAssistantTemperatureReading], any Error>] = [:]
+    [Int: AsyncThrowingStream<
+      HomeAssistantTemperatureUpdate, any Error
+    >.Continuation] = [:]
   private var nextRequestID = 0
 
   init(requestCount: Int) {
@@ -205,8 +285,10 @@ private final class ControlledTemperatureLoader:
     startedExpectations[index]
   }
 
-  func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
-    try await withCheckedThrowingContinuation { continuation in
+  func temperatureUpdates() -> AsyncThrowingStream<
+    HomeAssistantTemperatureUpdate, any Error
+  > {
+    AsyncThrowingStream { continuation in
       let requestID = lock.withLock {
         let requestID = nextRequestID
         nextRequestID += 1
@@ -224,7 +306,29 @@ private final class ControlledTemperatureLoader:
     let continuation = lock.withLock {
       continuations.removeValue(forKey: requestID)
     }
-    continuation?.resume(returning: readings)
+    continuation?.yield(.live(readings))
+    continuation?.finish()
+  }
+
+  func yieldRequest(_ requestID: Int, update: HomeAssistantTemperatureUpdate) {
+    let continuation = lock.withLock {
+      continuations[requestID]
+    }
+    continuation?.yield(update)
+  }
+
+  func finishRequest(_ requestID: Int) {
+    let continuation = lock.withLock {
+      continuations.removeValue(forKey: requestID)
+    }
+    continuation?.finish()
+  }
+
+  func failRequest(_ requestID: Int, with error: any Error) {
+    let continuation = lock.withLock {
+      continuations.removeValue(forKey: requestID)
+    }
+    continuation?.finish(throwing: error)
   }
 }
 
@@ -232,24 +336,18 @@ private final class CancellingTemperatureLoader:
   HomeAssistantTemperatureLoading, @unchecked Sendable
 {
   let started = XCTestExpectation(description: "Temperature request started")
-  private let lock = NSLock()
-  private var continuation: CheckedContinuation<[HomeAssistantTemperatureReading], any Error>?
+  let cancelled = XCTestExpectation(description: "Temperature stream cancelled")
 
-  func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
-    try await withTaskCancellationHandler {
-      try await withCheckedThrowingContinuation { continuation in
-        lock.withLock {
-          self.continuation = continuation
+  func temperatureUpdates() -> AsyncThrowingStream<
+    HomeAssistantTemperatureUpdate, any Error
+  > {
+    AsyncThrowingStream { continuation in
+      started.fulfill()
+      continuation.onTermination = { termination in
+        if case .cancelled = termination {
+          self.cancelled.fulfill()
         }
-        started.fulfill()
       }
-    } onCancel: {
-      let continuation = self.lock.withLock {
-        let continuation = self.continuation
-        self.continuation = nil
-        return continuation
-      }
-      continuation?.resume(throwing: URLError(.cancelled))
     }
   }
 }

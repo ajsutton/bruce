@@ -250,8 +250,10 @@ struct HomeAssistantTemperatureView: View {
       }
       if isRemovingConnection {
         Text("Removing connection")
+      } else if store.isLive {
+        Text("Live")
       } else if let lastChecked = store.lastChecked {
-        Text("Checked")
+        Text("Last checked")
         relativeDateText(lastChecked)
       } else if isConnecting {
         Text("Checking connection")

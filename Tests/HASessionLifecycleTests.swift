@@ -109,6 +109,32 @@ final class HASessionLifecycleTests: XCTestCase {
     }
   }
 
+  func testValueEqualTokenReplacementMakesOlderWebSocketAccessStale() async throws {
+    let fixture = SessionFixture()
+    let session = HomeAssistantSession(
+      credentialStore: fixture.store,
+      authenticationClient: HomeAssistantAuthenticationClient(
+        loader: fixture.authenticationLoader,
+        now: { [now = fixture.now] in now }
+      ),
+      loader: fixture.apiLoader,
+      now: { [now = fixture.now] in now }
+    )
+    let credentials = fixture.credentials()
+    try await session.install(credentials)
+    let access = try await session.authenticatedWebSocketAccess()
+
+    try await session.install(credentials)
+
+    do {
+      try await session.rememberSuccessfulWebSocketAccess(access)
+      XCTFail("Expected the older WebSocket access to be rejected.")
+    } catch HomeAssistantAPIError.staleOperation {
+    } catch {
+      XCTFail("Unexpected error: \(error)")
+    }
+  }
+
   func testLateRestoreCannotReplaceNewCredentials() async throws {
     let fixture = SessionFixture()
     let original = fixture.credentials()

@@ -27,8 +27,13 @@ final class ContentViewCreationTests: XCTestCase {
 }
 
 private struct ContentViewEmptyTemperatureLoader: HomeAssistantTemperatureLoading {
-  func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
-    []
+  func temperatureUpdates() -> AsyncThrowingStream<
+    HomeAssistantTemperatureUpdate, any Error
+  > {
+    AsyncThrowingStream { continuation in
+      continuation.yield(.live([]))
+      continuation.finish()
+    }
   }
 }
 
