@@ -47,8 +47,8 @@ private enum HomeAssistantTemperaturePreview {
     HomeAssistantTemperatureReading(
       id: "climate.living_room",
       name: "Living Room",
-      value: 23.4,
-      targetValue: 24,
+      value: 26,
+      targetValue: 18,
       unit: "°C",
       powerState: .poweredOn,
       icon: "mdi:sofa"

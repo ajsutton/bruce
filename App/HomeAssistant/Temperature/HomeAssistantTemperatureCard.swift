@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct HomeAssistantTemperatureCard: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
   let reading: HomeAssistantTemperatureReading
   let mode: BruceMode
 
@@ -29,9 +32,25 @@ struct HomeAssistantTemperatureCard: View {
   }
 
   var body: some View {
-    ViewThatFits(in: .horizontal) {
-      compactLayout
-      stackedLayout
+    Group {
+      if dynamicTypeSize.isAccessibilitySize
+        || dynamicTypeSize == .xLarge
+        || dynamicTypeSize == .xxLarge
+        || dynamicTypeSize == .xxxLarge
+      {
+        stackedLayout
+      } else if horizontalSizeClass == .compact {
+        ViewThatFits(in: .horizontal) {
+          rowLayout(.condensed)
+          stackedLayout
+        }
+      } else {
+        ViewThatFits(in: .horizontal) {
+          rowLayout(.spacious)
+          rowLayout(.condensed)
+          stackedLayout
+        }
+      }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(16)
@@ -51,27 +70,33 @@ struct HomeAssistantTemperatureCard: View {
     .accessibilityElement(children: .combine)
   }
 
-  private var compactLayout: some View {
-    HStack(spacing: 12) {
-      location
-        .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+  private func rowLayout(_ density: TemperatureRowDensity) -> some View {
+    HStack(spacing: density.spacing) {
+      location(isCondensed: density == .condensed)
+        .frame(
+          minWidth: density.locationMinimumWidth,
+          maxWidth: density.locationMaximumWidth,
+          alignment: .leading
+        )
       cardDivider
-      currentTemperature
+      currentTemperature(isCondensed: density == .condensed)
+        .frame(minWidth: density.temperatureMinimumWidth, alignment: .leading)
         .fixedSize(horizontal: true, vertical: false)
       cardDivider
-      targetTemperature
+      targetTemperature(isCondensed: density == .condensed)
+        .frame(minWidth: density.temperatureMinimumWidth, alignment: .leading)
         .fixedSize(horizontal: true, vertical: false)
     }
-    .frame(maxWidth: .infinity, minHeight: 76)
+    .frame(maxWidth: .infinity, minHeight: density.minimumHeight)
   }
 
   private var stackedLayout: some View {
     VStack(alignment: .leading, spacing: 16) {
-      location
+      location(isCondensed: false)
       cardDivider
-      currentTemperature
+      currentTemperature(isCondensed: false)
       cardDivider
-      targetTemperature
+      targetTemperature(isCondensed: false)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
   }
@@ -81,21 +106,24 @@ struct HomeAssistantTemperatureCard: View {
       .overlay(mode.isFullBruce ? Color.white.opacity(0.22) : .clear)
   }
 
-  private var location: some View {
-    HStack(spacing: 12) {
+  private func location(isCondensed: Bool) -> some View {
+    let iconSize: CGFloat = isCondensed ? 40 : 52
+
+    return HStack(spacing: isCondensed ? 6 : 12) {
       HomeAssistantTemperatureIconView(identifier: reading.icon)
         .foregroundStyle(iconForeground)
-        .frame(width: 52, height: 52)
+        .frame(width: iconSize, height: iconSize)
         .background(
           mode.isFullBruce ? mode.foregroundColor : mode.backgroundColor,
-          in: RoundedRectangle(cornerRadius: 14)
+          in: RoundedRectangle(cornerRadius: isCondensed ? 12 : 14)
         )
         .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 5) {
         Text(reading.name)
-          .font(.headline)
+          .font(isCondensed ? .subheadline.weight(.semibold) : .headline)
           .foregroundStyle(primaryForeground)
+          .lineLimit(isCondensed ? 2 : nil)
 
         Text(powerStateLabel)
           .font(.caption)
@@ -104,26 +132,29 @@ struct HomeAssistantTemperatureCard: View {
     }
   }
 
-  private var currentTemperature: some View {
+  private func currentTemperature(isCondensed: Bool) -> some View {
     temperature(
       label: "Current",
       value: reading.value,
-      foreground: primaryForeground
+      foreground: primaryForeground,
+      isCondensed: isCondensed
     )
   }
 
-  private var targetTemperature: some View {
+  private func targetTemperature(isCondensed: Bool) -> some View {
     temperature(
       label: "Target",
       value: reading.targetValue,
-      foreground: AnyShapeStyle(emphasizedForeground)
+      foreground: AnyShapeStyle(emphasizedForeground),
+      isCondensed: isCondensed
     )
   }
 
   private func temperature(
     label: String,
     value: Double?,
-    foreground: AnyShapeStyle
+    foreground: AnyShapeStyle,
+    isCondensed: Bool
   ) -> some View {
     VStack(alignment: .leading, spacing: 2) {
       Text(label)
@@ -132,17 +163,23 @@ struct HomeAssistantTemperatureCard: View {
 
       HStack(alignment: .firstTextBaseline, spacing: 2) {
         if let value {
-          Text(value, format: .number.precision(.fractionLength(0...1)))
+          Text(value, format: .number.precision(.fractionLength(1)))
           if let unit = reading.unit {
             Text(unit)
-              .font(.title2)
+              .font(isCondensed ? .body : .title2)
           }
         } else {
           Text("—")
             .accessibilityLabel("Unavailable")
         }
       }
-      .font(.system(.largeTitle, design: .rounded, weight: .medium))
+      .font(
+        .system(
+          isCondensed ? .title2 : .largeTitle,
+          design: .rounded,
+          weight: .medium
+        )
+      )
       .foregroundStyle(foreground)
       .monospacedDigit()
     }
@@ -166,5 +203,30 @@ struct HomeAssistantTemperatureCard: View {
     case .off, .unavailable:
       secondaryForeground
     }
+  }
+}
+
+private enum TemperatureRowDensity {
+  case spacious
+  case condensed
+
+  var spacing: CGFloat {
+    self == .spacious ? 12 : 6
+  }
+
+  var locationMinimumWidth: CGFloat {
+    self == .spacious ? 180 : 144
+  }
+
+  var locationMaximumWidth: CGFloat {
+    self == .spacious ? .infinity : 144
+  }
+
+  var temperatureMinimumWidth: CGFloat {
+    self == .spacious ? 96 : 68
+  }
+
+  var minimumHeight: CGFloat {
+    self == .spacious ? 76 : 68
   }
 }
