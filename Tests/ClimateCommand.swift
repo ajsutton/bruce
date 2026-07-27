@@ -82,7 +82,7 @@ final class BlockingClimateController:
 
   func succeed() {
     let continuation = lock.withLock {
-      let continuation = continuation
+      let continuation = self.continuation
       self.continuation = nil
       return continuation
     }

@@ -135,7 +135,7 @@ private final class ControlledConfirmationSleeper: @unchecked Sendable {
 
   func finish() {
     let continuation = lock.withLock {
-      let continuation = continuation
+      let continuation = self.continuation
       self.continuation = nil
       return continuation
     }

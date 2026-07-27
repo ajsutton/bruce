@@ -100,7 +100,7 @@ private final class ClimateMetadataLoadWaiter: @unchecked Sendable {
   func result() async -> LoadResult {
     await withCheckedContinuation { continuation in
       let pendingResult = lock.withLock {
-        guard let pendingResult else {
+        guard let pendingResult = self.pendingResult else {
           self.continuation = continuation
           return Optional<LoadResult>.none
         }

@@ -13,7 +13,7 @@ struct HomeAssistantTemperatureCard: View {
   let showsTargetControl: Bool
   let targetValueFractionLength: Int
   let setPower: (Bool) -> Void
-  let setTargetValue: @MainActor @Sendable (Double) -> Void
+  let setTargetValue: @Sendable (Double) -> Void
 
   init(
     reading: HomeAssistantTemperatureReading,
@@ -25,7 +25,7 @@ struct HomeAssistantTemperatureCard: View {
     showsTargetControl: Bool = false,
     targetValueFractionLength: Int = 1,
     setPower: @escaping (Bool) -> Void = { _ in },
-    setTargetValue: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
+    setTargetValue: @escaping @Sendable (Double) -> Void = { _ in }
   ) {
     self.reading = reading
     self.mode = mode

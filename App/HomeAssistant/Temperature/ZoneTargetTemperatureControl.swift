@@ -6,7 +6,7 @@ struct ZoneTargetTemperatureControl: View {
   let isEnabled: Bool
   let isControlling: Bool
   let fractionLength: Int
-  let setTargetValue: @MainActor @Sendable (Double) -> Void
+  let setTargetValue: @Sendable (Double) -> Void
 
   private var style: TemperatureCardStyle {
     TemperatureCardStyle(reading: reading, mode: mode)
