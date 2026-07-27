@@ -5,37 +5,6 @@ import XCTest
 
 @MainActor
 final class HomeAssistantClimateControlStoreTests: XCTestCase {
-  func testClimatePowerCommandPublishesPendingStateAndClearsItAfterSuccess() async {
-    let loader = ControlledTemperatureLoader(requestCount: 1)
-    let controller = BlockingClimateController()
-    let store = HomeAssistantTemperatureStore(
-      loader: loader,
-      controller: controller
-    )
-    let reading = controllableReading()
-    let load = Task {
-      await store.load()
-    }
-    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
-    loader.yieldRequest(0, update: .live([reading]))
-    await waitForLiveState(in: store)
-
-    let command = Task {
-      await store.setPower(for: reading, isOn: false)
-    }
-    await fulfillment(of: [controller.started], timeout: 1)
-
-    XCTAssertTrue(store.isControlling(entityID: reading.id))
-    controller.succeed()
-    await command.value
-
-    XCTAssertFalse(store.isControlling(entityID: reading.id))
-    let commands = await controller.commands
-    XCTAssertEqual(commands, [.power(entityID: reading.id, isOn: false)])
-    loader.finishRequest(0)
-    await load.value
-  }
-
   func testClimateModeCommandRejectsModeNotAdvertisedByEntity() async {
     let loader = ControlledTemperatureLoader(requestCount: 1)
     let controller = RecordingClimateController()
@@ -74,9 +43,10 @@ final class HomeAssistantClimateControlStoreTests: XCTestCase {
     loader.yieldRequest(0, update: .live([reading]))
     await waitForLiveState(in: store)
 
-    await store.setMode(.cooling, for: reading)
+    await store.setMode(.automatic, for: reading)
 
     XCTAssertFalse(store.isControlling(entityID: reading.id))
+    XCTAssertEqual(store.readings, [reading])
     XCTAssertEqual(
       store.controlProblem,
       .init(message: "Bruce couldn’t update Air Conditioner.")

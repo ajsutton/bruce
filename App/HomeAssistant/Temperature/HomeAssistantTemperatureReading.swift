@@ -42,6 +42,9 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
   let operatingMode: OperatingMode
   let availableModes: [ClimateMode]
   let icon: String?
+  let minimumTargetValue: Double?
+  let maximumTargetValue: Double?
+  let targetValueStep: Double?
 
   init(
     id: String,
@@ -53,7 +56,10 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     kind: Kind = .other,
     operatingMode: OperatingMode = .active,
     availableModes: [ClimateMode] = [],
-    icon: String? = nil
+    icon: String? = nil,
+    minimumTargetValue: Double? = nil,
+    maximumTargetValue: Double? = nil,
+    targetValueStep: Double? = nil
   ) {
     self.id = id
     self.name = name
@@ -65,6 +71,65 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     self.operatingMode = operatingMode
     self.availableModes = availableModes
     self.icon = icon
+    self.minimumTargetValue = minimumTargetValue
+    self.maximumTargetValue = maximumTargetValue
+    self.targetValueStep = targetValueStep
   }
 
+  func replacingClimateState(
+    powerState: PowerState,
+    operatingMode: OperatingMode
+  ) -> Self {
+    Self(
+      id: id,
+      name: name,
+      value: value,
+      targetValue: targetValue,
+      unit: unit,
+      powerState: powerState,
+      kind: kind,
+      operatingMode: operatingMode,
+      availableModes: availableModes,
+      icon: icon,
+      minimumTargetValue: minimumTargetValue,
+      maximumTargetValue: maximumTargetValue,
+      targetValueStep: targetValueStep
+    )
+  }
+
+  func replacingTargetValue(_ targetValue: Double) -> Self {
+    Self(
+      id: id,
+      name: name,
+      value: value,
+      targetValue: targetValue,
+      unit: unit,
+      powerState: powerState,
+      kind: kind,
+      operatingMode: operatingMode,
+      availableModes: availableModes,
+      icon: icon,
+      minimumTargetValue: minimumTargetValue,
+      maximumTargetValue: maximumTargetValue,
+      targetValueStep: targetValueStep
+    )
+  }
+
+  var effectiveTargetValueStep: Double {
+    guard let targetValueStep, targetValueStep.isFinite, targetValueStep > 0 else {
+      return unit == "°F" ? 1 : 0.5
+    }
+    return targetValueStep
+  }
+
+  var targetValueFractionLength: Int {
+    for fractionLength in 0...6 {
+      let scale = pow(10, Double(fractionLength))
+      let scaledStep = effectiveTargetValueStep * scale
+      if abs(scaledStep - scaledStep.rounded()) < 0.000_001 {
+        return fractionLength
+      }
+    }
+    return 6
+  }
 }

@@ -13,6 +13,7 @@ struct HomeAssistantTemperatureSnapshot: Sendable {
 
 protocol HomeAssistantClimateControlling: Sendable {
   func setPower(entityID: String, isOn: Bool) async throws
+  func setTargetValue(_ value: Double, entityID: String) async throws
   func setMode(
     _ mode: HomeAssistantTemperatureReading.ClimateMode,
     entityID: String
@@ -71,6 +72,16 @@ struct HomeAssistantAPIClient: HomeAssistantClimateControlling, Sendable {
     )
     _ = try await session.authenticatedPOST(
       path: "api/services/climate/set_hvac_mode",
+      body: body
+    )
+  }
+
+  func setTargetValue(_ value: Double, entityID: String) async throws {
+    let body = try JSONEncoder().encode(
+      HomeAssistantClimateTemperatureRequest(entityID: entityID, temperature: value)
+    )
+    _ = try await session.authenticatedPOST(
+      path: "api/services/climate/set_temperature",
       body: body
     )
   }
@@ -196,7 +207,10 @@ struct HomeAssistantState: Decodable {
       kind: metadata?.kind ?? .other,
       operatingMode: operatingMode,
       availableModes: availableModes,
-      icon: attributes.icon ?? metadata?.icon
+      icon: attributes.icon ?? metadata?.icon,
+      minimumTargetValue: attributes.minimumTemperature,
+      maximumTargetValue: attributes.maximumTemperature,
+      targetValueStep: attributes.targetTemperatureStep ?? attributes.temperaturePrecision
     )
   }
 
@@ -258,6 +272,10 @@ private struct HomeAssistantStateAttributes: Decodable {
   let friendlyName: String?
   let icon: String?
   let hvacModes: [String]?
+  let minimumTemperature: Double?
+  let maximumTemperature: Double?
+  let targetTemperatureStep: Double?
+  let temperaturePrecision: Double?
 
   enum CodingKeys: String, CodingKey {
     case currentTemperature = "current_temperature"
@@ -265,6 +283,10 @@ private struct HomeAssistantStateAttributes: Decodable {
     case friendlyName = "friendly_name"
     case icon
     case hvacModes = "hvac_modes"
+    case minimumTemperature = "min_temp"
+    case maximumTemperature = "max_temp"
+    case targetTemperatureStep = "target_temp_step"
+    case temperaturePrecision = "precision"
   }
 }
 
@@ -283,5 +305,15 @@ private struct HomeAssistantClimateModeRequest: Encodable {
   enum CodingKeys: String, CodingKey {
     case entityID = "entity_id"
     case mode = "hvac_mode"
+  }
+}
+
+private struct HomeAssistantClimateTemperatureRequest: Encodable {
+  let entityID: String
+  let temperature: Double
+
+  enum CodingKeys: String, CodingKey {
+    case entityID = "entity_id"
+    case temperature
   }
 }

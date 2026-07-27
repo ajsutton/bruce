@@ -50,7 +50,8 @@ private enum HomeAssistantTemperaturePreview {
     readings: [HomeAssistantTemperatureReading] = previewTemperatureReadings
   ) -> some View {
     let store = HomeAssistantTemperatureStore(
-      loader: PreviewHomeAssistantTemperatureLoader(readings: readings)
+      loader: PreviewHomeAssistantTemperatureLoader(readings: readings),
+      controller: PreviewHomeAssistantClimateController()
     )
     return HomeAssistantTemperatureView(
       store: store,
@@ -89,7 +90,10 @@ private enum HomeAssistantTemperaturePreview {
       powerState: .poweredOn,
       kind: .zone,
       operatingMode: .fanOnly,
-      icon: "mdi:sofa"
+      icon: "mdi:sofa",
+      minimumTargetValue: 16,
+      maximumTargetValue: 30,
+      targetValueStep: 0.5
     ),
     HomeAssistantTemperatureReading(
       id: "climate.bedroom",
@@ -100,7 +104,10 @@ private enum HomeAssistantTemperaturePreview {
       powerState: .poweredOn,
       kind: .zone,
       operatingMode: .fanOnly,
-      icon: "mdi:bed"
+      icon: "mdi:bed",
+      minimumTargetValue: 16,
+      maximumTargetValue: 30,
+      targetValueStep: 0.5
     ),
     HomeAssistantTemperatureReading(
       id: "climate.study",
@@ -125,6 +132,17 @@ private enum HomeAssistantTemperaturePreview {
       icon: "mdi:table-chair"
     ),
   ]
+}
+
+private struct PreviewHomeAssistantClimateController: HomeAssistantClimateControlling {
+  func setPower(entityID: String, isOn: Bool) {}
+
+  func setTargetValue(_ value: Double, entityID: String) {}
+
+  func setMode(
+    _ mode: HomeAssistantTemperatureReading.ClimateMode,
+    entityID: String
+  ) {}
 }
 
 private struct PreviewHomeAssistantTemperatureLoader: HomeAssistantTemperatureLoading {

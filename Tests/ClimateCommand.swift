@@ -5,6 +5,7 @@ import XCTest
 enum ClimateCommand: Equatable, Sendable {
   case power(entityID: String, isOn: Bool)
   case mode(entityID: String, mode: HomeAssistantTemperatureReading.ClimateMode)
+  case targetValue(entityID: String, value: Double)
 }
 
 actor RecordingClimateController: HomeAssistantClimateControlling {
@@ -19,6 +20,10 @@ actor RecordingClimateController: HomeAssistantClimateControlling {
     entityID: String
   ) {
     commands.append(.mode(entityID: entityID, mode: mode))
+  }
+
+  func setTargetValue(_ value: Double, entityID: String) {
+    commands.append(.targetValue(entityID: entityID, value: value))
   }
 }
 
@@ -52,7 +57,28 @@ final class BlockingClimateController:
   func setMode(
     _ mode: HomeAssistantTemperatureReading.ClimateMode,
     entityID: String
-  ) {}
+  ) async {
+    lock.withLock {
+      storedCommands.append(.mode(entityID: entityID, mode: mode))
+    }
+    await waitUntilSucceeded()
+  }
+
+  func setTargetValue(_ value: Double, entityID: String) async {
+    lock.withLock {
+      storedCommands.append(.targetValue(entityID: entityID, value: value))
+    }
+    await waitUntilSucceeded()
+  }
+
+  private func waitUntilSucceeded() async {
+    await withCheckedContinuation { continuation in
+      lock.withLock {
+        self.continuation = continuation
+      }
+      started.fulfill()
+    }
+  }
 
   func succeed() {
     let continuation = lock.withLock {
@@ -75,6 +101,10 @@ struct FailingClimateController: HomeAssistantClimateControlling {
   ) async throws {
     throw URLError(.cannotConnectToHost)
   }
+
+  func setTargetValue(_ value: Double, entityID: String) async throws {
+    throw URLError(.cannotConnectToHost)
+  }
 }
 
 struct AuthenticationFailingClimateController: HomeAssistantClimateControlling {
@@ -88,6 +118,10 @@ struct AuthenticationFailingClimateController: HomeAssistantClimateControlling {
   ) async throws {
     throw HomeAssistantAPIError.reauthenticationRequired
   }
+
+  func setTargetValue(_ value: Double, entityID: String) async throws {
+    throw HomeAssistantAPIError.reauthenticationRequired
+  }
 }
 
 struct URLCancelledClimateController: HomeAssistantClimateControlling {
@@ -99,6 +133,10 @@ struct URLCancelledClimateController: HomeAssistantClimateControlling {
     _ mode: HomeAssistantTemperatureReading.ClimateMode,
     entityID: String
   ) async throws {
+    throw URLError(.cancelled)
+  }
+
+  func setTargetValue(_ value: Double, entityID: String) async throws {
     throw URLError(.cancelled)
   }
 }
@@ -120,6 +158,10 @@ final class CancellableClimateController:
     _ mode: HomeAssistantTemperatureReading.ClimateMode,
     entityID: String
   ) async throws {
+    try await waitForCancellation()
+  }
+
+  func setTargetValue(_ value: Double, entityID: String) async throws {
     try await waitForCancellation()
   }
 
@@ -176,6 +218,10 @@ final class OrderedClimateController:
     _ mode: HomeAssistantTemperatureReading.ClimateMode,
     entityID: String
   ) async throws {
+    try await wait()
+  }
+
+  func setTargetValue(_ value: Double, entityID: String) async throws {
     try await wait()
   }
 

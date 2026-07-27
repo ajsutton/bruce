@@ -66,6 +66,30 @@ final class HomeAssistantClimateControlClientTests: XCTestCase {
       ClimateModeRequest(entityID: "climate.house", hvacMode: "fan_only")
     )
   }
+
+  func testSettingTargetTemperatureCallsHomeAssistantClimateService() async throws {
+    let fixture = SessionFixture()
+    let session = fixture.makeSession(
+      apiResponses: [.success(Data("[]".utf8), statusCode: 200)]
+    )
+    try await session.install(fixture.credentials())
+
+    try await HomeAssistantAPIClient(session: session).setTargetValue(
+      22.5,
+      entityID: "climate.living_room"
+    )
+
+    let request = try XCTUnwrap(fixture.apiLoader.requests.first)
+    XCTAssertEqual(request.httpMethod, "POST")
+    XCTAssertEqual(request.url?.path, "/api/services/climate/set_temperature")
+    XCTAssertEqual(
+      try JSONDecoder().decode(
+        ClimateTemperatureRequest.self,
+        from: try XCTUnwrap(request.httpBody)
+      ),
+      ClimateTemperatureRequest(entityID: "climate.living_room", temperature: 22.5)
+    )
+  }
 }
 
 private struct ClimateTarget: Codable, Equatable {
@@ -83,5 +107,15 @@ private struct ClimateModeRequest: Codable, Equatable {
   enum CodingKeys: String, CodingKey {
     case entityID = "entity_id"
     case hvacMode = "hvac_mode"
+  }
+}
+
+private struct ClimateTemperatureRequest: Codable, Equatable {
+  let entityID: String
+  let temperature: Double
+
+  enum CodingKeys: String, CodingKey {
+    case entityID = "entity_id"
+    case temperature
   }
 }

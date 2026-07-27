@@ -112,7 +112,35 @@ struct HomeAssistantTemperatureView: View {
           }
 
           ForEach(summary.rooms) { reading in
-            HomeAssistantTemperatureCard(reading: reading, mode: mode)
+            VStack(spacing: 8) {
+              HomeAssistantTemperatureCard(
+                reading: reading,
+                mode: mode,
+                showsControl: reading.kind == .zone && store.supportsControl,
+                isControlEnabled: store.canControl(reading),
+                isControlling: store.isControlling(entityID: reading.id)
+              ) { isOn in
+                Task {
+                  await store.setPower(for: reading, isOn: isOn)
+                }
+              }
+
+              if reading.kind == .zone,
+                reading.targetValue != nil,
+                store.supportsControl
+              {
+                ZoneTargetTemperatureControl(
+                  reading: reading,
+                  mode: mode,
+                  isEnabled: store.canControl(reading),
+                  isControlling: store.isControlling(entityID: reading.id)
+                ) { value in
+                  Task {
+                    await store.setTargetValue(value, for: reading)
+                  }
+                }
+              }
+            }
           }
 
           updateStatus

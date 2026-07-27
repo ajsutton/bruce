@@ -6,32 +6,50 @@ struct HomeAssistantTemperatureCard: View {
 
   let reading: HomeAssistantTemperatureReading
   let mode: BruceMode
+  let showsControl: Bool
+  let isControlEnabled: Bool
+  let isControlling: Bool
+  let setPower: (Bool) -> Void
 
-  private var cardBackground: AnyShapeStyle {
-    mode.isFullBruce
-      ? AnyShapeStyle(Color(red: 0.00, green: 0.25, blue: 0.18))
-      : AnyShapeStyle(.background)
+  init(
+    reading: HomeAssistantTemperatureReading,
+    mode: BruceMode,
+    showsControl: Bool = false,
+    isControlEnabled: Bool = false,
+    isControlling: Bool = false,
+    setPower: @escaping (Bool) -> Void = { _ in }
+  ) {
+    self.reading = reading
+    self.mode = mode
+    self.showsControl = showsControl
+    self.isControlEnabled = isControlEnabled
+    self.isControlling = isControlling
+    self.setPower = setPower
   }
 
-  private var primaryForeground: AnyShapeStyle {
-    mode.isFullBruce ? AnyShapeStyle(mode.foregroundColor) : AnyShapeStyle(.primary)
+  private var style: TemperatureCardStyle {
+    TemperatureCardStyle(reading: reading, mode: mode)
   }
 
-  private var secondaryForeground: AnyShapeStyle {
-    mode.isFullBruce
-      ? AnyShapeStyle(Color.white.opacity(0.78))
-      : AnyShapeStyle(.secondary)
-  }
-
-  private var emphasizedForeground: Color {
-    mode.isFullBruce ? mode.foregroundColor : mode.accentColor
-  }
-
-  private var iconForeground: Color {
-    mode.isFullBruce ? mode.backgroundColor : mode.foregroundColor
-  }
-
+  @ViewBuilder
   var body: some View {
+    if showsControl {
+      Button {
+        setPower(reading.powerState == .off)
+      } label: {
+        card
+      }
+      .buttonStyle(.plain)
+      .disabled(!isControlEnabled || isControlling)
+      .accessibilityLabel(powerAccessibilityLabel)
+      .accessibilityValue(powerAccessibilityValue)
+    } else {
+      card
+        .accessibilityElement(children: .combine)
+    }
+  }
+
+  private var card: some View {
     Group {
       if dynamicTypeSize.isAccessibilitySize
         || dynamicTypeSize == .xLarge
@@ -54,11 +72,11 @@ struct HomeAssistantTemperatureCard: View {
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(16)
-    .background(cardBackground, in: RoundedRectangle(cornerRadius: 20))
+    .background(style.cardBackground, in: RoundedRectangle(cornerRadius: 20))
     .overlay {
       RoundedRectangle(cornerRadius: 20)
         .stroke(
-          mode.isFullBruce ? mode.foregroundColor.opacity(0.22) : .clear,
+          style.cardBorder,
           lineWidth: 1
         )
     }
@@ -67,7 +85,7 @@ struct HomeAssistantTemperatureCard: View {
       radius: 10,
       y: 4
     )
-    .accessibilityElement(children: .combine)
+    .contentShape(RoundedRectangle(cornerRadius: 20))
   }
 
   private func rowLayout(_ density: TemperatureRowDensity) -> some View {
@@ -103,31 +121,38 @@ struct HomeAssistantTemperatureCard: View {
 
   private var cardDivider: some View {
     Divider()
-      .overlay(mode.isFullBruce ? Color.white.opacity(0.22) : .clear)
+      .overlay(style.dividerColor)
   }
 
   private func location(isCondensed: Bool) -> some View {
     let iconSize: CGFloat = isCondensed ? 40 : 52
 
     return HStack(spacing: isCondensed ? 6 : 12) {
-      HomeAssistantTemperatureIconView(identifier: reading.icon)
-        .foregroundStyle(iconForeground)
-        .frame(width: iconSize, height: iconSize)
-        .background(
-          mode.isFullBruce ? mode.foregroundColor : mode.backgroundColor,
-          in: RoundedRectangle(cornerRadius: isCondensed ? 12 : 14)
-        )
-        .accessibilityHidden(true)
+      Group {
+        if isControlling {
+          ProgressView()
+            .controlSize(isCondensed ? .small : .regular)
+        } else {
+          HomeAssistantTemperatureIconView(identifier: reading.icon)
+        }
+      }
+      .foregroundStyle(style.iconForeground)
+      .frame(width: iconSize, height: iconSize)
+      .background(
+        style.iconBackground,
+        in: RoundedRectangle(cornerRadius: isCondensed ? 12 : 14)
+      )
+      .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 5) {
         Text(reading.name)
           .font(isCondensed ? .subheadline.weight(.semibold) : .headline)
-          .foregroundStyle(primaryForeground)
+          .foregroundStyle(style.primaryForeground)
           .lineLimit(isCondensed ? 2 : nil)
 
         Text(powerStateLabel)
           .font(.caption)
-          .foregroundStyle(powerStateForeground)
+          .foregroundStyle(style.powerStateForeground)
       }
     }
   }
@@ -136,7 +161,7 @@ struct HomeAssistantTemperatureCard: View {
     temperature(
       label: "Current",
       value: reading.value,
-      foreground: primaryForeground,
+      foreground: style.primaryForeground,
       isCondensed: isCondensed
     )
   }
@@ -145,8 +170,9 @@ struct HomeAssistantTemperatureCard: View {
     temperature(
       label: "Target",
       value: reading.targetValue,
-      foreground: AnyShapeStyle(emphasizedForeground),
-      isCondensed: isCondensed
+      foreground: AnyShapeStyle(style.emphasizedForeground),
+      isCondensed: isCondensed,
+      fractionLength: reading.targetValueFractionLength
     )
   }
 
@@ -154,16 +180,17 @@ struct HomeAssistantTemperatureCard: View {
     label: String,
     value: Double?,
     foreground: AnyShapeStyle,
-    isCondensed: Bool
+    isCondensed: Bool,
+    fractionLength: Int = 1
   ) -> some View {
     VStack(alignment: .leading, spacing: 2) {
       Text(label)
         .font(.subheadline)
-        .foregroundStyle(secondaryForeground)
+        .foregroundStyle(style.secondaryForeground)
 
       HStack(alignment: .firstTextBaseline, spacing: 2) {
         if let value {
-          Text(value, format: .number.precision(.fractionLength(1)))
+          Text(value, format: .number.precision(.fractionLength(fractionLength)))
           if let unit = reading.unit {
             Text(unit)
               .font(isCondensed ? .body : .title2)
@@ -196,13 +223,44 @@ struct HomeAssistantTemperatureCard: View {
     }
   }
 
-  private var powerStateForeground: AnyShapeStyle {
+  private var powerAccessibilityLabel: String {
+    if isControlling {
+      return "Updating \(reading.name)"
+    }
     switch reading.powerState {
     case .poweredOn:
-      AnyShapeStyle(emphasizedForeground)
-    case .off, .unavailable:
-      secondaryForeground
+      return "Turn off \(reading.name)"
+    case .off:
+      return "Turn on \(reading.name)"
+    case .unavailable:
+      return "\(reading.name) power unavailable"
     }
+  }
+
+  private var powerAccessibilityValue: String {
+    let currentValue = temperatureAccessibilityValue(
+      reading.value,
+      fractionLength: 1
+    )
+    let targetValue =
+      reading.targetValue.map {
+        temperatureAccessibilityValue(
+          $0,
+          fractionLength: reading.targetValueFractionLength
+        )
+      } ?? "Unavailable"
+    let progress = isControlling ? "Updating. " : ""
+    return "\(progress)\(powerStateLabel). Current \(currentValue). Target \(targetValue)"
+  }
+
+  private func temperatureAccessibilityValue(
+    _ value: Double,
+    fractionLength: Int
+  ) -> String {
+    let formattedValue = value.formatted(
+      .number.precision(.fractionLength(fractionLength))
+    )
+    return "\(formattedValue)\(reading.unit ?? "")"
   }
 }
 

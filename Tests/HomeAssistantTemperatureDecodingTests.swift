@@ -91,6 +91,49 @@ final class HomeAssistantTemperatureDecodingTests: XCTestCase {
     XCTAssertNil(temperatures.first?.targetValue)
   }
 
+  func testTemperatureLoadingIncludesTargetAdjustmentRangeAndStep() throws {
+    let temperatures = try decodeTemperature(
+      state: "cool",
+      attributes: """
+        "current_temperature": 27.5,
+        "temperature": 24,
+        "min_temp": 16,
+        "max_temp": 30,
+        "target_temp_step": 0.5
+        """
+    )
+
+    XCTAssertEqual(temperatures.first?.minimumTargetValue, 16)
+    XCTAssertEqual(temperatures.first?.maximumTargetValue, 30)
+    XCTAssertEqual(temperatures.first?.targetValueStep, 0.5)
+  }
+
+  func testTemperatureLoadingUsesPrecisionWhenTargetStepIsMissing() throws {
+    let temperatures = try decodeTemperature(
+      state: "cool",
+      attributes: """
+        "current_temperature": 27.5,
+        "temperature": 24,
+        "precision": 1
+        """
+    )
+
+    XCTAssertEqual(temperatures.first?.targetValueStep, 1)
+  }
+
+  func testTargetDisplayPrecisionFollowsAdvertisedStep() throws {
+    let temperatures = try decodeTemperature(
+      state: "cool",
+      attributes: """
+        "current_temperature": 27.5,
+        "temperature": 22.25,
+        "target_temp_step": 0.25
+        """
+    )
+
+    XCTAssertEqual(temperatures.first?.targetValueFractionLength, 2)
+  }
+
   func testTemperatureLoadingUsesConfiguredTemperatureUnit() throws {
     let data = Data(
       #"""
