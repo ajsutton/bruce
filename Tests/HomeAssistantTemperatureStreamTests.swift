@@ -15,7 +15,14 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
         .success(#"{"type":"auth_required"}"#),
         .success(#"{"type":"auth_ok"}"#),
         .success(#"{"id":1,"type":"result","success":true,"result":null}"#),
-        .success(stateChangedEvent(entityID: "climate.bedroom", value: 24)),
+        .success(
+          stateChangedEvent(
+            entityID: "climate.bedroom",
+            value: 24,
+            state: "off",
+            target: 22
+          )
+        ),
       ]
     )
     let client = makeClient(
@@ -31,7 +38,11 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
     let finished = try await updates.next()
 
     XCTAssertEqual(initial.map(\.value), [21])
+    XCTAssertEqual(initial.map(\.targetValue), [22])
+    XCTAssertEqual(initial.map(\.powerState), [.poweredOn])
     XCTAssertEqual(live.map(\.value), [24])
+    XCTAssertEqual(live.map(\.targetValue), [22])
+    XCTAssertEqual(live.map(\.powerState), [.off])
     XCTAssertEqual(live.first?.icon, "mdi:bed")
     XCTAssertNil(finished)
     XCTAssertEqual(connection.sentMessageTypes, ["auth", "subscribe_events"])

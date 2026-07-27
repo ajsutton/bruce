@@ -2,7 +2,6 @@ import SwiftUI
 
 struct HomeAssistantTemperatureView: View {
   @Environment(\.colorScheme) private var colorScheme
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @ObservedObject var store: HomeAssistantTemperatureStore
   let mode: BruceMode
   let isConnecting: Bool
@@ -23,10 +22,6 @@ struct HomeAssistantTemperatureView: View {
     connectionProblem != nil || store.problem == .signInRequired
   }
 
-  private var usesStackedCards: Bool {
-    dynamicTypeSize.isAccessibilitySize || dynamicTypeSize == .xxxLarge
-  }
-
   private var screenBackground: Color {
     if mode.isFullBruce {
       return mode.backgroundColor
@@ -37,13 +32,6 @@ struct HomeAssistantTemperatureView: View {
     return mode.backgroundColor
   }
 
-  private var cardBackground: AnyShapeStyle {
-    if mode.isFullBruce {
-      return AnyShapeStyle(Color(red: 0.00, green: 0.25, blue: 0.18))
-    }
-    return AnyShapeStyle(.background)
-  }
-
   private var primaryCardForeground: AnyShapeStyle {
     mode.isFullBruce ? AnyShapeStyle(mode.foregroundColor) : AnyShapeStyle(.primary)
   }
@@ -52,14 +40,6 @@ struct HomeAssistantTemperatureView: View {
     mode.isFullBruce
       ? AnyShapeStyle(Color.white.opacity(0.78))
       : AnyShapeStyle(.secondary)
-  }
-
-  private var emphasizedForeground: Color {
-    mode.isFullBruce ? mode.foregroundColor : mode.accentColor
-  }
-
-  private var iconForeground: Color {
-    mode.isFullBruce ? mode.backgroundColor : mode.foregroundColor
   }
 
   private var problemForeground: AnyShapeStyle {
@@ -90,7 +70,7 @@ struct HomeAssistantTemperatureView: View {
       ScrollView {
         LazyVStack(spacing: 14) {
           ForEach(store.readings) { reading in
-            temperatureCard(reading)
+            HomeAssistantTemperatureCard(reading: reading, mode: mode)
           }
 
           updateStatus
@@ -122,84 +102,6 @@ struct HomeAssistantTemperatureView: View {
     }
     .padding()
     .foregroundStyle(primaryCardForeground)
-  }
-
-  private func temperatureCard(_ reading: HomeAssistantTemperatureReading) -> some View {
-    Group {
-      if usesStackedCards {
-        VStack(alignment: .leading, spacing: 16) {
-          temperatureLocation(reading)
-          Divider()
-            .overlay(mode.isFullBruce ? Color.white.opacity(0.22) : .clear)
-          currentTemperature(reading)
-        }
-      } else {
-        HStack(spacing: 12) {
-          temperatureLocation(reading)
-            .frame(maxWidth: .infinity, alignment: .leading)
-          Divider()
-            .overlay(mode.isFullBruce ? Color.white.opacity(0.22) : .clear)
-          currentTemperature(reading)
-            .frame(minWidth: 108, alignment: .leading)
-        }
-        .frame(minHeight: 76)
-      }
-    }
-    .padding(16)
-    .background(cardBackground, in: RoundedRectangle(cornerRadius: 20))
-    .overlay {
-      RoundedRectangle(cornerRadius: 20)
-        .stroke(
-          mode.isFullBruce ? mode.foregroundColor.opacity(0.22) : .clear,
-          lineWidth: 1
-        )
-    }
-    .shadow(
-      color: .black.opacity(mode.isFullBruce ? 0.2 : 0.1),
-      radius: 10,
-      y: 4
-    )
-    .accessibilityElement(children: .combine)
-  }
-
-  private func temperatureLocation(
-    _ reading: HomeAssistantTemperatureReading
-  ) -> some View {
-    HStack(spacing: 12) {
-      HomeAssistantTemperatureIconView(identifier: reading.icon)
-        .foregroundStyle(iconForeground)
-        .frame(width: 52, height: 52)
-        .background(
-          mode.isFullBruce ? mode.foregroundColor : mode.backgroundColor,
-          in: RoundedRectangle(cornerRadius: 14)
-        )
-        .accessibilityHidden(true)
-
-      Text(reading.name)
-        .font(.headline)
-        .foregroundStyle(primaryCardForeground)
-    }
-  }
-
-  private func currentTemperature(
-    _ reading: HomeAssistantTemperatureReading
-  ) -> some View {
-    VStack(alignment: .leading, spacing: 2) {
-      Text("Current")
-        .font(.subheadline)
-        .foregroundStyle(secondaryCardForeground)
-
-      HStack(alignment: .firstTextBaseline, spacing: 2) {
-        Text(reading.value, format: .number.precision(.fractionLength(0...1)))
-        if let unit = reading.unit {
-          Text(unit)
-            .font(.title2)
-        }
-      }
-      .font(.system(.largeTitle, design: .rounded, weight: .medium))
-      .foregroundStyle(emphasizedForeground)
-      .monospacedDigit()
-    }
   }
 
   private func problemBanner(_ message: String) -> some View {

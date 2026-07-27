@@ -80,7 +80,9 @@ final class HomeAssistantTemperatureReconnectTests: XCTestCase {
       id: "climate.bedroom",
       name: "Bedroom",
       value: 21,
-      unit: "°C"
+      targetValue: 22,
+      unit: "°C",
+      powerState: .poweredOn
     )
     XCTAssertEqual(reconnecting, .reconnecting([expected]))
   }

@@ -136,10 +136,12 @@ private struct HomeAssistantUnitSystem: Decodable {
 
 struct HomeAssistantState: Decodable {
   let entityID: String
+  private let state: String
   private let attributes: HomeAssistantStateAttributes
 
   enum CodingKeys: String, CodingKey {
     case entityID = "entity_id"
+    case state
     case attributes
   }
 
@@ -158,7 +160,9 @@ struct HomeAssistantState: Decodable {
       id: entityID,
       name: attributes.friendlyName ?? fallbackName,
       value: value,
+      targetValue: finiteTargetTemperature,
       unit: unit,
+      powerState: powerState,
       icon: attributes.icon ?? registryIcon
     )
   }
@@ -168,15 +172,34 @@ struct HomeAssistantState: Decodable {
     return objectID.replacingOccurrences(of: "_", with: " ").localizedCapitalized
   }
 
+  private var finiteTargetTemperature: Double? {
+    guard let targetTemperature = attributes.targetTemperature, targetTemperature.isFinite else {
+      return nil
+    }
+    return targetTemperature
+  }
+
+  private var powerState: HomeAssistantTemperatureReading.PowerState {
+    switch state {
+    case "off":
+      .off
+    case "unavailable", "unknown":
+      .unavailable
+    default:
+      .poweredOn
+    }
+  }
 }
 
 private struct HomeAssistantStateAttributes: Decodable {
   let currentTemperature: Double?
+  let targetTemperature: Double?
   let friendlyName: String?
   let icon: String?
 
   enum CodingKeys: String, CodingKey {
     case currentTemperature = "current_temperature"
+    case targetTemperature = "temperature"
     case friendlyName = "friendly_name"
     case icon
   }

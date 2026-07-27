@@ -202,7 +202,9 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
       id: id,
       name: id.localizedCapitalized,
       value: 22,
-      unit: "°C"
+      targetValue: 23,
+      unit: "°C",
+      powerState: .poweredOn
     )
   }
 

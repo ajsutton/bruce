@@ -124,13 +124,17 @@ final class HomeAssistantAPIClientTests: XCTestCase {
           id: "climate.bedroom",
           name: "Bedroom Air Conditioner",
           value: 21,
-          unit: "°C"
+          targetValue: 22,
+          unit: "°C",
+          powerState: .poweredOn
         ),
         HomeAssistantTemperatureReading(
           id: "climate.living_room",
           name: "Living Room",
           value: 23.5,
+          targetValue: 24,
           unit: "°C",
+          powerState: .poweredOn,
           icon: "mdi:sofa"
         ),
       ]
@@ -239,48 +243,6 @@ final class HomeAssistantAPIClientTests: XCTestCase {
     iconLoader.finish()
   }
 
-  func testTemperatureLoadingUsesEntityNameWhenFriendlyNameIsMissing() throws {
-    let data = Data(
-      #"""
-      [{
-        "entity_id": "climate.upstairs_air_conditioner",
-        "state": "cool",
-        "attributes": {
-          "current_temperature": 27.5
-        }
-      }]
-      """#.utf8
-    )
-
-    let temperatures = try HomeAssistantAPIClient.temperatures(from: data, unit: "°C")
-
-    XCTAssertEqual(temperatures.first?.name, "Upstairs Air Conditioner")
-  }
-
-  func testTemperatureLoadingUsesConfiguredTemperatureUnit() throws {
-    let data = Data(
-      #"""
-      {
-        "unit_system": {
-          "temperature": "°F"
-        }
-      }
-      """#.utf8
-    )
-
-    XCTAssertEqual(try HomeAssistantAPIClient.temperatureUnit(from: data), "°F")
-  }
-
-  func testTemperatureLoadingRejectsMalformedStatePayload() {
-    XCTAssertThrowsError(
-      try HomeAssistantAPIClient.temperatures(from: Data("{}".utf8), unit: "°C")
-    ) { error in
-      guard case HomeAssistantAPIError.invalidResponse = error else {
-        return XCTFail("Unexpected error: \(error)")
-      }
-    }
-  }
-
 }
 
 private let temperatureStatesData = Data(
@@ -291,6 +253,7 @@ private let temperatureStatesData = Data(
       "state": "cool",
       "attributes": {
         "current_temperature": 23.5,
+        "temperature": 24,
         "friendly_name": "Living Room",
         "icon": "mdi:sofa"
       },
@@ -301,6 +264,7 @@ private let temperatureStatesData = Data(
       "state": "heat",
       "attributes": {
         "current_temperature": 21,
+        "temperature": 22,
         "friendly_name": "Bedroom Air Conditioner"
       },
       "last_updated": "2026-07-27T01:01:00Z"

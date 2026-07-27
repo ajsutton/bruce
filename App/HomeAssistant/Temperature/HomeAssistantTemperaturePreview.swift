@@ -48,28 +48,36 @@ private enum HomeAssistantTemperaturePreview {
       id: "climate.living_room",
       name: "Living Room",
       value: 23.4,
+      targetValue: 24,
       unit: "°C",
+      powerState: .poweredOn,
       icon: "mdi:sofa"
     ),
     HomeAssistantTemperatureReading(
       id: "climate.bedroom",
       name: "Master Bedroom",
       value: 21.8,
+      targetValue: 22,
       unit: "°C",
+      powerState: .poweredOn,
       icon: "mdi:bed"
     ),
     HomeAssistantTemperatureReading(
       id: "climate.study",
       name: "Study",
       value: 22.6,
+      targetValue: nil,
       unit: "°C",
+      powerState: .off,
       icon: "mdi:desk"
     ),
     HomeAssistantTemperatureReading(
       id: "climate.dining_room",
       name: "Dining Room",
       value: 24.1,
+      targetValue: 24.5,
       unit: "°C",
+      powerState: .unavailable,
       icon: "mdi:table-chair"
     ),
   ]

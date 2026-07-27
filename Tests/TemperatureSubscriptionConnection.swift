@@ -223,6 +223,7 @@ func temperatureStates(value: Double) -> Data {
       "state": "cool",
       "attributes": {
         "current_temperature": \#(value),
+        "temperature": \#(value + 1),
         "friendly_name": "Bedroom"
       },
       "last_updated": "2026-07-27T01:02:03Z"
@@ -231,8 +232,14 @@ func temperatureStates(value: Double) -> Data {
   )
 }
 
-func stateChangedEvent(entityID: String, value: Double?) -> String {
+func stateChangedEvent(
+  entityID: String,
+  value: Double?,
+  state: String = "cool",
+  target: Double? = nil
+) -> String {
   let currentTemperature = value.map { String($0) } ?? "null"
+  let targetTemperature = target.map { String($0) } ?? "null"
   return
     #"""
     {
@@ -244,9 +251,10 @@ func stateChangedEvent(entityID: String, value: Double?) -> String {
           "entity_id": "\#(entityID)",
           "new_state": {
             "entity_id": "\#(entityID)",
-            "state": "cool",
+            "state": "\#(state)",
             "attributes": {
               "current_temperature": \#(currentTemperature),
+              "temperature": \#(targetTemperature),
               "friendly_name": "Bedroom"
             },
             "last_updated": "2026-07-27T01:03:04Z"
