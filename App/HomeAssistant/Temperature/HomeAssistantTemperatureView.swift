@@ -21,13 +21,6 @@ struct HomeAssistantTemperatureView: View {
     connectionProblem != nil || store.problem == .signInRequired
   }
 
-  private var columns: [GridItem] {
-    if dynamicTypeSize.isAccessibilitySize {
-      return [GridItem(.flexible())]
-    }
-    return [GridItem(.adaptive(minimum: 160), spacing: 16)]
-  }
-
   var body: some View {
     NavigationStack {
       VStack(spacing: 0) {
@@ -46,15 +39,14 @@ struct HomeAssistantTemperatureView: View {
       emptyState
     } else {
       ScrollView {
-        LazyVGrid(
-          columns: columns,
-          spacing: 16
-        ) {
+        LazyVStack(spacing: 12) {
           ForEach(store.readings) { reading in
             temperatureCard(reading)
           }
         }
         .padding()
+        .frame(maxWidth: 720)
+        .frame(maxWidth: .infinity)
       }
       .safeAreaInset(edge: .bottom) {
         updateStatus
@@ -86,19 +78,40 @@ struct HomeAssistantTemperatureView: View {
   }
 
   private func temperatureCard(_ reading: HomeAssistantTemperatureReading) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
+    Group {
+      if dynamicTypeSize.isAccessibilitySize {
+        VStack(alignment: .leading, spacing: 16) {
+          temperatureLocation(reading)
+          Divider()
+          currentTemperature(reading)
+        }
+      } else {
+        HStack(spacing: 20) {
+          temperatureLocation(reading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+          Divider()
+          currentTemperature(reading)
+            .frame(minWidth: 132, alignment: .leading)
+        }
+        .frame(minHeight: 88)
+      }
+    }
+    .padding(.horizontal, 20)
+    .padding(.vertical, 16)
+    .background(.background, in: RoundedRectangle(cornerRadius: 18))
+    .overlay {
+      RoundedRectangle(cornerRadius: 18)
+        .stroke(.separator.opacity(0.35), lineWidth: 0.5)
+    }
+    .accessibilityElement(children: .combine)
+  }
+
+  private func temperatureLocation(
+    _ reading: HomeAssistantTemperatureReading
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
       Text(reading.name)
         .font(.headline)
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-
-      HStack(alignment: .firstTextBaseline, spacing: 2) {
-        Text(reading.value, format: .number.precision(.fractionLength(0...1)))
-        if let unit = reading.unit {
-          Text(unit)
-        }
-      }
-      .font(.system(.title, design: .rounded, weight: .semibold))
 
       if let updatedAt = reading.updatedAt {
         HStack(spacing: 4) {
@@ -113,10 +126,26 @@ struct HomeAssistantTemperatureView: View {
           .foregroundStyle(.secondary)
       }
     }
-    .padding()
-    .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
-    .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
-    .accessibilityElement(children: .combine)
+  }
+
+  private func currentTemperature(
+    _ reading: HomeAssistantTemperatureReading
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text("Current")
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+
+      HStack(alignment: .firstTextBaseline, spacing: 2) {
+        Text(reading.value, format: .number.precision(.fractionLength(0...1)))
+        if let unit = reading.unit {
+          Text(unit)
+            .font(.title2)
+        }
+      }
+      .font(.system(.largeTitle, design: .rounded, weight: .medium))
+      .monospacedDigit()
+    }
   }
 
   private func problemBanner(_ message: String) -> some View {
@@ -203,10 +232,24 @@ private struct PreviewHomeAssistantTemperatureLoader: HomeAssistantTemperatureLo
       ),
       HomeAssistantTemperatureReading(
         id: "climate.bedroom",
-        name: "Bedroom",
+        name: "Master Bedroom",
         value: 21.8,
         unit: "°C",
         updatedAt: .now
+      ),
+      HomeAssistantTemperatureReading(
+        id: "climate.study",
+        name: "Study",
+        value: 22.6,
+        unit: "°C",
+        updatedAt: .now.addingTimeInterval(-180)
+      ),
+      HomeAssistantTemperatureReading(
+        id: "climate.dining_room",
+        name: "Dining Room",
+        value: 24.1,
+        unit: "°C",
+        updatedAt: nil
       ),
     ]
   }
