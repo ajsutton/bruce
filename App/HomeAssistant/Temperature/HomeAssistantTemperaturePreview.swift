@@ -42,6 +42,42 @@ import SwiftUI
   .background(BruceMode.full.backgroundColor)
 }
 
+#Preview("Bruce Zone Controls") {
+  VStack(spacing: 14) {
+    HomeAssistantAirConditionerCard(
+      reading: HomeAssistantTemperaturePreview.airConditioner,
+      averageValue: 22.8,
+      mode: .standard,
+      showsControls: true,
+      isControlEnabled: true,
+      targetValueFractionLength: 1
+    )
+
+    HomeAssistantTemperatureCard(
+      reading: HomeAssistantTemperaturePreview.livingRoom,
+      mode: .standard,
+      showsControl: true,
+      isControlEnabled: true,
+      showsTargetControl: true,
+      targetValueFractionLength: 1
+    )
+  }
+  .padding()
+}
+
+#Preview("Narrow Zone Controls") {
+  HomeAssistantTemperatureCard(
+    reading: HomeAssistantTemperaturePreview.livingRoom,
+    mode: .standard,
+    showsControl: true,
+    isControlEnabled: true,
+    showsTargetControl: true,
+    targetValueFractionLength: 1
+  )
+  .frame(width: 300)
+  .padding()
+}
+
 private enum HomeAssistantTemperaturePreview {
   @MainActor
   static func view(
@@ -79,22 +115,24 @@ private enum HomeAssistantTemperaturePreview {
     availableModes: [.heating, .cooling, .automatic, .drying, .fanOnly]
   )
 
+  static let livingRoom = HomeAssistantTemperatureReading(
+    id: "climate.living_room",
+    name: "Living Room",
+    value: 26,
+    targetValue: 18,
+    unit: "°C",
+    powerState: .poweredOn,
+    kind: .zone,
+    operatingMode: .fanOnly,
+    icon: "mdi:sofa",
+    minimumTargetValue: 16,
+    maximumTargetValue: 30,
+    targetValueStep: 0.5
+  )
+
   private static let previewTemperatureReadings = [
     airConditioner,
-    HomeAssistantTemperatureReading(
-      id: "climate.living_room",
-      name: "Living Room",
-      value: 26,
-      targetValue: 18,
-      unit: "°C",
-      powerState: .poweredOn,
-      kind: .zone,
-      operatingMode: .fanOnly,
-      icon: "mdi:sofa",
-      minimumTargetValue: 16,
-      maximumTargetValue: 30,
-      targetValueStep: 0.5
-    ),
+    livingRoom,
     HomeAssistantTemperatureReading(
       id: "climate.bedroom",
       name: "Master Bedroom",

@@ -97,6 +97,7 @@ struct HomeAssistantTemperatureView: View {
               showsControls: store.supportsControl,
               isControlEnabled: store.canControl(reading),
               isControlling: store.isControlling(entityID: reading.id),
+              targetValueFractionLength: summary.targetValueFractionLength,
               setPower: { isOn in
                 Task {
                   await store.setPower(for: reading, isOn: isOn)
@@ -112,35 +113,27 @@ struct HomeAssistantTemperatureView: View {
           }
 
           ForEach(summary.rooms) { reading in
-            VStack(spacing: 8) {
-              HomeAssistantTemperatureCard(
-                reading: reading,
-                mode: mode,
-                showsControl: reading.kind == .zone && store.supportsControl,
-                isControlEnabled: store.canControl(reading),
-                isControlling: store.isControlling(entityID: reading.id)
-              ) { isOn in
+            HomeAssistantTemperatureCard(
+              reading: reading,
+              mode: mode,
+              showsControl: reading.kind == .zone && store.supportsControl,
+              isControlEnabled: store.canControl(reading),
+              isControlling: store.isControlling(entityID: reading.id),
+              showsTargetControl: reading.kind == .zone
+                && reading.targetValue != nil
+                && store.supportsControl,
+              targetValueFractionLength: summary.targetValueFractionLength,
+              setPower: { isOn in
                 Task {
                   await store.setPower(for: reading, isOn: isOn)
                 }
-              }
-
-              if reading.kind == .zone,
-                reading.targetValue != nil,
-                store.supportsControl
-              {
-                ZoneTargetTemperatureControl(
-                  reading: reading,
-                  mode: mode,
-                  isEnabled: store.canControl(reading),
-                  isControlling: store.isControlling(entityID: reading.id)
-                ) { value in
-                  Task {
-                    await store.setTargetValue(value, for: reading)
-                  }
+              },
+              setTargetValue: { value in
+                Task {
+                  await store.setTargetValue(value, for: reading)
                 }
               }
-            }
+            )
           }
 
           updateStatus

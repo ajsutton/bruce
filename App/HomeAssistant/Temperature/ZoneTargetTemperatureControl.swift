@@ -5,6 +5,7 @@ struct ZoneTargetTemperatureControl: View {
   let mode: BruceMode
   let isEnabled: Bool
   let isControlling: Bool
+  let fractionLength: Int
   let setTargetValue: @MainActor @Sendable (Double) -> Void
 
   private var style: TemperatureCardStyle {
@@ -20,61 +21,13 @@ struct ZoneTargetTemperatureControl: View {
       value: targetBinding,
       in: targetRange,
       step: step
-    ) {
-      ViewThatFits(in: .horizontal) {
-        HStack(spacing: 12) {
-          targetLabel
-          Spacer()
-          targetValue
-        }
-        VStack(alignment: .leading, spacing: 4) {
-          targetLabel
-          targetValue
-        }
-      }
-    }
+    ) {}
+    .labelsHidden()
     .disabled(!isEnabled || isControlling)
     .accessibilityLabel("\(reading.name) target")
     .accessibilityValue(targetAccessibilityValue)
     .tint(style.controlTint)
     .foregroundStyle(style.primaryForeground)
-    .padding(.horizontal, 16)
-    .padding(.vertical, 8)
-    .background(style.cardBackground, in: RoundedRectangle(cornerRadius: 14))
-    .overlay {
-      RoundedRectangle(cornerRadius: 14)
-        .stroke(style.cardBorder, lineWidth: 1)
-    }
-    .shadow(
-      color: .black.opacity(mode.isFullBruce ? 0.16 : 0.07),
-      radius: 6,
-      y: 2
-    )
-  }
-
-  private var targetLabel: some View {
-    Text("Target")
-      .font(.subheadline.weight(.semibold))
-  }
-
-  private var targetValue: some View {
-    HStack(alignment: .firstTextBaseline, spacing: 2) {
-      if let value = reading.targetValue {
-        Text(
-          value,
-          format: .number.precision(
-            .fractionLength(reading.targetValueFractionLength)
-          )
-        )
-        if let unit = reading.unit {
-          Text(unit)
-            .font(.body)
-        }
-      }
-    }
-    .font(.title3.weight(.semibold))
-    .monospacedDigit()
-    .accessibilityHidden(true)
   }
 
   private var targetAccessibilityValue: Text {
@@ -82,7 +35,7 @@ struct ZoneTargetTemperatureControl: View {
       return Text("Unavailable")
     }
     let formattedValue = value.formatted(
-      .number.precision(.fractionLength(reading.targetValueFractionLength))
+      .number.precision(.fractionLength(fractionLength))
     )
     return Text(verbatim: "\(formattedValue)\(reading.unit ?? "")")
   }

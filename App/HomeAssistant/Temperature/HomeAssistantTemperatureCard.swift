@@ -9,7 +9,10 @@ struct HomeAssistantTemperatureCard: View {
   let showsControl: Bool
   let isControlEnabled: Bool
   let isControlling: Bool
+  let showsTargetControl: Bool
+  let targetValueFractionLength: Int
   let setPower: (Bool) -> Void
+  let setTargetValue: @MainActor @Sendable (Double) -> Void
 
   init(
     reading: HomeAssistantTemperatureReading,
@@ -17,14 +20,20 @@ struct HomeAssistantTemperatureCard: View {
     showsControl: Bool = false,
     isControlEnabled: Bool = false,
     isControlling: Bool = false,
-    setPower: @escaping (Bool) -> Void = { _ in }
+    showsTargetControl: Bool = false,
+    targetValueFractionLength: Int = 1,
+    setPower: @escaping (Bool) -> Void = { _ in },
+    setTargetValue: @escaping @MainActor @Sendable (Double) -> Void = { _ in }
   ) {
     self.reading = reading
     self.mode = mode
     self.showsControl = showsControl
     self.isControlEnabled = isControlEnabled
     self.isControlling = isControlling
+    self.showsTargetControl = showsTargetControl
+    self.targetValueFractionLength = targetValueFractionLength
     self.setPower = setPower
+    self.setTargetValue = setTargetValue
   }
 
   private var style: TemperatureCardStyle {
@@ -33,7 +42,9 @@ struct HomeAssistantTemperatureCard: View {
 
   @ViewBuilder
   var body: some View {
-    if showsControl {
+    if showsControl, showsTargetControl {
+      adjustableCard
+    } else if showsControl {
       Button {
         setPower(reading.powerState == .off)
       } label: {
@@ -50,7 +61,7 @@ struct HomeAssistantTemperatureCard: View {
   }
 
   private var card: some View {
-    Group {
+    cardSurface {
       if dynamicTypeSize.isAccessibilitySize
         || dynamicTypeSize == .xLarge
         || dynamicTypeSize == .xxLarge
@@ -70,22 +81,28 @@ struct HomeAssistantTemperatureCard: View {
         }
       }
     }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(16)
-    .background(style.cardBackground, in: RoundedRectangle(cornerRadius: 20))
-    .overlay {
-      RoundedRectangle(cornerRadius: 20)
-        .stroke(
-          style.cardBorder,
-          lineWidth: 1
-        )
-    }
-    .shadow(
-      color: .black.opacity(mode.isFullBruce ? 0.2 : 0.1),
-      radius: 10,
-      y: 4
-    )
-    .contentShape(RoundedRectangle(cornerRadius: 20))
+  }
+
+  fileprivate func cardSurface<Content: View>(
+    @ViewBuilder content: () -> Content
+  ) -> some View {
+    content()
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(16)
+      .background(style.cardBackground, in: RoundedRectangle(cornerRadius: 20))
+      .overlay {
+        RoundedRectangle(cornerRadius: 20)
+          .stroke(
+            style.cardBorder,
+            lineWidth: 1
+          )
+      }
+      .shadow(
+        color: .black.opacity(mode.isFullBruce ? 0.2 : 0.1),
+        radius: 10,
+        y: 4
+      )
+      .contentShape(RoundedRectangle(cornerRadius: 20))
   }
 
   private func rowLayout(_ density: TemperatureRowDensity) -> some View {
@@ -103,7 +120,6 @@ struct HomeAssistantTemperatureCard: View {
       cardDivider
       targetTemperature(isCondensed: density == .condensed)
         .frame(minWidth: density.temperatureMinimumWidth, alignment: .leading)
-        .fixedSize(horizontal: true, vertical: false)
     }
     .frame(maxWidth: .infinity, minHeight: density.minimumHeight)
   }
@@ -166,14 +182,16 @@ struct HomeAssistantTemperatureCard: View {
     )
   }
 
+  @ViewBuilder
   private func targetTemperature(isCondensed: Bool) -> some View {
     temperature(
       label: "Target",
       value: reading.targetValue,
       foreground: AnyShapeStyle(style.emphasizedForeground),
       isCondensed: isCondensed,
-      fractionLength: reading.targetValueFractionLength
+      fractionLength: targetValueFractionLength
     )
+    .padding(.trailing, showsTargetControl ? targetControlClearance : 0)
   }
 
   private func temperature(
@@ -212,7 +230,95 @@ struct HomeAssistantTemperatureCard: View {
     }
   }
 
-  private var powerStateLabel: String {
+}
+
+extension HomeAssistantTemperatureCard {
+  @ViewBuilder
+  fileprivate var adjustableCard: some View {
+    if dynamicTypeSize.isAccessibilitySize
+      || dynamicTypeSize == .xLarge
+      || dynamicTypeSize == .xxLarge
+      || dynamicTypeSize == .xxxLarge
+    {
+      powerCard(usesBottomTargetControlAlignment: true) {
+        stackedLayout
+      }
+    } else if horizontalSizeClass == .compact {
+      ViewThatFits(in: .horizontal) {
+        powerCard(usesBottomTargetControlAlignment: false) {
+          rowLayout(.condensed)
+        }
+        powerCard(usesBottomTargetControlAlignment: true) {
+          stackedLayout
+        }
+      }
+    } else {
+      ViewThatFits(in: .horizontal) {
+        powerCard(usesBottomTargetControlAlignment: false) {
+          rowLayout(.spacious)
+        }
+        powerCard(usesBottomTargetControlAlignment: false) {
+          rowLayout(.condensed)
+        }
+        powerCard(usesBottomTargetControlAlignment: true) {
+          stackedLayout
+        }
+      }
+    }
+  }
+
+  fileprivate func powerCard<Content: View>(
+    usesBottomTargetControlAlignment: Bool,
+    @ViewBuilder content: () -> Content
+  ) -> some View {
+    let targetControlAlignment: Alignment =
+      usesBottomTargetControlAlignment ? .bottomTrailing : .trailing
+    return Button {
+      setPower(reading.powerState == .off)
+    } label: {
+      cardSurface(content: content)
+    }
+    .buttonStyle(.plain)
+    .disabled(!isControlEnabled || isControlling)
+    .accessibilityLabel(powerAccessibilityLabel)
+    .accessibilityValue(powerAccessibilityValue)
+    .overlay(alignment: targetControlAlignment) {
+      ZoneTargetTemperatureControl(
+        reading: reading,
+        mode: mode,
+        isEnabled: isControlEnabled,
+        isControlling: isControlling,
+        fractionLength: targetValueFractionLength,
+        setTargetValue: setTargetValue
+      )
+      .padding(
+        targetControlInsets(
+          usesBottomTargetControlAlignment: usesBottomTargetControlAlignment
+        )
+      )
+    }
+  }
+
+  fileprivate func targetControlInsets(
+    usesBottomTargetControlAlignment: Bool
+  ) -> EdgeInsets {
+    EdgeInsets(
+      top: usesBottomTargetControlAlignment ? 0 : 16,
+      leading: 0,
+      bottom: 16,
+      trailing: 16
+    )
+  }
+
+  fileprivate var targetControlClearance: CGFloat {
+    #if os(iOS)
+      104
+    #else
+      36
+    #endif
+  }
+
+  fileprivate var powerStateLabel: String {
     switch reading.powerState {
     case .poweredOn:
       "On"
@@ -223,7 +329,7 @@ struct HomeAssistantTemperatureCard: View {
     }
   }
 
-  private var powerAccessibilityLabel: String {
+  fileprivate var powerAccessibilityLabel: String {
     if isControlling {
       return "Updating \(reading.name)"
     }
@@ -237,7 +343,7 @@ struct HomeAssistantTemperatureCard: View {
     }
   }
 
-  private var powerAccessibilityValue: String {
+  fileprivate var powerAccessibilityValue: String {
     let currentValue = temperatureAccessibilityValue(
       reading.value,
       fractionLength: 1
@@ -246,14 +352,14 @@ struct HomeAssistantTemperatureCard: View {
       reading.targetValue.map {
         temperatureAccessibilityValue(
           $0,
-          fractionLength: reading.targetValueFractionLength
+          fractionLength: targetValueFractionLength
         )
       } ?? "Unavailable"
     let progress = isControlling ? "Updating. " : ""
     return "\(progress)\(powerStateLabel). Current \(currentValue). Target \(targetValue)"
   }
 
-  private func temperatureAccessibilityValue(
+  fileprivate func temperatureAccessibilityValue(
     _ value: Double,
     fractionLength: Int
   ) -> String {

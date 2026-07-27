@@ -12,6 +12,7 @@ struct HomeAssistantAirConditionerCard: View {
   let showsControls: Bool
   let isControlEnabled: Bool
   let isControlling: Bool
+  let targetValueFractionLength: Int
   let setPower: (Bool) -> Void
   let setMode: (HomeAssistantTemperatureReading.ClimateMode) -> Void
 
@@ -23,6 +24,7 @@ struct HomeAssistantAirConditionerCard: View {
     showsControls: Bool = false,
     isControlEnabled: Bool = false,
     isControlling: Bool = false,
+    targetValueFractionLength: Int = 1,
     setPower: @escaping (Bool) -> Void = { _ in },
     setMode: @escaping (HomeAssistantTemperatureReading.ClimateMode) -> Void = { _ in }
   ) {
@@ -33,6 +35,7 @@ struct HomeAssistantAirConditionerCard: View {
     self.showsControls = showsControls
     self.isControlEnabled = isControlEnabled
     self.isControlling = isControlling
+    self.targetValueFractionLength = targetValueFractionLength
     self.setPower = setPower
     self.setMode = setMode
   }
@@ -110,7 +113,8 @@ struct HomeAssistantAirConditionerCard: View {
         label: "Target",
         value: reading.targetValue,
         foreground: AnyShapeStyle(style.accentForeground),
-        isCondensed: density == .condensed
+        isCondensed: density == .condensed,
+        fractionLength: targetValueFractionLength
       )
       .frame(minWidth: density.temperatureMinimumWidth, alignment: .leading)
       .fixedSize(horizontal: true, vertical: false)
@@ -133,7 +137,8 @@ struct HomeAssistantAirConditionerCard: View {
         label: "Target",
         value: reading.targetValue,
         foreground: AnyShapeStyle(style.accentForeground),
-        isCondensed: false
+        isCondensed: false,
+        fractionLength: targetValueFractionLength
       )
     }
   }
@@ -232,11 +237,15 @@ struct HomeAssistantAirConditionerCard: View {
       .minimumScaleFactor(0.8)
   }
 
-  private func temperature(
+}
+
+extension HomeAssistantAirConditionerCard {
+  fileprivate func temperature(
     label: String,
     value: Double?,
     foreground: AnyShapeStyle,
-    isCondensed: Bool
+    isCondensed: Bool,
+    fractionLength: Int = 1
   ) -> some View {
     VStack(alignment: .leading, spacing: 2) {
       Text(label)
@@ -245,7 +254,7 @@ struct HomeAssistantAirConditionerCard: View {
 
       HStack(alignment: .firstTextBaseline, spacing: 2) {
         if let value {
-          Text(value, format: .number.precision(.fractionLength(1)))
+          Text(value, format: .number.precision(.fractionLength(fractionLength)))
           if let unit = reading.unit {
             Text(unit)
               .font(isCondensed ? .body : .title2)
@@ -269,9 +278,6 @@ struct HomeAssistantAirConditionerCard: View {
     }
   }
 
-}
-
-extension HomeAssistantAirConditionerCard {
   fileprivate func modeFont(isCondensed: Bool) -> Font {
     isCondensed ? .subheadline.weight(.semibold) : .title2.weight(.semibold)
   }

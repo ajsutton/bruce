@@ -16,4 +16,11 @@ struct HomeAssistantTemperatureSummary {
     }
     return availableValues.reduce(0, +) / Double(availableValues.count)
   }
+
+  var targetValueFractionLength: Int {
+    (airConditioners + rooms)
+      .filter { $0.targetValue != nil }
+      .map(\.targetValueFractionLength)
+      .max() ?? 1
+  }
 }

@@ -37,9 +37,34 @@ final class HomeAssistantTemperatureSummaryTests: XCTestCase {
     XCTAssertNil(summary.averageRoomTemperature)
   }
 
+  func testTargetsUseTheMostPreciseAdvertisedStep() {
+    let summary = HomeAssistantTemperatureSummary(
+      readings: [
+        reading(
+          id: "climate.ac_0",
+          value: 24,
+          targetValue: 18,
+          targetValueStep: 1,
+          kind: .airConditioner
+        ),
+        reading(
+          id: "climate.living",
+          value: 22,
+          targetValue: 18,
+          targetValueStep: 0.5,
+          kind: .zone
+        ),
+      ]
+    )
+
+    XCTAssertEqual(summary.targetValueFractionLength, 1)
+  }
+
   private func reading(
     id: String,
     value: Double,
+    targetValue: Double? = nil,
+    targetValueStep: Double? = nil,
     kind: HomeAssistantTemperatureReading.Kind,
     powerState: HomeAssistantTemperatureReading.PowerState = .poweredOn
   ) -> HomeAssistantTemperatureReading {
@@ -47,10 +72,11 @@ final class HomeAssistantTemperatureSummaryTests: XCTestCase {
       id: id,
       name: id,
       value: value,
-      targetValue: nil,
+      targetValue: targetValue,
       unit: "°C",
       powerState: powerState,
-      kind: kind
+      kind: kind,
+      targetValueStep: targetValueStep
     )
   }
 }
