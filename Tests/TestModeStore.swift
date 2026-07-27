@@ -1,4 +1,3 @@
-import Combine
 import XCTest
 
 @testable import Bruce
@@ -6,80 +5,23 @@ import XCTest
 @MainActor
 final class TestModeStore: BruceModeStoring {
   var localMode: BruceMode?
-  var syncedMode: BruceMode?
-  private let syncedPreferenceSubject = PassthroughSubject<Void, Never>()
-  private var hasUnpublishedLocalChangeValue: Bool
-  private(set) var didPrepareForSynchronization = false
   private let eventRecorder: TestEventRecorder?
 
   init(
     localMode: BruceMode? = nil,
-    syncedMode: BruceMode? = nil,
-    hasUnpublishedLocalChange: Bool = false,
     eventRecorder: TestEventRecorder? = nil
   ) {
     self.localMode = localMode
-    self.syncedMode = syncedMode
-    hasUnpublishedLocalChangeValue = hasUnpublishedLocalChange
     self.eventRecorder = eventRecorder
   }
 
-  var syncedPreferenceChanges: AnyPublisher<Void, Never> {
-    syncedPreferenceSubject.eraseToAnyPublisher()
-  }
-
-  func prepareForSynchronization() {
-    didPrepareForSynchronization = true
-  }
-
-  func hasUnpublishedLocalChange() -> Bool {
-    hasUnpublishedLocalChangeValue
-  }
-
-  func loadLocalMode() -> BruceMode? {
+  func loadMode() -> BruceMode? {
     localMode
-  }
-
-  func loadSyncedMode() -> BruceMode? {
-    syncedMode
-  }
-
-  func saveLocalMode(_ mode: BruceMode) {
-    localMode = mode
-    hasUnpublishedLocalChangeValue = false
   }
 
   func saveMode(_ mode: BruceMode) {
     eventRecorder?.events.append(.saveMode(mode))
     localMode = mode
-    syncedMode = mode
-    hasUnpublishedLocalChangeValue = false
-  }
-
-  func sendSyncedPreferenceChange() {
-    syncedPreferenceSubject.send()
-  }
-
-  func setLocalModeFromSystemSettings(_ mode: BruceMode) {
-    localMode = mode
-    hasUnpublishedLocalChangeValue = true
-  }
-}
-
-@MainActor
-final class TestUbiquitousStore: UbiquitousKeyValueStoring {
-  private var values: [String: Any] = [:]
-
-  func object(forKey key: String) -> Any? {
-    values[key]
-  }
-
-  func set(_ value: Any?, forKey key: String) {
-    values[key] = value
-  }
-
-  func synchronize() -> Bool {
-    true
   }
 }
 

@@ -1,4 +1,3 @@
-import Combine
 import SwiftUI
 
 struct ContentView: View {
@@ -23,7 +22,7 @@ struct ContentView: View {
   var body: some View {
     content
       .task {
-        await modeController.synchronize()
+        await modeController.restore()
         await setupStore.restoreSavedConnection()
       }
       .task(id: temperatureLoadRequest) {
@@ -151,15 +150,7 @@ struct ContentView: View {
 
 @MainActor
 final class PreviewBruceModeStore: BruceModeStoring {
-  var syncedPreferenceChanges: AnyPublisher<Void, Never> {
-    Empty().eraseToAnyPublisher()
-  }
-
-  func prepareForSynchronization() {}
-  func hasUnpublishedLocalChange() -> Bool { false }
-  func loadLocalMode() -> BruceMode? { .standard }
-  func loadSyncedMode() -> BruceMode? { nil }
-  func saveLocalMode(_ mode: BruceMode) {}
+  func loadMode() -> BruceMode? { .standard }
   func saveMode(_ mode: BruceMode) {}
 }
 

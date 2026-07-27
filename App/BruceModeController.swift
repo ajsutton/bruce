@@ -19,22 +19,16 @@ final class BruceModeController: ObservableObject {
   private var nextGeneration = 0
   private var pendingRequest: TransitionRequest?
   private var transitionTask: Task<Void, Never>?
-  private var syncedPreferenceCancellable: AnyCancellable?
 
   init(
-    store: any BruceModeStoring = SyncedBruceModeStore(),
+    store: any BruceModeStoring = BruceModeStore(),
     iconApplier: any AppIconApplying = AppIconController()
   ) {
     self.store = store
     self.iconApplier = iconApplier
-    syncedPreferenceCancellable = store.syncedPreferenceChanges
-      .receive(on: RunLoop.main)
-      .sink { @MainActor [weak self] in
-        self?.requestSyncedPreferenceRefresh()
-      }
   }
 
-  func synchronize() async {
+  func restore() async {
     start()
     await waitForTransitions()
   }
@@ -48,16 +42,11 @@ final class BruceModeController: ObservableObject {
     if !hasStarted {
       start()
     }
-    enqueue(selectedMode, persistence: .localAndSynced)
+    enqueue(selectedMode, shouldPersist: true)
   }
 
   func refreshLocalPreference() async {
     requestLocalPreferenceRefresh()
-    await waitForTransitions()
-  }
-
-  func refreshSyncedPreference() async {
-    requestSyncedPreferenceRefresh()
     await waitForTransitions()
   }
 
@@ -67,14 +56,11 @@ final class BruceModeController: ObservableObject {
       return
     }
 
-    guard let localMode = store.loadLocalMode() else {
-      store.prepareForSynchronization()
+    guard let localMode = store.loadMode() else {
       return
     }
-    if store.hasUnpublishedLocalChange() || localMode != mode {
-      enqueue(localMode, persistence: .localAndSynced)
-    } else {
-      store.prepareForSynchronization()
+    if localMode != mode {
+      enqueue(localMode, shouldPersist: true)
     }
   }
 
@@ -89,44 +75,24 @@ final class BruceModeController: ObservableObject {
       return
     }
     hasStarted = true
-    store.prepareForSynchronization()
 
-    if store.hasUnpublishedLocalChange(), let localMode = store.loadLocalMode() {
-      enqueue(localMode, persistence: .localAndSynced, forceIconApplication: true, isInitial: true)
-    } else if let syncedMode = store.loadSyncedMode() {
-      enqueue(syncedMode, persistence: .local, forceIconApplication: true, isInitial: true)
-    } else if let localMode = store.loadLocalMode() {
-      enqueue(localMode, persistence: .localAndSynced, forceIconApplication: true, isInitial: true)
+    if let localMode = store.loadMode() {
+      enqueue(localMode, shouldPersist: true, forceIconApplication: true, isInitial: true)
     } else {
-      enqueue(.standard, persistence: .none, forceIconApplication: true, isInitial: true)
+      enqueue(.standard, shouldPersist: false, forceIconApplication: true, isInitial: true)
     }
-  }
-
-  private func requestSyncedPreferenceRefresh() {
-    guard hasStarted else {
-      start()
-      return
-    }
-    if store.hasUnpublishedLocalChange(), let localMode = store.loadLocalMode() {
-      enqueue(localMode, persistence: .localAndSynced)
-      return
-    }
-    guard let syncedMode = store.loadSyncedMode() else {
-      return
-    }
-    enqueue(syncedMode, persistence: .local)
   }
 
   private func enqueue(
     _ selectedMode: BruceMode,
-    persistence: Persistence,
+    shouldPersist: Bool,
     forceIconApplication: Bool = false,
     isInitial: Bool = false
   ) {
     nextGeneration += 1
     pendingRequest = TransitionRequest(
       mode: selectedMode,
-      persistence: persistence,
+      shouldPersist: shouldPersist,
       forceIconApplication: forceIconApplication,
       isInitial: isInitial,
       generation: nextGeneration
@@ -157,7 +123,7 @@ final class BruceModeController: ObservableObject {
       lastAppliedIconMode == request.mode,
       !request.forceIconApplication
     {
-      persist(request.mode, to: request.persistence)
+      persistIfNeeded(request)
       return
     }
 
@@ -170,7 +136,7 @@ final class BruceModeController: ObservableObject {
       guard request.generation == nextGeneration else {
         return
       }
-      persist(request.mode, to: request.persistence)
+      persistIfNeeded(request)
     } catch is CancellationError {
       guard request.generation == nextGeneration else {
         return
@@ -187,33 +153,24 @@ final class BruceModeController: ObservableObject {
       logger.error(
         "Could not apply the selected Bruce app icon: \(String(describing: error), privacy: .private)"
       )
-      persist(mode, to: request.persistence)
+      if request.shouldPersist {
+        store.saveMode(mode)
+      }
       appIconErrorMessage = "The current look is still active."
     }
   }
 
-  private func persist(_ mode: BruceMode, to persistence: Persistence) {
-    switch persistence {
-    case .none:
-      break
-    case .local:
-      store.saveLocalMode(mode)
-    case .localAndSynced:
-      store.saveMode(mode)
+  private func persistIfNeeded(_ request: TransitionRequest) {
+    if request.shouldPersist {
+      store.saveMode(request.mode)
     }
   }
 
   private struct TransitionRequest {
     let mode: BruceMode
-    let persistence: Persistence
+    let shouldPersist: Bool
     let forceIconApplication: Bool
     let isInitial: Bool
     let generation: Int
-  }
-
-  private enum Persistence {
-    case none
-    case local
-    case localAndSynced
   }
 }

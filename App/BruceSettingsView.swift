@@ -32,7 +32,7 @@ import SwiftUI
       }
       .frame(width: 560, height: 520)
       .task {
-        await modeController.synchronize()
+        await modeController.restore()
         guard !Task.isCancelled,
           await setupStore.restoreSavedConnection()
         else {
@@ -70,7 +70,7 @@ import SwiftUI
           Toggle("Go The Full Bruce", isOn: isFullBruce)
             .disabled(modeController.isTransitioning)
         } footer: {
-          Text("Syncs Bruce’s icon, styling and eligible language across your devices.")
+          Text("Changes Bruce’s icon, styling and eligible language on this device.")
         }
       }
       .formStyle(.grouped)

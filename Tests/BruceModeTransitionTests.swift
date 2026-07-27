@@ -9,13 +9,13 @@ final class BruceModeTransitionTests: XCTestCase {
     let didSuspend = expectation(description: "Full Bruce icon application suspended")
     let iconApplier = SuspendingIconApplier(suspendingMode: .full, didSuspend: didSuspend)
     let controller = BruceModeController(store: store, iconApplier: iconApplier)
-    await controller.synchronize()
+    await controller.restore()
 
     controller.requestSelection(.full)
     await fulfillment(of: [didSuspend], timeout: 1)
 
     XCTAssertEqual(controller.mode, .full)
-    XCTAssertEqual(store.syncedMode, .standard)
+    XCTAssertEqual(store.localMode, .standard)
 
     iconApplier.resume()
     await controller.waitForTransitions()
