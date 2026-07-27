@@ -130,8 +130,8 @@ struct HomeAssistantTemperatureView: View {
                 }
               },
               setTargetValue: { value in
-                Task {
-                  await store.setTargetValue(value, for: reading)
+                MainActor.assumeIsolated {
+                  store.setTargetValue(value, for: reading)
                 }
               }
             )

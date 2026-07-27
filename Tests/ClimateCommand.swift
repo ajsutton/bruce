@@ -197,12 +197,20 @@ final class OrderedClimateController:
 {
   private let lock = NSLock()
   private let startedExpectations: [XCTestExpectation]
+  private let cancelledExpectations: [XCTestExpectation]
+  private let cancellableCommands: Set<Int>
+  private var cancellationRequests: Set<Int> = []
   private var continuations: [Int: CheckedContinuation<Void, any Error>] = [:]
+  private var storedCommands: [ClimateCommand] = []
   private var nextCommand = 0
 
-  init(commandCount: Int) {
+  init(commandCount: Int, cancellableCommands: Set<Int> = []) {
+    self.cancellableCommands = cancellableCommands
     startedExpectations = (0..<commandCount).map {
       XCTestExpectation(description: "Climate command \($0) started")
+    }
+    cancelledExpectations = (0..<commandCount).map {
+      XCTestExpectation(description: "Climate command \($0) cancelled")
     }
   }
 
@@ -210,19 +218,29 @@ final class OrderedClimateController:
     startedExpectations[index]
   }
 
+  func cancelled(at index: Int) -> XCTestExpectation {
+    cancelledExpectations[index]
+  }
+
+  var commands: [ClimateCommand] {
+    get async {
+      lock.withLock { storedCommands }
+    }
+  }
+
   func setPower(entityID: String, isOn: Bool) async throws {
-    try await wait()
+    try await wait(for: .power(entityID: entityID, isOn: isOn))
   }
 
   func setMode(
     _ mode: HomeAssistantTemperatureReading.ClimateMode,
     entityID: String
   ) async throws {
-    try await wait()
+    try await wait(for: .mode(entityID: entityID, mode: mode))
   }
 
   func setTargetValue(_ value: Double, entityID: String) async throws {
-    try await wait()
+    try await wait(for: .targetValue(entityID: entityID, value: value))
   }
 
   func fail(command: Int) {
@@ -239,15 +257,46 @@ final class OrderedClimateController:
     continuation?.resume()
   }
 
-  private func wait() async throws {
+  private func wait(for climateCommand: ClimateCommand) async throws {
+    let command = lock.withLock {
+      let command = nextCommand
+      nextCommand += 1
+      storedCommands.append(climateCommand)
+      return command
+    }
+    if cancellableCommands.contains(command) {
+      try await withTaskCancellationHandler {
+        try await suspend(command: command)
+      } onCancel: {
+        self.cancel(command: command)
+      }
+    } else {
+      try await suspend(command: command)
+    }
+  }
+
+  private func suspend(command: Int) async throws {
     try await withCheckedThrowingContinuation { continuation in
-      let command = lock.withLock {
-        let command = nextCommand
-        nextCommand += 1
+      let shouldCancel = lock.withLock {
+        if cancellationRequests.contains(command) {
+          return true
+        }
         continuations[command] = continuation
-        return command
+        return false
       }
       startedExpectations[command].fulfill()
+      if shouldCancel {
+        continuation.resume(throwing: CancellationError())
+      }
     }
+  }
+
+  private func cancel(command: Int) {
+    let continuation = lock.withLock {
+      cancellationRequests.insert(command)
+      return continuations.removeValue(forKey: command)
+    }
+    cancelledExpectations[command].fulfill()
+    continuation?.resume(throwing: CancellationError())
   }
 }

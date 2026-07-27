@@ -11,6 +11,13 @@ enum ClimateControlIntent {
   case mode(HomeAssistantTemperatureReading.ClimateMode)
   case targetValue(Double)
 
+  var isTargetValue: Bool {
+    if case .targetValue = self {
+      return true
+    }
+    return false
+  }
+
   func applying(
     to reading: HomeAssistantTemperatureReading
   ) -> HomeAssistantTemperatureReading {

@@ -122,6 +122,12 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     return targetValueStep
   }
 
+  func canSetTargetValue(_ value: Double) -> Bool {
+    kind == .zone && value.isFinite
+      && (minimumTargetValue.map { value >= $0 } ?? true)
+      && (maximumTargetValue.map { value <= $0 } ?? true)
+  }
+
   var targetValueFractionLength: Int {
     for fractionLength in 0...6 {
       let scale = pow(10, Double(fractionLength))

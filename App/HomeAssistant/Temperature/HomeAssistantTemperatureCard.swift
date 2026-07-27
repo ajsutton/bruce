@@ -296,7 +296,6 @@ extension HomeAssistantTemperatureCard {
         reading: reading,
         mode: mode,
         isEnabled: isControlEnabled,
-        isControlling: isTargetControlling,
         fractionLength: targetValueFractionLength,
         setTargetValue: setTargetValue
       )

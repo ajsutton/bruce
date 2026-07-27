@@ -100,6 +100,34 @@ final class ConcurrentClimateControlStoreTests: XCTestCase {
     await load.value
   }
 
+  func testAlreadyCancelledPowerCommandRollsBackOptimisticState() async {
+    let loader = ControlledTemperatureLoader(requestCount: 1)
+    let controller = RecordingClimateController()
+    let store = HomeAssistantTemperatureStore(loader: loader, controller: controller)
+    let reading = controllableReading()
+    let load = Task {
+      await store.load()
+    }
+    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
+    loader.yieldRequest(0, update: .live([reading]))
+    await waitForLiveState(in: store)
+
+    let command = Task { @MainActor in
+      withUnsafeCurrentTask { task in
+        task?.cancel()
+      }
+      await store.setPower(for: reading, isOn: false)
+    }
+    await command.value
+
+    XCTAssertEqual(store.readings, [reading])
+    XCTAssertFalse(store.isControlling(entityID: reading.id))
+    let commands = await controller.commands
+    XCTAssertTrue(commands.isEmpty)
+    loader.finishRequest(0)
+    await load.value
+  }
+
   private func controllableReading(
     id: String = "climate.air_conditioner",
     name: String = "Air Conditioner"

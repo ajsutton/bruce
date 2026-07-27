@@ -94,17 +94,13 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
     let reading = fixture.reading
     let load = fixture.load
 
-    let command = Task {
-      await store.setTargetValue(24.5, for: reading)
-    }
+    store.setTargetValue(24.5, for: reading)
     await fulfillment(of: [controller.started], timeout: 1)
 
     XCTAssertEqual(store.readings.first?.targetValue, 24.5)
     XCTAssertTrue(store.isAdjustingTarget(entityID: reading.id))
     XCTAssertFalse(store.isControllingClimateState(entityID: reading.id))
     controller.succeed()
-    await command.value
-    XCTAssertTrue(store.isControlling(entityID: reading.id))
 
     await confirm(
       reading.replacingTargetValue(24.5),
@@ -130,9 +126,7 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
     let store = fixture.store
     let reading = fixture.reading
 
-    let targetCommand = Task {
-      await store.setTargetValue(24.5, for: reading)
-    }
+    store.setTargetValue(24.5, for: reading)
     await fulfillment(of: [controller.started], timeout: 1)
 
     await store.setPower(for: reading, isOn: false)
@@ -146,7 +140,11 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
     )
 
     controller.succeed()
-    await targetCommand.value
+    await confirm(
+      reading.replacingTargetValue(24.5),
+      in: store,
+      loader: loader
+    )
     loader.finishRequest(0)
     await fixture.load.value
   }
@@ -158,7 +156,7 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
     let store = fixture.store
     let reading = fixture.reading
 
-    await store.setTargetValue(24.5, for: reading)
+    store.setTargetValue(24.5, for: reading)
 
     XCTAssertEqual(store.readings.first?.targetValue, reading.targetValue)
     XCTAssertFalse(store.isControlling(entityID: reading.id))
@@ -182,8 +180,8 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
       reading: reading
     )
 
-    await fixture.store.setTargetValue(17.5, for: reading)
-    await fixture.store.setTargetValue(26.5, for: reading)
+    fixture.store.setTargetValue(17.5, for: reading)
+    fixture.store.setTargetValue(26.5, for: reading)
 
     XCTAssertEqual(fixture.store.readings.first?.targetValue, reading.targetValue)
     XCTAssertFalse(fixture.store.isControlling(entityID: reading.id))

@@ -4,7 +4,6 @@ struct ZoneTargetTemperatureControl: View {
   let reading: HomeAssistantTemperatureReading
   let mode: BruceMode
   let isEnabled: Bool
-  let isControlling: Bool
   let fractionLength: Int
   let setTargetValue: @Sendable (Double) -> Void
 
@@ -23,7 +22,7 @@ struct ZoneTargetTemperatureControl: View {
       step: step
     ) {}
     .labelsHidden()
-    .disabled(!isEnabled || isControlling)
+    .disabled(!isEnabled)
     .accessibilityLabel("\(reading.name) target")
     .accessibilityValue(targetAccessibilityValue)
     .tint(style.controlTint)
