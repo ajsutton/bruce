@@ -9,14 +9,26 @@ final class ContentViewCreationTests: XCTestCase {
       _ = ContentView(
         modeController: BruceModeController(),
         setupStore: HomeAssistantSetupStore(discovery: ContentViewEmptyDiscovery()),
+        temperatureStore: HomeAssistantTemperatureStore(
+          loader: ContentViewEmptyTemperatureLoader()
+        ),
         settingsNavigation: BruceSettingsNavigation()
       )
     #else
       _ = ContentView(
         modeController: BruceModeController(),
-        setupStore: HomeAssistantSetupStore(discovery: ContentViewEmptyDiscovery())
+        setupStore: HomeAssistantSetupStore(discovery: ContentViewEmptyDiscovery()),
+        temperatureStore: HomeAssistantTemperatureStore(
+          loader: ContentViewEmptyTemperatureLoader()
+        )
       )
     #endif
+  }
+}
+
+private struct ContentViewEmptyTemperatureLoader: HomeAssistantTemperatureLoading {
+  func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
+    []
   }
 }
 

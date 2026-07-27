@@ -274,6 +274,10 @@ final class HomeAssistantSetupStore: ObservableObject {
     connectionController.testConnection()
   }
 
+  func requireReauthentication() {
+    connectionController.requireReauthentication()
+  }
+
   func reauthenticate() {
     connectionController.reauthenticate()
   }

@@ -8,9 +8,13 @@ struct ContentView: View {
   #endif
   @ObservedObject var modeController: BruceModeController
   @ObservedObject var setupStore: HomeAssistantSetupStore
+  @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
   #if os(macOS)
     @ObservedObject var settingsNavigation: BruceSettingsNavigation
+  #else
+    @State private var showsConnectionManagement = false
   #endif
+  @State private var temperatureRefreshRequest = 0
 
   private var mode: BruceMode {
     modeController.mode
@@ -22,11 +26,17 @@ struct ContentView: View {
         await modeController.synchronize()
         await setupStore.restoreSavedConnection()
       }
+      .task(id: temperatureLoadRequest) {
+        await temperatureStore.synchronize(with: presentation.connection)
+      }
       .onChange(of: scenePhase) { _, newScenePhase in
         guard newScenePhase == .active else {
           return
         }
         modeController.requestLocalPreferenceRefresh()
+        if presentation.shouldRefresh(when: newScenePhase) {
+          temperatureRefreshRequest += 1
+        }
       }
       .alert(
         "Bruce couldn’t change the app icon",
@@ -43,37 +53,71 @@ struct ContentView: View {
       } message: {
         Text(modeController.appIconErrorMessage ?? "")
       }
+      #if os(iOS)
+        .sheet(isPresented: $showsConnectionManagement) {
+          HomeAssistantSetupView(store: setupStore, mode: mode)
+        }
+      #endif
   }
 
   @ViewBuilder
   private var content: some View {
-    #if os(macOS)
-      ContentUnavailableView {
-        Label(mainStatus.title, systemImage: "house.fill")
-      } description: {
-        Text(mainStatus.description)
-      } actions: {
-        Button(mainStatus.actionTitle) {
-          settingsNavigation.showHomeAssistant()
-          openSettings()
+    if presentation.screen == .temperatures {
+      HomeAssistantTemperatureView(
+        store: temperatureStore,
+        isConnecting: presentation.isConnecting,
+        connectionProblem: presentation.connectionProblem,
+        manageConnection: manageConnection,
+        requestRefresh: requestTemperatureRefresh
+      )
+    } else {
+      #if os(macOS)
+        ContentUnavailableView {
+          Label("Home Assistant Isn’t Connected", systemImage: "house.fill")
+        } description: {
+          Text("Connect Home Assistant in Bruce Settings.")
+        } actions: {
+          Button("Connect Home Assistant") {
+            manageConnection()
+          }
+          .buttonStyle(.borderedProminent)
         }
-        .buttonStyle(.borderedProminent)
-      }
-      .padding()
+        .padding()
+      #else
+        HomeAssistantSetupView(store: setupStore, mode: mode)
+      #endif
+    }
+  }
+
+  private var presentation: HomeAssistantTemperaturePresentation {
+    HomeAssistantTemperaturePresentation(
+      step: setupStore.step,
+      connectionCheckState: setupStore.connectionCheckState
+    )
+  }
+
+  private var temperatureLoadRequest: TemperatureLoadRequest {
+    TemperatureLoadRequest(
+      connection: presentation.connection,
+      refreshRequest: temperatureRefreshRequest
+    )
+  }
+
+  private func manageConnection() {
+    #if os(macOS)
+      settingsNavigation.showHomeAssistant()
+      openSettings()
     #else
-      HomeAssistantSetupView(store: setupStore, mode: mode)
+      showsConnectionManagement = true
     #endif
   }
 
-  #if os(macOS)
-    private var mainStatus: HomeAssistantMainStatus {
-      HomeAssistantMainStatus(
-        step: setupStore.step,
-        connectionCheckState: setupStore.connectionCheckState,
-        isDisconnecting: setupStore.isDisconnecting
-      )
+  private func requestTemperatureRefresh() {
+    guard presentation.canRefresh else {
+      return
     }
-  #endif
+    temperatureRefreshRequest += 1
+  }
 }
 
 #Preview("Bruce") {
@@ -84,6 +128,9 @@ struct ContentView: View {
         iconApplier: PreviewAppIconApplier()
       ),
       setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery()),
+      temperatureStore: HomeAssistantTemperatureStore(
+        loader: PreviewContentTemperatureLoader()
+      ),
       settingsNavigation: BruceSettingsNavigation()
     )
   #else
@@ -92,7 +139,10 @@ struct ContentView: View {
         store: PreviewBruceModeStore(),
         iconApplier: PreviewAppIconApplier()
       ),
-      setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery())
+      setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery()),
+      temperatureStore: HomeAssistantTemperatureStore(
+        loader: PreviewContentTemperatureLoader()
+      )
     )
   #endif
 }
@@ -122,4 +172,15 @@ private struct PreviewHomeAssistantDiscovery: HomeAssistantDiscovering {
       continuation.finish()
     }
   }
+}
+
+private struct PreviewContentTemperatureLoader: HomeAssistantTemperatureLoading {
+  func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
+    []
+  }
+}
+
+private struct TemperatureLoadRequest: Equatable {
+  let connection: HomeAssistantTemperatureConnection
+  let refreshRequest: Int
 }

@@ -5,6 +5,7 @@ import SwiftUI
 struct BruceApp: App {
   @StateObject private var modeController = BruceModeController()
   @StateObject private var setupStore: HomeAssistantSetupStore
+  @StateObject private var temperatureStore: HomeAssistantTemperatureStore
   #if os(macOS)
     @StateObject private var settingsNavigation = BruceSettingsNavigation()
   #endif
@@ -32,11 +33,18 @@ struct BruceApp: App {
       browser: webAuthenticationPresenter,
       session: session
     )
-    _setupStore = StateObject(
-      wrappedValue: HomeAssistantSetupStore(
-        discovery: HomeAssistantDiscoveryClient(browser: NetworkHomeAssistantDiscovery()),
-        connection: connection,
-        webAuthenticationPresenter: webAuthenticationPresenter
+    let setupStore = HomeAssistantSetupStore(
+      discovery: HomeAssistantDiscoveryClient(browser: NetworkHomeAssistantDiscovery()),
+      connection: connection,
+      webAuthenticationPresenter: webAuthenticationPresenter
+    )
+    _setupStore = StateObject(wrappedValue: setupStore)
+    _temperatureStore = StateObject(
+      wrappedValue: HomeAssistantTemperatureStore(
+        loader: HomeAssistantAPIClient(session: session),
+        onAuthenticationRequired: {
+          setupStore.requireReauthentication()
+        }
       )
     )
   }
@@ -47,12 +55,17 @@ struct BruceApp: App {
         ContentView(
           modeController: modeController,
           setupStore: setupStore,
+          temperatureStore: temperatureStore,
           settingsNavigation: settingsNavigation
         )
         .tint(modeController.mode.accentColor)
       #else
-        ContentView(modeController: modeController, setupStore: setupStore)
-          .tint(modeController.mode.accentColor)
+        ContentView(
+          modeController: modeController,
+          setupStore: setupStore,
+          temperatureStore: temperatureStore
+        )
+        .tint(modeController.mode.accentColor)
       #endif
     }
 
