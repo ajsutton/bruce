@@ -11,6 +11,7 @@ struct BruceApp: App {
   #endif
 
   init() {
+    HomeAssistantMaterialDesignIcon.prepare()
     let bundleIdentifier = Bundle.main.bundleIdentifier ?? "net.symphonious.bruce"
     let credentialService = "\(bundleIdentifier).home-assistant"
     let legacyCredentialService =

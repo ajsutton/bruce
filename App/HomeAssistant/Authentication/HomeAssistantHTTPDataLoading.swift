@@ -33,7 +33,7 @@ struct URLSessionHomeAssistantHTTPDataLoader: HomeAssistantHTTPDataLoading {
   }
 }
 
-private final class HomeAssistantRedirectDelegate: NSObject, URLSessionTaskDelegate,
+final class HomeAssistantRedirectDelegate: NSObject, URLSessionTaskDelegate,
   @unchecked Sendable
 {
   func urlSession(

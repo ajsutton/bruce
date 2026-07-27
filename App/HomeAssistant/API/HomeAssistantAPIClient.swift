@@ -1,14 +1,37 @@
 import Foundation
+import OSLog
 
 struct HomeAssistantAPIStatus: Decodable, Equatable, Sendable {
   let message: String
 }
 
 struct HomeAssistantAPIClient: Sendable {
+  private static let logger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "net.symphonious.bruce",
+    category: "HomeAssistantAPI"
+  )
+
   private let session: HomeAssistantSession
+  private let climateIconLoader: any HomeAssistantClimateIconLoading
+  private let climateIconTimeout: Duration
+  private let climateIconCoordinator: HomeAssistantClimateIconLoadCoordinator
 
   init(session: HomeAssistantSession) {
     self.session = session
+    climateIconLoader = HomeAssistantRegistryClient(session: session)
+    climateIconTimeout = .seconds(2)
+    climateIconCoordinator = HomeAssistantClimateIconLoadCoordinator()
+  }
+
+  init(
+    session: HomeAssistantSession,
+    climateIconLoader: any HomeAssistantClimateIconLoading,
+    climateIconTimeout: Duration = .seconds(2)
+  ) {
+    self.session = session
+    self.climateIconLoader = climateIconLoader
+    self.climateIconTimeout = climateIconTimeout
+    climateIconCoordinator = HomeAssistantClimateIconLoadCoordinator()
   }
 
   func checkConnection() async throws -> HomeAssistantAPIStatus {
@@ -23,7 +46,13 @@ struct HomeAssistantAPIClient: Sendable {
     try Task.checkCancellation()
     let statesData = try await session.authenticatedGET(path: "api/states")
     try Task.checkCancellation()
-    return try Self.temperatures(from: statesData, unit: unit)
+    let climateIcons = try await loadClimateIcons()
+    try Task.checkCancellation()
+    return try Self.temperatures(
+      from: statesData,
+      unit: unit,
+      climateIcons: climateIcons
+    )
   }
 
   static func status(from data: Data) throws -> HomeAssistantAPIStatus {
@@ -47,7 +76,8 @@ struct HomeAssistantAPIClient: Sendable {
 
   static func temperatures(
     from data: Data,
-    unit: String
+    unit: String,
+    climateIcons: [String: String] = [:]
   ) throws -> [HomeAssistantTemperatureReading] {
     let states: [HomeAssistantState]
     do {
@@ -55,8 +85,25 @@ struct HomeAssistantAPIClient: Sendable {
     } catch {
       throw HomeAssistantAPIError.invalidResponse
     }
-    return states.compactMap { $0.temperatureReading(unit: unit) }.sorted {
+    return states.compactMap {
+      $0.temperatureReading(unit: unit, registryIcon: climateIcons[$0.entityID])
+    }.sorted {
       $0.name.localizedStandardCompare($1.name) == .orderedAscending
+    }
+  }
+
+  private func loadClimateIcons() async throws -> [String: String] {
+    try await climateIconCoordinator.load(timeout: climateIconTimeout) {
+      do {
+        return try await climateIconLoader.loadClimateIcons()
+      } catch is CancellationError {
+        throw CancellationError()
+      } catch {
+        Self.logger.error(
+          "Couldn’t load Home Assistant room icons: \(String(describing: error), privacy: .private)"
+        )
+        return [:]
+      }
     }
   }
 }
@@ -86,7 +133,10 @@ private struct HomeAssistantState: Decodable {
     case lastUpdated = "last_updated"
   }
 
-  func temperatureReading(unit: String) -> HomeAssistantTemperatureReading? {
+  func temperatureReading(
+    unit: String,
+    registryIcon: String?
+  ) -> HomeAssistantTemperatureReading? {
     guard
       entityID.hasPrefix("climate."),
       let value = attributes.currentTemperature,
@@ -100,7 +150,7 @@ private struct HomeAssistantState: Decodable {
       value: value,
       unit: unit,
       updatedAt: parsedLastUpdated,
-      icon: attributes.icon
+      icon: attributes.icon ?? registryIcon
     )
   }
 

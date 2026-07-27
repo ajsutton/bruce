@@ -1,5 +1,10 @@
 import Foundation
 
+struct HomeAssistantWebSocketAccess: Sendable {
+  let url: URL
+  let accessToken: String
+}
+
 actor HomeAssistantSession {
   private let credentialStore: any HomeAssistantCredentialStoring
   private let transport: HomeAssistantAuthenticatedTransport
@@ -266,4 +271,20 @@ actor HomeAssistantSession {
     return credentialGeneration
   }
 
+}
+
+extension HomeAssistantSession {
+  func authenticatedWebSocketAccess() async throws -> HomeAssistantWebSocketAccess {
+    try await refreshIfNeeded(force: false)
+    guard let credentials else {
+      throw HomeAssistantAPIError.noCredentials
+    }
+    guard let baseURL = try HomeAssistantRequestRouter.candidates(for: credentials).first else {
+      throw HomeAssistantAPIError.invalidServerURL
+    }
+    return HomeAssistantWebSocketAccess(
+      url: try HomeAssistantRequestRouter.webSocketURL(baseURL: baseURL),
+      accessToken: credentials.accessToken
+    )
+  }
 }

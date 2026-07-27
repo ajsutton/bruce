@@ -166,8 +166,7 @@ struct HomeAssistantTemperatureView: View {
     _ reading: HomeAssistantTemperatureReading
   ) -> some View {
     HStack(spacing: 12) {
-      Image(systemName: HomeAssistantTemperatureIcon.systemImageName(for: reading.icon))
-        .font(.title2.weight(.semibold))
+      HomeAssistantTemperatureIconView(identifier: reading.icon)
         .foregroundStyle(iconForeground)
         .frame(width: 52, height: 52)
         .background(

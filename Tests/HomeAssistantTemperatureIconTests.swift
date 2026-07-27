@@ -3,48 +3,29 @@ import XCTest
 @testable import Bruce
 
 final class HomeAssistantTemperatureIconTests: XCTestCase {
-  func testRoomIconsMapToNativeSymbols() {
-    XCTAssertEqual(
-      HomeAssistantTemperatureIcon.systemImageName(for: "mdi:sofa"),
-      "sofa.fill"
-    )
-    XCTAssertEqual(
-      HomeAssistantTemperatureIcon.systemImageName(for: "mdi:bed"),
-      "bed.double.fill"
-    )
-    XCTAssertEqual(
-      HomeAssistantTemperatureIcon.systemImageName(for: "mdi:desk"),
-      "desktopcomputer"
-    )
-    XCTAssertEqual(
-      HomeAssistantTemperatureIcon.systemImageName(for: "mdi:table-chair"),
-      "table.furniture.fill"
-    )
+  override func setUp() {
+    super.setUp()
+    HomeAssistantMaterialDesignIcon.prepare()
   }
 
-  func testClimateIconsMapToNativeSymbols() {
-    XCTAssertEqual(
-      HomeAssistantTemperatureIcon.systemImageName(for: "mdi:fan"),
-      "fan.fill"
-    )
-    XCTAssertEqual(
-      HomeAssistantTemperatureIcon.systemImageName(for: "mdi:snowflake"),
-      "snowflake"
-    )
-    XCTAssertEqual(
-      HomeAssistantTemperatureIcon.systemImageName(for: "mdi:radiator"),
-      "flame.fill"
-    )
+  func testBundledMaterialDesignIconsResolveByHomeAssistantIdentifier() throws {
+    let expectedCodepoints: [String: UInt32] = [
+      "mdi:sofa": 0xF04B9,
+      "mdi:bed": 0xF02E3,
+      "mdi:human-child": 0xF02E7,
+      "mdi:office-building": 0xF0991,
+      "mdi:table-furniture": 0xF05BC,
+    ]
+
+    for (identifier, expectedCodepoint) in expectedCodepoints {
+      let glyph = try XCTUnwrap(HomeAssistantMaterialDesignIcon.glyph(for: identifier))
+      XCTAssertEqual(glyph.unicodeScalars.first?.value, expectedCodepoint)
+    }
   }
 
-  func testMissingOrUnknownIconUsesThermometer() {
-    XCTAssertEqual(
-      HomeAssistantTemperatureIcon.systemImageName(for: nil),
-      "thermometer.medium"
-    )
-    XCTAssertEqual(
-      HomeAssistantTemperatureIcon.systemImageName(for: "mdi:robot"),
-      "thermometer.medium"
-    )
+  func testMissingOrUnknownIconHasNoMaterialDesignGlyph() {
+    XCTAssertNil(HomeAssistantMaterialDesignIcon.glyph(for: nil))
+    XCTAssertNil(HomeAssistantMaterialDesignIcon.glyph(for: "mdi:not-a-real-icon"))
+    XCTAssertNil(HomeAssistantMaterialDesignIcon.glyph(for: "sf:sofa"))
   }
 }

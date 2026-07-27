@@ -31,6 +31,25 @@ enum HomeAssistantRequestRouter {
     return request
   }
 
+  static func webSocketURL(baseURL: URL) throws -> URL {
+    var components = URLComponents(
+      url: baseURL.appending(path: "api/websocket"),
+      resolvingAgainstBaseURL: false
+    )
+    switch components?.scheme?.lowercased() {
+    case "http":
+      components?.scheme = "ws"
+    case "https":
+      components?.scheme = "wss"
+    default:
+      throw HomeAssistantAPIError.invalidServerURL
+    }
+    guard let url = components?.url else {
+      throw HomeAssistantAPIError.invalidServerURL
+    }
+    return url
+  }
+
   static func isConnectivityFailure(_ error: any Error) -> Bool {
     guard let error = error as? URLError else {
       return false

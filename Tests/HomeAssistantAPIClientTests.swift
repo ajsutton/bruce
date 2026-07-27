@@ -61,7 +61,10 @@ final class HomeAssistantAPIClientTests: XCTestCase {
     )
     try await session.install(fixture.credentials())
 
-    let temperatures = try await HomeAssistantAPIClient(session: session).loadTemperatures()
+    let temperatures = try await HomeAssistantAPIClient(
+      session: session,
+      climateIconLoader: StubClimateIconLoader()
+    ).loadTemperatures()
 
     XCTAssertEqual(temperatures.map(\.unit), ["°F", "°F"])
     XCTAssertEqual(
@@ -137,6 +140,108 @@ final class HomeAssistantAPIClientTests: XCTestCase {
     )
   }
 
+  func testTemperatureLoadingUsesRegistryIconWithoutReplacingStateIcon() throws {
+    let temperatures = try HomeAssistantAPIClient.temperatures(
+      from: temperatureStatesData,
+      unit: "°C",
+      climateIcons: [
+        "climate.bedroom": "mdi:bed",
+        "climate.living_room": "mdi:office-building",
+      ]
+    )
+
+    XCTAssertEqual(temperatures.first(where: { $0.id == "climate.bedroom" })?.icon, "mdi:bed")
+    XCTAssertEqual(
+      temperatures.first(where: { $0.id == "climate.living_room" })?.icon,
+      "mdi:sofa"
+    )
+  }
+
+  func testTemperatureLoadingContinuesWhenRegistryIconsAreUnavailable() async throws {
+    let fixture = SessionFixture()
+    let session = fixture.makeSession(
+      apiResponses: [
+        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
+        .success(temperatureStatesData, statusCode: 200),
+      ]
+    )
+    try await session.install(fixture.credentials())
+    let client = HomeAssistantAPIClient(
+      session: session,
+      climateIconLoader: StubClimateIconLoader(fails: true)
+    )
+
+    let temperatures = try await client.loadTemperatures()
+
+    XCTAssertEqual(temperatures.count, 2)
+    XCTAssertNil(temperatures.first(where: { $0.id == "climate.bedroom" })?.icon)
+  }
+
+  func testTemperatureLoadingDoesNotWaitForBlockedRegistryIcons() async throws {
+    let fixture = SessionFixture()
+    let session = fixture.makeSession(
+      apiResponses: [
+        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
+        .success(temperatureStatesData, statusCode: 200),
+      ]
+    )
+    try await session.install(fixture.credentials())
+    let iconLoader = NonCooperativeClimateIconLoader()
+    let client = HomeAssistantAPIClient(
+      session: session,
+      climateIconLoader: iconLoader,
+      climateIconTimeout: .milliseconds(50)
+    )
+
+    let load = Task {
+      try await client.loadTemperatures()
+    }
+    await fulfillment(of: [iconLoader.started], timeout: 1)
+    let temperatures = try await load.value
+
+    XCTAssertEqual(temperatures.count, 2)
+    XCTAssertTrue(iconLoader.wasCancelled)
+    iconLoader.finish()
+  }
+
+  func testCancellingTemperatureLoadCancelsBlockedRegistryIcons() async throws {
+    let fixture = SessionFixture()
+    let session = fixture.makeSession(
+      apiResponses: [
+        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
+        .success(temperatureStatesData, statusCode: 200),
+        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
+        .success(temperatureStatesData, statusCode: 200),
+      ]
+    )
+    try await session.install(fixture.credentials())
+    let iconLoader = NonCooperativeClimateIconLoader()
+    let client = HomeAssistantAPIClient(
+      session: session,
+      climateIconLoader: iconLoader,
+      climateIconTimeout: .seconds(10)
+    )
+    let load = Task {
+      try await client.loadTemperatures()
+    }
+    await fulfillment(of: [iconLoader.started], timeout: 1)
+
+    load.cancel()
+
+    do {
+      _ = try await load.value
+      XCTFail("Expected the temperature load to be cancelled.")
+    } catch is CancellationError {
+    } catch {
+      XCTFail("Unexpected error: \(error)")
+    }
+    XCTAssertTrue(iconLoader.wasCancelled)
+    let replacementTemperatures = try await client.loadTemperatures()
+    XCTAssertEqual(replacementTemperatures.count, 2)
+    XCTAssertEqual(iconLoader.loadCount, 1)
+    iconLoader.finish()
+  }
+
   func testTemperatureLoadingUsesEntityNameWhenFriendlyNameIsMissing() throws {
     let data = Data(
       #"""
@@ -179,60 +284,76 @@ final class HomeAssistantAPIClientTests: XCTestCase {
     }
   }
 
-  private var temperatureStatesData: Data {
-    Data(
-      #"""
-      [
-        {
-          "entity_id": "climate.living_room",
-          "state": "cool",
-          "attributes": {
-            "current_temperature": 23.5,
-            "friendly_name": "Living Room",
-            "icon": "mdi:sofa"
-          },
-          "last_updated": "2026-07-27T01:02:03.456Z"
-        },
-        {
-          "entity_id": "climate.bedroom",
-          "state": "heat",
-          "attributes": {
-            "current_temperature": 21,
-            "friendly_name": "Bedroom Air Conditioner"
-          },
-          "last_updated": "2026-07-27T01:01:00Z"
-        },
-        {
-          "entity_id": "climate.unavailable",
-          "state": "off",
-          "attributes": {
-            "current_temperature": null,
-            "friendly_name": "Unavailable"
-          }
-        },
-        {
-          "entity_id": "weather.home",
-          "state": "sunny",
-          "attributes": {
-            "temperature": 30,
-            "forecast": [
-              {"temperature": 31},
-              {"temperature": 29}
-            ],
-            "friendly_name": "Home Forecast"
-          }
-        },
-        {
-          "entity_id": "sensor.outdoor_temperature",
-          "state": "18.25",
-          "attributes": {
-            "device_class": "temperature",
-            "friendly_name": "Outdoor",
-            "unit_of_measurement": "°C"
-          }
-        }
-      ]
-      """#.utf8
-    )
+}
+
+private let temperatureStatesData = Data(
+  #"""
+  [
+    {
+      "entity_id": "climate.living_room",
+      "state": "cool",
+      "attributes": {
+        "current_temperature": 23.5,
+        "friendly_name": "Living Room",
+        "icon": "mdi:sofa"
+      },
+      "last_updated": "2026-07-27T01:02:03.456Z"
+    },
+    {
+      "entity_id": "climate.bedroom",
+      "state": "heat",
+      "attributes": {
+        "current_temperature": 21,
+        "friendly_name": "Bedroom Air Conditioner"
+      },
+      "last_updated": "2026-07-27T01:01:00Z"
+    },
+    {
+      "entity_id": "climate.unavailable",
+      "state": "off",
+      "attributes": {
+        "current_temperature": null,
+        "friendly_name": "Unavailable"
+      }
+    },
+    {
+      "entity_id": "weather.home",
+      "state": "sunny",
+      "attributes": {
+        "temperature": 30,
+        "forecast": [
+          {"temperature": 31},
+          {"temperature": 29}
+        ],
+        "friendly_name": "Home Forecast"
+      }
+    },
+    {
+      "entity_id": "sensor.outdoor_temperature",
+      "state": "18.25",
+      "attributes": {
+        "device_class": "temperature",
+        "friendly_name": "Outdoor",
+        "unit_of_measurement": "°C"
+      }
+    }
+  ]
+  """#.utf8
+)
+
+private struct StubClimateIconLoader: HomeAssistantClimateIconLoading {
+  let icons: [String: String]
+  let fails: Bool
+
+  init(icons: [String: String] = [:], fails: Bool = false) {
+    self.icons = icons
+    self.fails = fails
+  }
+
+  func loadClimateIcons() async throws -> [String: String] {
+    if fails {
+      throw HomeAssistantAPIError.invalidResponse
+    }
+    return icons
   }
 }
