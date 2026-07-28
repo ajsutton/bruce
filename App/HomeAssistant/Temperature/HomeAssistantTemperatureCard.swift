@@ -65,17 +65,17 @@ struct HomeAssistantTemperatureCard: View {
 
   private var card: some View {
     cardSurface {
-      if dynamicTypeSize.isAccessibilitySize
-        || dynamicTypeSize == .xLarge
-        || dynamicTypeSize == .xxLarge
-        || dynamicTypeSize == .xxxLarge
-      {
+      if dynamicTypeSize.isAccessibilitySize {
         stackedLayout
       } else if horizontalSizeClass == .compact {
-        ViewThatFits(in: .horizontal) {
+        #if os(iOS)
           rowLayout(.condensed)
-          stackedLayout
-        }
+        #else
+          ViewThatFits(in: .horizontal) {
+            rowLayout(.condensed)
+            stackedLayout
+          }
+        #endif
       } else {
         ViewThatFits(in: .horizontal) {
           rowLayout(.spacious)
@@ -112,7 +112,9 @@ struct HomeAssistantTemperatureCard: View {
     HStack(spacing: density.spacing) {
       location(isCondensed: density == .condensed)
         .frame(
-          minWidth: density.locationMinimumWidth,
+          minWidth: density.locationMinimumWidth(
+            isCompact: horizontalSizeClass == .compact
+          ),
           maxWidth: density.locationMaximumWidth,
           alignment: .leading
         )
@@ -167,7 +169,7 @@ struct HomeAssistantTemperatureCard: View {
         Text(reading.name)
           .font(isCondensed ? .subheadline.weight(.semibold) : .headline)
           .foregroundStyle(style.primaryForeground)
-          .lineLimit(isCondensed ? 2 : nil)
+          .lineLimit(isCondensed ? condensedNameLineLimit : nil)
 
         Text(powerStateLabel)
           .font(.caption)
@@ -236,39 +238,102 @@ struct HomeAssistantTemperatureCard: View {
 }
 
 extension HomeAssistantTemperatureCard {
+  fileprivate var condensedNameLineLimit: Int {
+    #if os(iOS)
+      horizontalSizeClass == .compact ? 1 : 2
+    #else
+      2
+    #endif
+  }
+
   @ViewBuilder
   fileprivate var adjustableCard: some View {
-    if dynamicTypeSize.isAccessibilitySize
-      || dynamicTypeSize == .xLarge
-      || dynamicTypeSize == .xxLarge
-      || dynamicTypeSize == .xxxLarge
-    {
+    if dynamicTypeSize.isAccessibilitySize {
       powerCard(usesBottomTargetControlAlignment: true) {
         stackedLayout
       }
-    } else if horizontalSizeClass == .compact {
-      ViewThatFits(in: .horizontal) {
-        powerCard(usesBottomTargetControlAlignment: false) {
-          rowLayout(.condensed)
-        }
-        powerCard(usesBottomTargetControlAlignment: true) {
-          stackedLayout
-        }
-      }
     } else {
-      ViewThatFits(in: .horizontal) {
-        powerCard(usesBottomTargetControlAlignment: false) {
-          rowLayout(.spacious)
+      #if os(iOS)
+        if horizontalSizeClass == .compact {
+          iOSAdjustableCard
+        } else {
+          ViewThatFits(in: .horizontal) {
+            powerCard(usesBottomTargetControlAlignment: false) {
+              rowLayout(.spacious)
+            }
+            powerCard(usesBottomTargetControlAlignment: false) {
+              rowLayout(.condensed)
+            }
+            powerCard(usesBottomTargetControlAlignment: true) {
+              stackedLayout
+            }
+          }
         }
-        powerCard(usesBottomTargetControlAlignment: false) {
-          rowLayout(.condensed)
+      #elseif os(macOS)
+        if horizontalSizeClass == .compact {
+          ViewThatFits(in: .horizontal) {
+            powerCard(usesBottomTargetControlAlignment: false) {
+              rowLayout(.condensed)
+            }
+            powerCard(usesBottomTargetControlAlignment: true) {
+              stackedLayout
+            }
+          }
+        } else {
+          ViewThatFits(in: .horizontal) {
+            powerCard(usesBottomTargetControlAlignment: false) {
+              rowLayout(.spacious)
+            }
+            powerCard(usesBottomTargetControlAlignment: false) {
+              rowLayout(.condensed)
+            }
+            powerCard(usesBottomTargetControlAlignment: true) {
+              stackedLayout
+            }
+          }
         }
-        powerCard(usesBottomTargetControlAlignment: true) {
-          stackedLayout
+      #endif
+    }
+  }
+
+  #if os(iOS)
+    fileprivate var iOSAdjustableCard: some View {
+      cardSurface {
+        HStack(spacing: 8) {
+          Button {
+            guard !isTargetControlling else {
+              return
+            }
+            setPower(reading.powerState == .off)
+          } label: {
+            HomeAssistantZoneSummary(
+              reading: reading,
+              mode: mode,
+              isControlling: isControlling
+            )
+          }
+          .buttonStyle(.plain)
+          .disabled(!isControlEnabled || isControlling)
+          .accessibilityLabel(powerAccessibilityLabel)
+          .accessibilityValue(powerAccessibilityValue)
+          .allowsHitTesting(!isTargetControlling)
+          .focusable(!isTargetControlling)
+          .accessibilityRespondsToUserInteraction(!isTargetControlling)
+          .frame(maxWidth: .infinity, alignment: .leading)
+
+          ZoneTargetTemperatureControl(
+            reading: reading,
+            mode: mode,
+            isEnabled: isControlEnabled,
+            showsLabel: true,
+            fractionLength: targetValueFractionLength,
+            setTargetValue: setTargetValue
+          )
+          .layoutPriority(1)
         }
       }
     }
-  }
+  #endif
 
   fileprivate func powerCard<Content: View>(
     usesBottomTargetControlAlignment: Bool,
@@ -296,6 +361,7 @@ extension HomeAssistantTemperatureCard {
         reading: reading,
         mode: mode,
         isEnabled: isControlEnabled,
+        showsLabel: false,
         fractionLength: targetValueFractionLength,
         setTargetValue: setTargetValue
       )
@@ -326,54 +392,4 @@ extension HomeAssistantTemperatureCard {
     #endif
   }
 
-  fileprivate var powerStateLabel: String {
-    switch reading.powerState {
-    case .poweredOn:
-      "On"
-    case .off:
-      "Off"
-    case .unavailable:
-      "Unavailable"
-    }
-  }
-
-  fileprivate var powerAccessibilityLabel: String {
-    if isControlling {
-      return "Updating \(reading.name)"
-    }
-    switch reading.powerState {
-    case .poweredOn:
-      return "Turn off \(reading.name)"
-    case .off:
-      return "Turn on \(reading.name)"
-    case .unavailable:
-      return "\(reading.name) power unavailable"
-    }
-  }
-
-  fileprivate var powerAccessibilityValue: String {
-    let currentValue = temperatureAccessibilityValue(
-      reading.value,
-      fractionLength: 1
-    )
-    let targetValue =
-      reading.targetValue.map {
-        temperatureAccessibilityValue(
-          $0,
-          fractionLength: targetValueFractionLength
-        )
-      } ?? "Unavailable"
-    let progress = isControlling ? "Updating. " : ""
-    return "\(progress)\(powerStateLabel). Current \(currentValue). Target \(targetValue)"
-  }
-
-  fileprivate func temperatureAccessibilityValue(
-    _ value: Double,
-    fractionLength: Int
-  ) -> String {
-    let formattedValue = value.formatted(
-      .number.precision(.fractionLength(fractionLength))
-    )
-    return "\(formattedValue)\(reading.unit ?? "")"
-  }
 }

@@ -12,6 +12,15 @@ enum TemperatureRowDensity {
     self == .spacious ? 180 : 144
   }
 
+  func locationMinimumWidth(isCompact: Bool) -> CGFloat {
+    #if os(iOS)
+      if self == .condensed, isCompact {
+        return 80
+      }
+    #endif
+    return locationMinimumWidth
+  }
+
   var locationMaximumWidth: CGFloat {
     self == .spacious ? .infinity : 144
   }

@@ -4,6 +4,7 @@ struct ZoneTargetTemperatureControl: View {
   let reading: HomeAssistantTemperatureReading
   let mode: BruceMode
   let isEnabled: Bool
+  let showsLabel: Bool
   let fractionLength: Int
   let setTargetValue: @Sendable (Double) -> Void
 
@@ -16,17 +17,45 @@ struct ZoneTargetTemperatureControl: View {
   }
 
   var body: some View {
+    if showsLabel {
+      stepper
+    } else {
+      stepper
+        .labelsHidden()
+    }
+  }
+
+  private var stepper: some View {
     Stepper(
       value: targetBinding,
       in: targetRange,
       step: step
-    ) {}
-    .labelsHidden()
+    ) {
+      VStack(alignment: .trailing, spacing: 2) {
+        Text("Target")
+          .font(.caption)
+          .foregroundStyle(style.secondaryForeground)
+        targetValueLabel
+          .font(.title3)
+          .foregroundStyle(style.emphasizedForeground)
+          .monospacedDigit()
+      }
+    }
     .disabled(!isEnabled)
     .accessibilityLabel("\(reading.name) target")
     .accessibilityValue(targetAccessibilityValue)
     .tint(style.controlTint)
     .foregroundStyle(style.primaryForeground)
+  }
+
+  private var targetValueLabel: Text {
+    guard let value = reading.targetValue else {
+      return Text("—")
+    }
+    let formattedValue = value.formatted(
+      .number.precision(.fractionLength(fractionLength))
+    )
+    return Text(verbatim: "\(formattedValue)\(reading.unit ?? "")")
   }
 
   private var targetAccessibilityValue: Text {
