@@ -7,6 +7,7 @@ struct BruceApp: App {
   @StateObject private var setupStore: HomeAssistantSetupStore
   @StateObject private var temperatureStore: HomeAssistantTemperatureStore
   @StateObject private var chargingStore: HomeAssistantEVChargingStore
+  @StateObject private var homeEnergyStore: HomeAssistantHomeEnergyStore
   #if os(macOS)
     @StateObject private var settingsNavigation = BruceSettingsNavigation()
   #endif
@@ -15,10 +16,7 @@ struct BruceApp: App {
     HomeAssistantMaterialDesignIcon.prepare()
     let bundleIdentifier = Bundle.main.bundleIdentifier ?? "net.symphonious.bruce"
     let credentialService = "\(bundleIdentifier).home-assistant"
-    let legacyCredentialService =
-      bundleIdentifier == "net.symphonious.bruce.debug"
-      ? "net.symphonious.bruce.home-assistant"
-      : nil
+    let legacyCredentialService = Self.legacyCredentialService(for: bundleIdentifier)
     let loader = URLSessionHomeAssistantHTTPDataLoader()
     let authenticationClient = HomeAssistantAuthenticationClient(loader: loader)
     let webAuthenticationPresenter = HomeAssistantWebAuthenticationPresenter()
@@ -50,6 +48,9 @@ struct BruceApp: App {
         }
       )
     )
+    _homeEnergyStore = StateObject(
+      wrappedValue: Self.homeEnergyStore(loader: apiClient, setupStore: setupStore)
+    )
     _temperatureStore = StateObject(
       wrappedValue: HomeAssistantTemperatureStore(
         loader: HomeAssistantTemperatureStream(
@@ -72,6 +73,7 @@ struct BruceApp: App {
           setupStore: setupStore,
           temperatureStore: temperatureStore,
           chargingStore: chargingStore,
+          homeEnergyStore: homeEnergyStore,
           settingsNavigation: settingsNavigation
         )
         .tint(modeController.mode.accentColor)
@@ -80,7 +82,8 @@ struct BruceApp: App {
           modeController: modeController,
           setupStore: setupStore,
           temperatureStore: temperatureStore,
-          chargingStore: chargingStore
+          chargingStore: chargingStore,
+          homeEnergyStore: homeEnergyStore
         )
         .tint(modeController.mode.accentColor)
       #endif
@@ -96,5 +99,23 @@ struct BruceApp: App {
         .tint(modeController.mode.accentColor)
       }
     #endif
+  }
+
+  private static func legacyCredentialService(for bundleIdentifier: String) -> String? {
+    bundleIdentifier == "net.symphonious.bruce.debug"
+      ? "net.symphonious.bruce.home-assistant"
+      : nil
+  }
+
+  private static func homeEnergyStore(
+    loader: any HomeAssistantHomeEnergyLoading,
+    setupStore: HomeAssistantSetupStore
+  ) -> HomeAssistantHomeEnergyStore {
+    HomeAssistantHomeEnergyStore(
+      loader: loader,
+      onAuthenticationRequired: {
+        setupStore.requireReauthentication()
+      }
+    )
   }
 }

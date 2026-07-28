@@ -21,7 +21,8 @@ protocol HomeAssistantClimateControlling: Sendable {
 }
 
 struct HomeAssistantAPIClient:
-  HomeAssistantClimateControlling, HomeAssistantEVCharging, Sendable
+  HomeAssistantClimateControlling, HomeAssistantEVCharging,
+  HomeAssistantHomeEnergyLoading, Sendable
 {
   private static let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "net.symphonious.bruce",
@@ -98,6 +99,11 @@ struct HomeAssistantAPIClient:
   func loadEVChargingSnapshot() async throws -> HomeAssistantEVChargingSnapshot {
     let data = try await session.authenticatedGET(path: "api/states")
     return try HomeAssistantEVChargingSnapshot(homeAssistantStates: data)
+  }
+
+  func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
+    let data = try await session.authenticatedGET(path: "api/states")
+    return try HomeAssistantHomeEnergySnapshot(homeAssistantStates: data)
   }
 
   func setEVChargingMode(

@@ -3,6 +3,7 @@ import SwiftUI
 struct BrucePanelsView: View {
   @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
   @ObservedObject var chargingStore: HomeAssistantEVChargingStore
+  @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
   let mode: BruceMode
   let isConnecting: Bool
   let connectionProblem: String?
@@ -27,6 +28,7 @@ struct BrucePanelsView: View {
       Tab("Energy", systemImage: "bolt") {
         EnergyPanelView(
           chargingStore: chargingStore,
+          homeEnergyStore: homeEnergyStore,
           mode: mode,
           manageConnection: manageConnection,
           requestRefresh: requestHomeRefresh
@@ -49,9 +51,20 @@ private enum BrucePanelsPreview {
       client: BrucePanelsPreviewEVChargingClient(),
       mode: .smart
     )
+    let homeEnergyStore = HomeAssistantHomeEnergyStore(
+      loader: BrucePanelsPreviewHomeEnergyLoader(),
+      snapshot: HomeAssistantHomeEnergySnapshot(
+        pvPowerKilowatts: 8.4,
+        batteryStateOfCharge: 76,
+        homeConsumptionKilowatts: 3.1,
+        gridPowerKilowatts: -2.7
+      ),
+      isLive: true
+    )
     return BrucePanelsView(
       temperatureStore: store,
       chargingStore: chargingStore,
+      homeEnergyStore: homeEnergyStore,
       mode: .standard,
       isConnecting: false,
       connectionProblem: nil,
@@ -75,6 +88,12 @@ private struct BrucePanelsPreviewEVChargingClient: HomeAssistantEVCharging {
     _ mode: HomeAssistantEVChargingMode
   ) async throws -> HomeAssistantEVChargingMode {
     mode
+  }
+}
+
+private struct BrucePanelsPreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
+  func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
+    .unavailable
   }
 }
 

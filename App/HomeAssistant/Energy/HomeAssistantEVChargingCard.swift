@@ -132,7 +132,7 @@ struct HomeAssistantEVChargingCard: View {
 
   private var chargerDescription: some View {
     VStack(alignment: .leading, spacing: 2) {
-      Text("EV charger")
+      Text("Car charger")
         .font(.headline)
         .foregroundStyle(primaryForeground)
       Text(status)

@@ -15,6 +15,9 @@ final class ContentViewCreationTests: XCTestCase {
         chargingStore: HomeAssistantEVChargingStore(
           client: ContentViewEVChargingClient()
         ),
+        homeEnergyStore: HomeAssistantHomeEnergyStore(
+          loader: ContentViewHomeEnergyLoader()
+        ),
         settingsNavigation: BruceSettingsNavigation()
       )
     #else
@@ -26,9 +29,18 @@ final class ContentViewCreationTests: XCTestCase {
         ),
         chargingStore: HomeAssistantEVChargingStore(
           client: ContentViewEVChargingClient()
+        ),
+        homeEnergyStore: HomeAssistantHomeEnergyStore(
+          loader: ContentViewHomeEnergyLoader()
         )
       )
     #endif
+  }
+}
+
+private struct ContentViewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
+  func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
+    .unavailable
   }
 }
 

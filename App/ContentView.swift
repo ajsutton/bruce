@@ -9,6 +9,7 @@ struct ContentView: View {
   @ObservedObject var setupStore: HomeAssistantSetupStore
   @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
   @ObservedObject var chargingStore: HomeAssistantEVChargingStore
+  @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
   #if os(macOS)
     @ObservedObject var settingsNavigation: BruceSettingsNavigation
   #else
@@ -32,6 +33,9 @@ struct ContentView: View {
       }
       .task(id: refreshRequest) {
         await synchronizeChargingStore()
+      }
+      .task(id: refreshRequest) {
+        await homeEnergyStore.synchronize(with: presentation.connection)
       }
       .onChange(of: scenePhase) { _, newScenePhase in
         guard newScenePhase == .active else {
@@ -70,6 +74,7 @@ struct ContentView: View {
       BrucePanelsView(
         temperatureStore: temperatureStore,
         chargingStore: chargingStore,
+        homeEnergyStore: homeEnergyStore,
         mode: mode,
         isConnecting: presentation.isConnecting,
         connectionProblem: presentation.connectionProblem,
@@ -155,6 +160,9 @@ struct ContentView: View {
         client: PreviewContentEVChargingClient(),
         mode: .smart
       ),
+      homeEnergyStore: HomeAssistantHomeEnergyStore(
+        loader: PreviewContentHomeEnergyLoader()
+      ),
       settingsNavigation: BruceSettingsNavigation()
     )
   #else
@@ -170,6 +178,9 @@ struct ContentView: View {
       chargingStore: HomeAssistantEVChargingStore(
         client: PreviewContentEVChargingClient(),
         mode: .smart
+      ),
+      homeEnergyStore: HomeAssistantHomeEnergyStore(
+        loader: PreviewContentHomeEnergyLoader()
       )
     )
   #endif
@@ -203,6 +214,12 @@ private struct PreviewContentEVChargingClient: HomeAssistantEVCharging {
     _ mode: HomeAssistantEVChargingMode
   ) async throws -> HomeAssistantEVChargingMode {
     mode
+  }
+}
+
+private struct PreviewContentHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
+  func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
+    .unavailable
   }
 }
 

@@ -4,6 +4,7 @@ struct EnergyPanelView: View {
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @ObservedObject var chargingStore: HomeAssistantEVChargingStore
+  @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
   let mode: BruceMode
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
@@ -11,12 +12,20 @@ struct EnergyPanelView: View {
   var body: some View {
     NavigationStack {
       ScrollView {
-        HomeAssistantEVChargingCard(
-          store: chargingStore,
-          mode: mode,
-          manageConnection: manageConnection,
-          requestRefresh: requestRefresh
-        )
+        VStack(spacing: 16) {
+          HomeAssistantEVChargingCard(
+            store: chargingStore,
+            mode: mode,
+            manageConnection: manageConnection,
+            requestRefresh: requestRefresh
+          )
+          HomeAssistantHomeEnergyCard(
+            store: homeEnergyStore,
+            mode: mode,
+            manageConnection: manageConnection,
+            requestRefresh: requestRefresh
+          )
+        }
         .padding()
         .frame(maxWidth: 720)
         .frame(maxWidth: .infinity)
@@ -32,6 +41,9 @@ struct EnergyPanelView: View {
       #endif
     }
     .preferredColorScheme(mode.isFullBruce ? .dark : nil)
+    .task {
+      await homeEnergyStore.monitor()
+    }
   }
 }
 
@@ -41,6 +53,11 @@ struct EnergyPanelView: View {
       client: PreviewEVChargingClient(),
       mode: .smart,
       activity: .charging(powerWatts: 7_024)
+    ),
+    homeEnergyStore: HomeAssistantHomeEnergyStore(
+      loader: PreviewHomeEnergyLoader(),
+      snapshot: PreviewHomeEnergyLoader.exportingSnapshot,
+      isLive: true
     ),
     mode: .standard,
     manageConnection: {},
@@ -55,6 +72,11 @@ struct EnergyPanelView: View {
       client: PreviewEVChargingClient(),
       mode: .smart,
       activity: .paused(reason: .homeBattery)
+    ),
+    homeEnergyStore: HomeAssistantHomeEnergyStore(
+      loader: PreviewHomeEnergyLoader(),
+      snapshot: PreviewHomeEnergyLoader.importingSnapshot,
+      isLive: true
     ),
     mode: .full,
     manageConnection: {},
@@ -72,5 +94,25 @@ private struct PreviewEVChargingClient: HomeAssistantEVCharging {
     _ mode: HomeAssistantEVChargingMode
   ) async throws -> HomeAssistantEVChargingMode {
     mode
+  }
+}
+
+private struct PreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
+  static let exportingSnapshot = HomeAssistantHomeEnergySnapshot(
+    pvPowerKilowatts: 8.4,
+    batteryStateOfCharge: 76,
+    homeConsumptionKilowatts: 3.1,
+    gridPowerKilowatts: -2.7
+  )
+
+  static let importingSnapshot = HomeAssistantHomeEnergySnapshot(
+    pvPowerKilowatts: 0,
+    batteryStateOfCharge: 38,
+    homeConsumptionKilowatts: 4.6,
+    gridPowerKilowatts: 3.9
+  )
+
+  func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
+    Self.exportingSnapshot
   }
 }

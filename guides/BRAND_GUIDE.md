@@ -112,14 +112,18 @@ Avoid:
 - Artificial enthusiasm.
 - Chatbot filler.
 - Describing routine actions as smart, intelligent or magical.
-- Performing Australianness in every sentence.
+- Forced slang in standard Bruce or in serious, safety-sensitive states.
 - Calling the user `mate`, `champ` or another nickname unless a future explicit preference
   supports it.
 
 ### Full Bruce language
 
-Full Bruce may add dry humour or familiar Australian phrasing to routine, reversible and
-low-stakes information.
+Full Bruce should enthusiastically use dry humour, vivid Australian phrasing and larrikin
+confidence for routine, reversible and low-stakes information. It is allowed to be conspicuously
+different from standard Bruce; a timid synonym swap is not enough.
+
+Prefer short phrases with a strong point of view. Routine dashboards may use playful labels
+throughout when the surrounding icon, value and layout keep the underlying meaning clear.
 
 Acceptable:
 
@@ -130,6 +134,10 @@ Acceptable:
 
 Humour must never delay the actual state or action.
 
+Stale routine readings may retain Full Bruce language when the UI clearly identifies them as
+`Last known`. The qualifier must apply to the whole group and VoiceOver value; do not phrase a
+cached value as newly observed.
+
 ## Safety boundary
 
 The following language never changes between modes:
@@ -137,7 +145,7 @@ The following language never changes between modes:
 - Smoke, fire, gas, water-leak and security alarms.
 - Lock or access ambiguity.
 - Destructive confirmations.
-- Unavailable, stale or unverified state.
+- Unavailable or unverified state when no reliable value exists.
 - Errors where misunderstanding could cause harm or damage.
 - Permissions, privacy and account recovery.
 
