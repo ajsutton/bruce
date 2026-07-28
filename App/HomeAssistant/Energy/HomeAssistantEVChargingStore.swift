@@ -3,6 +3,8 @@ import Foundation
 @MainActor
 final class HomeAssistantEVChargingStore: ObservableObject {
   @Published private(set) var mode: HomeAssistantEVChargingMode?
+  @Published private(set) var activity: HomeAssistantEVChargingActivity
+  @Published private(set) var isActivityLive: Bool
   @Published private(set) var isLoading = false
   @Published private(set) var isLive = false
   @Published private(set) var isChanging = false
@@ -29,6 +31,7 @@ final class HomeAssistantEVChargingStore: ObservableObject {
   init(
     client: any HomeAssistantEVCharging,
     mode: HomeAssistantEVChargingMode? = nil,
+    activity: HomeAssistantEVChargingActivity = .unavailable,
     progressDelay: Duration = .milliseconds(500),
     updateTimeout: Duration = .seconds(8),
     progressSleep: @escaping @Sendable (Duration) async -> Void = {
@@ -41,6 +44,8 @@ final class HomeAssistantEVChargingStore: ObservableObject {
   ) {
     self.client = client
     self.mode = mode
+    self.activity = activity
+    isActivityLive = mode != nil && activity != .unavailable
     isLive = mode != nil
     self.progressDelay = progressDelay
     self.updateTimeout = updateTimeout
@@ -72,39 +77,33 @@ final class HomeAssistantEVChargingStore: ObservableObject {
     canReconcileLateModeChanges = true
     isLoading = true
     isLive = mode != nil
+    isActivityLive = false
     if !preservingProblem {
       problem = nil
     }
     scheduleProgress(for: generation)
 
     do {
-      let loadedMode = try await client.loadEVChargingMode()
+      let snapshot = try await client.loadEVChargingSnapshot()
       try Task.checkCancellation()
       guard operationGeneration == generation else { return }
-      mode = loadedMode
-      isLoading = false
-      isLive = true
-      finishProgress()
+      mode = snapshot.mode
+      activity = snapshot.activity
+      finishLoad(isLive: true, activityIsLive: snapshot.activity != .unavailable)
     } catch is CancellationError {
       guard operationGeneration == generation else { return }
-      isLoading = false
-      isLive = false
-      finishProgress()
+      finishLoad(isLive: false)
     } catch {
       guard operationGeneration == generation else { return }
       guard !Task.isCancelled, !Self.isCancellation(error) else {
-        isLoading = false
-        isLive = false
-        finishProgress()
+        finishLoad(isLive: false)
         return
       }
       let loadProblem = Self.problem(for: error, operation: .loading)
       if !preservingProblem || loadProblem == .signInRequired {
         problem = loadProblem
       }
-      isLoading = false
-      isLive = false
-      finishProgress()
+      finishLoad(isLive: false)
       if loadProblem == .signInRequired {
         onAuthenticationRequired()
       }
@@ -119,6 +118,7 @@ final class HomeAssistantEVChargingStore: ObservableObject {
     rollbackMode = previousMode
     canReconcileLateModeChanges = true
     mode = requestedMode
+    isActivityLive = false
     isChanging = true
     problem = nil
     scheduleProgress(for: generation)
@@ -135,6 +135,7 @@ final class HomeAssistantEVChargingStore: ObservableObject {
     operationGeneration = UUID()
     isLoading = true
     isLive = false
+    isActivityLive = false
     finishProgress()
     problem = nil
   }
@@ -142,9 +143,7 @@ final class HomeAssistantEVChargingStore: ObservableObject {
   func markConnectionUnavailable() {
     invalidateModeChange()
     operationGeneration = UUID()
-    isLoading = false
-    isLive = false
-    finishProgress()
+    finishLoad(isLive: false)
     if problem != .signInRequired {
       problem = .connectionNeedsManagement
     }
@@ -154,6 +153,8 @@ final class HomeAssistantEVChargingStore: ObservableObject {
     invalidateModeChange()
     operationGeneration = UUID()
     mode = nil
+    activity = .unavailable
+    isActivityLive = false
     isLoading = false
     isLive = false
     finishProgress()
@@ -234,11 +235,19 @@ extension HomeAssistantEVChargingStore {
     showsProgress = false
   }
 
+  private func finishLoad(isLive: Bool, activityIsLive: Bool = false) {
+    isLoading = false
+    self.isLive = isLive
+    isActivityLive = activityIsLive
+    finishProgress()
+  }
+
   private func completeModeChange(
     _ confirmedMode: HomeAssistantEVChargingMode,
     requestedMode: HomeAssistantEVChargingMode
   ) {
     mode = confirmedMode
+    isActivityLive = false
     isChanging = false
     isLive = true
     finishModeChange()
@@ -272,6 +281,7 @@ extension HomeAssistantEVChargingStore {
 
   private func rollBackModeChange() {
     mode = rollbackMode
+    isActivityLive = false
     isChanging = false
     isLive = false
     finishModeChange()
@@ -317,6 +327,7 @@ extension HomeAssistantEVChargingStore {
       self.mode = previousMode
       self.isChanging = false
       self.isLive = false
+      self.isActivityLive = false
       self.problem = .updateTimedOut
       self.finishProgress()
       self.updateTimeoutTask = nil
@@ -344,11 +355,12 @@ extension HomeAssistantEVChargingStore {
     operationGeneration = generation
     isLoading = true
     isLive = mode != nil
+    isActivityLive = false
     scheduleProgress(for: generation)
     lateReconciliationTask = Task { [weak self, client] in
-      let result: Result<HomeAssistantEVChargingMode, any Error>
+      let result: Result<HomeAssistantEVChargingSnapshot, any Error>
       do {
-        result = .success(try await client.loadEVChargingMode())
+        result = .success(try await client.loadEVChargingSnapshot())
       } catch {
         result = .failure(error)
       }
@@ -358,21 +370,18 @@ extension HomeAssistantEVChargingStore {
   }
 
   private func receiveLateReconciliationResult(
-    _ result: Result<HomeAssistantEVChargingMode, any Error>,
+    _ result: Result<HomeAssistantEVChargingSnapshot, any Error>,
     generation: UUID
   ) {
     guard operationGeneration == generation else { return }
     lateReconciliationTask = nil
     switch result {
-    case .success(let loadedMode):
-      mode = loadedMode
-      isLoading = false
-      isLive = true
-      finishProgress()
+    case .success(let snapshot):
+      mode = snapshot.mode
+      activity = snapshot.activity
+      finishLoad(isLive: true, activityIsLive: snapshot.activity != .unavailable)
     case .failure(let error):
-      isLoading = false
-      isLive = false
-      finishProgress()
+      finishLoad(isLive: false)
       let loadProblem = Self.problem(for: error, operation: .loading)
       if problem == nil || loadProblem == .signInRequired {
         problem = loadProblem

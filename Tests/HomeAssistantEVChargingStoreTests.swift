@@ -92,6 +92,7 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     store.markConnectionUnavailable()
 
     XCTAssertEqual(store.mode, .smart)
+    XCTAssertFalse(store.isActivityLive)
     XCTAssertFalse(store.isLive)
     XCTAssertFalse(store.canSelectMode)
     XCTAssertEqual(store.problem, .connectionNeedsManagement)
@@ -123,10 +124,12 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     await fulfillment(of: [client.loadStarted(at: 0)], timeout: 1)
 
     store.markConnectionUnavailable()
-    client.succeedLoad(0, with: .charging)
+    client.succeedLoad(0, with: .charging, activity: .charging(powerWatts: 7_024))
     await load.value
 
     XCTAssertNil(store.mode)
+    XCTAssertEqual(store.activity, .unavailable)
+    XCTAssertFalse(store.isActivityLive)
     XCTAssertFalse(store.isLive)
     XCTAssertEqual(store.problem, .connectionNeedsManagement)
   }
@@ -143,12 +146,14 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     }
     await fulfillment(of: [client.loadStarted(at: 1)], timeout: 1)
 
-    client.succeedLoad(1, with: .smart)
+    client.succeedLoad(1, with: .smart, activity: .connected)
     await secondLoad.value
-    client.succeedLoad(0, with: .charging)
+    client.succeedLoad(0, with: .charging, activity: .charging(powerWatts: 7_024))
     await firstLoad.value
 
     XCTAssertEqual(store.mode, .smart)
+    XCTAssertEqual(store.activity, .connected)
+    XCTAssertTrue(store.isActivityLive)
     XCTAssertTrue(store.isLive)
   }
 
@@ -161,10 +166,12 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     await fulfillment(of: [client.loadStarted(at: 0)], timeout: 1)
 
     load.cancel()
-    client.succeedLoad(0, with: .charging)
+    client.succeedLoad(0, with: .charging, activity: .charging(powerWatts: 7_024))
     await load.value
 
     XCTAssertNil(store.mode)
+    XCTAssertEqual(store.activity, .unavailable)
+    XCTAssertFalse(store.isActivityLive)
     XCTAssertNil(store.problem)
     XCTAssertFalse(store.isLoading)
     XCTAssertFalse(store.isLive)
@@ -254,11 +261,13 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
         reconciled.fulfill()
       }
     }
-    client.succeedLoad(1, with: .charging)
+    client.succeedLoad(1, with: .charging, activity: .connected)
     await fulfillment(of: [client.setFinished(at: 0)], timeout: 1)
     await fulfillment(of: [reconciled], timeout: 1)
 
     XCTAssertEqual(store.mode, .charging)
+    XCTAssertEqual(store.activity, .connected)
+    XCTAssertTrue(store.isActivityLive)
     XCTAssertTrue(store.isLive)
     XCTAssertNil(store.problem)
     withExtendedLifetime(subscription) {}
@@ -304,89 +313,5 @@ private struct AuthenticationRequiredEVChargingClient: HomeAssistantEVCharging {
     _ mode: HomeAssistantEVChargingMode
   ) async throws -> HomeAssistantEVChargingMode {
     throw HomeAssistantAPIError.reauthenticationRequired
-  }
-}
-
-final class ControlledEVChargingClient:
-  HomeAssistantEVCharging, @unchecked Sendable
-{
-  private let lock = NSLock()
-  private let loadStartedExpectations: [XCTestExpectation]
-  private let setStartedExpectations: [XCTestExpectation]
-  private let setFinishedExpectations: [XCTestExpectation]
-  private var nextLoadRequest = 0
-  private var nextSetRequest = 0
-  private var loadContinuations:
-    [Int: CheckedContinuation<HomeAssistantEVChargingMode, any Error>] = [:]
-  private var setContinuations: [Int: CheckedContinuation<HomeAssistantEVChargingMode, any Error>] =
-    [:]
-
-  init(loadRequestCount: Int = 0, setRequestCount: Int = 0) {
-    loadStartedExpectations = (0..<loadRequestCount).map {
-      XCTestExpectation(description: "EV charging load \($0) started")
-    }
-    setStartedExpectations = (0..<setRequestCount).map {
-      XCTestExpectation(description: "EV charging change \($0) started")
-    }
-    setFinishedExpectations = (0..<setRequestCount).map {
-      XCTestExpectation(description: "EV charging change \($0) finished")
-    }
-  }
-
-  func loadStarted(at index: Int) -> XCTestExpectation {
-    loadStartedExpectations[index]
-  }
-
-  func setStarted(at index: Int) -> XCTestExpectation {
-    setStartedExpectations[index]
-  }
-
-  func setFinished(at index: Int) -> XCTestExpectation {
-    setFinishedExpectations[index]
-  }
-
-  func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {
-    try await withCheckedThrowingContinuation { continuation in
-      let request = lock.withLock {
-        let request = nextLoadRequest
-        nextLoadRequest += 1
-        loadContinuations[request] = continuation
-        return request
-      }
-      loadStartedExpectations[request].fulfill()
-    }
-  }
-
-  func setEVChargingMode(
-    _ mode: HomeAssistantEVChargingMode
-  ) async throws -> HomeAssistantEVChargingMode {
-    let request = lock.withLock {
-      let request = nextSetRequest
-      nextSetRequest += 1
-      return request
-    }
-    defer {
-      setFinishedExpectations[request].fulfill()
-    }
-    return try await withCheckedThrowingContinuation { continuation in
-      lock.withLock {
-        setContinuations[request] = continuation
-      }
-      setStartedExpectations[request].fulfill()
-    }
-  }
-
-  func succeedLoad(_ request: Int, with mode: HomeAssistantEVChargingMode) {
-    let continuation = lock.withLock {
-      loadContinuations.removeValue(forKey: request)
-    }
-    continuation?.resume(returning: mode)
-  }
-
-  func succeedSet(_ request: Int, with mode: HomeAssistantEVChargingMode) {
-    let continuation = lock.withLock {
-      setContinuations.removeValue(forKey: request)
-    }
-    continuation?.resume(returning: mode)
   }
 }

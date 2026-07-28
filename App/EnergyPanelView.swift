@@ -39,7 +39,8 @@ struct EnergyPanelView: View {
   EnergyPanelView(
     chargingStore: HomeAssistantEVChargingStore(
       client: PreviewEVChargingClient(),
-      mode: .smart
+      mode: .smart,
+      activity: .charging(powerWatts: 7_024)
     ),
     mode: .standard,
     manageConnection: {},
@@ -52,7 +53,8 @@ struct EnergyPanelView: View {
   EnergyPanelView(
     chargingStore: HomeAssistantEVChargingStore(
       client: PreviewEVChargingClient(),
-      mode: .smart
+      mode: .smart,
+      activity: .paused(reason: .homeBattery)
     ),
     mode: .full,
     manageConnection: {},

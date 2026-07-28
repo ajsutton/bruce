@@ -26,6 +26,13 @@ struct HomeAssistantEVChargingCard: View {
           }
         }
 
+      HomeAssistantEVOperationalStatusView(
+        activity: store.activity,
+        isLive: store.isActivityLive,
+        isLoading: store.isLoading,
+        mode: mode
+      )
+
       if let problem = store.problem {
         problemView(problem)
       }
@@ -114,11 +121,12 @@ struct HomeAssistantEVChargingCard: View {
   }
 
   private var chargerIcon: some View {
-    Image(systemName: "bolt.car")
+    Image(systemName: operationalIconPresentation.icon)
       .font(.title2)
       .foregroundStyle(iconForeground)
       .frame(width: 44, height: 44)
       .background(iconBackground, in: RoundedRectangle(cornerRadius: 12))
+      .contentTransition(.symbolEffect(.replace))
       .accessibilityHidden(true)
   }
 
@@ -207,6 +215,9 @@ struct HomeAssistantEVChargingCard: View {
   }
 
   private var iconForeground: Color {
+    if store.isActivityLive, store.activity.isCharging {
+      return .white
+    }
     if mode.isFullBruce {
       return mode.backgroundColor
     }
@@ -214,12 +225,22 @@ struct HomeAssistantEVChargingCard: View {
   }
 
   private var iconBackground: Color {
+    if store.isActivityLive, store.activity.isCharging {
+      return operationalIconPresentation.color
+    }
     if mode.isFullBruce {
       return mode.accentColor
     }
     return colorScheme == .dark
       ? mode.foregroundColor.opacity(0.72)
       : Color.white.opacity(0.82)
+  }
+
+  private var operationalIconPresentation: HomeAssistantEVActivityPresentation {
+    HomeAssistantEVActivityPresentation(
+      activity: store.isActivityLive ? store.activity : .unavailable,
+      mode: mode
+    )
   }
 
   private var cardBackground: AnyShapeStyle {

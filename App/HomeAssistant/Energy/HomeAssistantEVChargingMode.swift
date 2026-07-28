@@ -35,11 +35,11 @@ enum HomeAssistantEVChargingMode: String, CaseIterable, Hashable, Sendable {
   private var fullBruceDescription: String {
     switch self {
     case .off:
-      "Off. Charger’s parked up."
+      "Off. Charger’s knocked off."
     case .smart:
-      "Charges when the house has juice to spare"
+      "Charges when the house has juice to burn. Too easy."
     case .charging:
-      "Charges regardless of the home battery. Give it the berries."
+      "Charges regardless of the home battery. Flat chat."
     }
   }
 }

@@ -95,6 +95,11 @@ struct HomeAssistantAPIClient:
     return try Self.evChargingMode(from: data)
   }
 
+  func loadEVChargingSnapshot() async throws -> HomeAssistantEVChargingSnapshot {
+    let data = try await session.authenticatedGET(path: "api/states")
+    return try HomeAssistantEVChargingSnapshot(homeAssistantStates: data)
+  }
+
   func setEVChargingMode(
     _ mode: HomeAssistantEVChargingMode
   ) async throws -> HomeAssistantEVChargingMode {
@@ -200,6 +205,7 @@ struct HomeAssistantAPIClient:
       }
     }
   }
+
 }
 
 private struct HomeAssistantAPIConfiguration: Decodable {
@@ -216,7 +222,7 @@ private struct HomeAssistantUnitSystem: Decodable {
 
 struct HomeAssistantState: Decodable {
   let entityID: String
-  private let state: String
+  let state: String
   private let attributes: HomeAssistantStateAttributes
 
   enum CodingKeys: String, CodingKey {

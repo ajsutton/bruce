@@ -64,6 +64,28 @@ final class HomeAssistantPresentationTests: XCTestCase {
     )
   }
 
+  func testChargingActivityShowsMeasuredPower() {
+    let presentation = HomeAssistantEVActivityPresentation(
+      activity: .charging(powerWatts: 7_024),
+      mode: .standard,
+      locale: Locale(identifier: "en_AU")
+    )
+
+    XCTAssertEqual(presentation.text, "Charging · 7.0 kW")
+    XCTAssertEqual(presentation.icon, "bolt.car.fill")
+  }
+
+  func testFullBrucePauseTakesABreather() {
+    let presentation = HomeAssistantEVActivityPresentation(
+      activity: .paused(reason: .homeBattery),
+      mode: .full
+    )
+
+    XCTAssertEqual(presentation.text, "Taking a breather")
+    XCTAssertEqual(presentation.icon, "pause.circle.fill")
+    XCTAssertEqual(presentation.accessibilityText, "Taking a breather")
+  }
+
   private func makePresentation(
     step: HomeAssistantSetupStore.Step,
     state: HomeAssistantSetupStore.ConnectionCheckState = .idle
