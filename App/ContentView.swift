@@ -4,6 +4,8 @@ struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
   #if os(macOS)
     @Environment(\.openSettings) private var openSettings
+  #else
+    @EnvironmentObject private var sceneDelegate: BruceSceneDelegate
   #endif
   @ObservedObject var modeController: BruceModeController
   @ObservedObject var setupStore: HomeAssistantSetupStore
@@ -67,7 +69,17 @@ struct ContentView: View {
       }
       #if os(iOS)
         .sheet(isPresented: $showsConnectionManagement) {
-          HomeAssistantSetupView(store: setupStore, mode: mode)
+          HomeAssistantSetupView(
+            store: setupStore,
+            mode: mode,
+            startsInConnectionManagement: true
+          )
+        }
+        .onChange(of: sceneDelegate.manageConnectionRequestID, initial: true) { _, requestID in
+          guard requestID > 0 else {
+            return
+          }
+          showsConnectionManagement = true
         }
       #endif
   }
@@ -189,6 +201,7 @@ struct ContentView: View {
         loader: PreviewContentHomeEnergyLoader()
       )
     )
+    .environmentObject(BruceSceneDelegate())
   #endif
 }
 

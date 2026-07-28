@@ -1,6 +1,43 @@
 import XCTest
 
+@testable import Bruce
+
+#if os(iOS)
+  import UIKit
+#endif
+
 final class HomeAssistantProjectConfigurationTests: XCTestCase {
+  @MainActor
+  func testIOSAppProvidesManageConnectionQuickAction() throws {
+    let plist = try loadPropertyList("Info-iOS.plist")
+    let shortcutItems = try XCTUnwrap(
+      plist["UIApplicationShortcutItems"] as? [[String: Any]]
+    )
+    let shortcut = try XCTUnwrap(shortcutItems.first)
+    let shortcutType = try XCTUnwrap(
+      shortcut["UIApplicationShortcutItemType"] as? String
+    )
+
+    XCTAssertEqual(
+      shortcutType,
+      "net.symphonious.bruce.manageConnection"
+    )
+    XCTAssertEqual(
+      shortcut["UIApplicationShortcutItemTitle"] as? String,
+      "Manage Connection"
+    )
+
+    #if os(iOS)
+      XCTAssertEqual(shortcutType, BruceQuickAction.manageConnectionType)
+      let delegate = BruceSceneDelegate()
+      let shortcutItem = UIApplicationShortcutItem(
+        type: shortcutType,
+        localizedTitle: "Manage Connection"
+      )
+      XCTAssertTrue(delegate.handle(shortcutItem))
+    #endif
+  }
+
   func testBothAppsDeclareBonjourAndLocalHTTPNetworking() throws {
     for filename in ["Info-iOS.plist", "Info-macOS.plist"] {
       let propertyList = try loadPropertyList(filename)

@@ -1393,6 +1393,22 @@
         }
       }
     },
+    "homeAssistantInterface.done": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Sorted"
+          }
+        }
+      }
+    },
     "homeAssistantInterface.checking": {
       "localizations": {
         "en": {

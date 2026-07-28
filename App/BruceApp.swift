@@ -3,6 +3,9 @@ import SwiftUI
 @main
 @MainActor
 struct BruceApp: App {
+  #if os(iOS)
+    @UIApplicationDelegateAdaptor(BruceAppDelegate.self) private var appDelegate
+  #endif
   @StateObject private var modeController = BruceModeController()
   @StateObject private var setupStore: HomeAssistantSetupStore
   @StateObject private var temperatureStore: HomeAssistantTemperatureStore

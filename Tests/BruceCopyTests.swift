@@ -19,6 +19,10 @@ final class BruceCopyTests: XCTestCase {
     XCTAssertNotEqual(standard.fullBruceFooter, full.fullBruceFooter)
     XCTAssertNotEqual(standard.iconChangeFailedTitle, full.iconChangeFailedTitle)
     XCTAssertNotEqual(standard.notConnectedTitle, full.notConnectedTitle)
+    XCTAssertNotEqual(
+      HomeAssistantInterfaceCopy(mode: .standard).done,
+      HomeAssistantInterfaceCopy(mode: .full).done
+    )
   }
 
   func testEnergyErrorsAndUnavailableStatesUseFullBruceCopy() {

@@ -35,6 +35,17 @@
     <string>Bruce uses your local network to find and connect to your Home Assistant server.</string>
     <key>UILaunchScreen</key>
     <dict/>
+    <key>UIApplicationShortcutItems</key>
+    <array>
+        <dict>
+            <key>UIApplicationShortcutItemIconSymbolName</key>
+            <string>house</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>Manage Connection</string>
+            <key>UIApplicationShortcutItemType</key>
+            <string>net.symphonious.bruce.manageConnection</string>
+        </dict>
+    </array>
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>

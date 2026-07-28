@@ -13,6 +13,7 @@ struct HomeAssistantInterfaceCopy {
     localized("homeAssistantInterface.continueButton")
   }
   var cancel: String { localized("homeAssistantInterface.cancel") }
+  var done: String { localized("homeAssistantInterface.done") }
   var retryAuthentication: String {
     localized("homeAssistantInterface.retryAuthentication")
   }

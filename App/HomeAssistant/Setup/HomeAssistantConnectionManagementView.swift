@@ -7,6 +7,7 @@
     @ObservedObject var store: HomeAssistantSetupStore
     let mode: BruceMode
     let reauthenticate: () -> Void
+    var dismissesAfterNavigation = true
     @State private var showsDisconnectConfirmation = false
 
     private var setupCopy: HomeAssistantSetupCopy {
@@ -47,14 +48,14 @@
             if store.connectionCheckState.canSignInAgain {
               Button(copy.signInAgain) {
                 reauthenticate()
-                dismiss()
+                dismissAfterNavigationIfNeeded()
               }
               .disabled(store.isDisconnecting)
             }
 
             Button(setupCopy.changeServer) {
               store.changeServer()
-              dismiss()
+              dismissAfterNavigationIfNeeded()
             }
             .disabled(store.isDisconnecting)
 
@@ -73,7 +74,7 @@
       .navigationBarTitleDisplayMode(.inline)
       .onChange(of: store.connectedCredentials) { _, credentials in
         if credentials == nil {
-          dismiss()
+          dismissAfterNavigationIfNeeded()
         }
       }
       .onChange(of: store.connectionCheckState) { _, state in
@@ -123,6 +124,12 @@
             LabeledContent(copy.status, value: setupCopy.disconnectFailed)
           }
         }
+      }
+    }
+
+    private func dismissAfterNavigationIfNeeded() {
+      if dismissesAfterNavigation {
+        dismiss()
       }
     }
   }
