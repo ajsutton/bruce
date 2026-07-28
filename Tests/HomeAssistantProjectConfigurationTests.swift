@@ -56,8 +56,16 @@ final class HomeAssistantProjectConfigurationTests: XCTestCase {
           transportSecurity["NSAllowsArbitraryLoadsInWebContent"] as? Bool,
           true
         )
+        let exceptionDomains = try XCTUnwrap(
+          transportSecurity["NSExceptionDomains"] as? [String: Any]
+        )
+        XCTAssertEqual(Set(exceptionDomains.keys), ["lan"])
+        let lanException = try XCTUnwrap(exceptionDomains["lan"] as? [String: Any])
+        XCTAssertEqual(lanException["NSExceptionAllowsInsecureHTTPLoads"] as? Bool, true)
+        XCTAssertEqual(lanException["NSIncludesSubdomains"] as? Bool, true)
       } else {
         XCTAssertNil(transportSecurity["NSAllowsArbitraryLoadsInWebContent"])
+        XCTAssertNil(transportSecurity["NSExceptionDomains"])
       }
     }
   }
