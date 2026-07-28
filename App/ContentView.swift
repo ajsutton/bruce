@@ -62,13 +62,13 @@ struct ContentView: View {
   @ViewBuilder
   private var content: some View {
     if presentation.screen == .temperatures {
-      HomeAssistantTemperatureView(
-        store: temperatureStore,
+      BrucePanelsView(
+        temperatureStore: temperatureStore,
         mode: mode,
         isConnecting: presentation.isConnecting,
         connectionProblem: presentation.connectionProblem,
         manageConnection: manageConnection,
-        requestRefresh: requestTemperatureRefresh,
+        requestTemperatureRefresh: requestTemperatureRefresh,
         isRemovingConnection: setupStore.isDisconnecting
       )
     } else {
