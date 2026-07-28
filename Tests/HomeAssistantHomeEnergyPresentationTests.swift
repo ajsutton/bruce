@@ -97,6 +97,52 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
     XCTAssertEqual(exporting.value, "0.1 kW")
   }
 
+  func testPricePresentationShowsCurrentDollarRatePerKilowattHour() {
+    let general = HomeEnergyMetricPresentation.generalPrice(
+      dollarsPerKilowattHour: 0.341,
+      mode: .standard,
+      locale: locale
+    )
+    let feedIn = HomeEnergyMetricPresentation.feedInPrice(
+      dollarsPerKilowattHour: -0.051,
+      mode: .standard,
+      locale: locale
+    )
+    let feedInCredit = HomeEnergyMetricPresentation.feedInPrice(
+      dollarsPerKilowattHour: 0.127,
+      mode: .standard,
+      locale: locale
+    )
+
+    XCTAssertEqual(general.title, "General price")
+    XCTAssertEqual(general.value, "$0.341/kWh")
+    XCTAssertEqual(feedIn.title, "Export charge")
+    XCTAssertEqual(feedIn.value, "$0.051/kWh")
+    XCTAssertEqual(feedIn.color, .orange)
+    XCTAssertEqual(feedInCredit.title, "Feed-in price")
+    XCTAssertEqual(feedInCredit.value, "$0.127/kWh")
+    XCTAssertEqual(feedInCredit.color, .green)
+  }
+
+  func testPricePresentationRetainsFullBruceVoiceWhenUnavailable() {
+    XCTAssertEqual(
+      HomeEnergyMetricPresentation.generalPrice(
+        dollarsPerKilowattHour: nil,
+        mode: .full,
+        locale: locale
+      ).title,
+      "Power Price Has Gone Walkabout"
+    )
+    XCTAssertEqual(
+      HomeEnergyMetricPresentation.feedInPrice(
+        dollarsPerKilowattHour: nil,
+        mode: .full,
+        locale: locale
+      ).title,
+      "Solar Payback Has Gone Walkabout"
+    )
+  }
+
   func testUnavailablePresentationRetainsFullBruceVoice() {
     XCTAssertEqual(
       HomeEnergyMetricPresentation.pv(

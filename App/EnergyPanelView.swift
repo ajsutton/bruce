@@ -106,14 +106,18 @@ private struct PreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
     pvPowerKilowatts: 8.4,
     batteryStateOfCharge: 76,
     homeConsumptionKilowatts: 3.1,
-    gridPowerKilowatts: -2.7
+    gridPowerKilowatts: -2.7,
+    generalPriceDollarsPerKilowattHour: 0.341,
+    feedInPriceDollarsPerKilowattHour: 0.127
   )
 
   static let importingSnapshot = HomeAssistantHomeEnergySnapshot(
     pvPowerKilowatts: 0,
     batteryStateOfCharge: 38,
     homeConsumptionKilowatts: 4.6,
-    gridPowerKilowatts: 3.9
+    gridPowerKilowatts: 3.9,
+    generalPriceDollarsPerKilowattHour: 0.584,
+    feedInPriceDollarsPerKilowattHour: -0.051
   )
 
   func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {

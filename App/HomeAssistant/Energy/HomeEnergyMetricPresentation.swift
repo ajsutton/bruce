@@ -103,6 +103,57 @@ struct HomeEnergyMetricPresentation {
     )
   }
 
+  static func generalPrice(
+    dollarsPerKilowattHour: Double?,
+    mode: BruceMode,
+    locale: Locale = .current
+  ) -> Self {
+    let copy = HomeEnergyCopy(mode: mode)
+    return Self(
+      title:
+        dollarsPerKilowattHour == nil
+        ? copy.generalPriceUnavailable
+        : copy.generalPrice,
+      value: price(dollarsPerKilowattHour, copy: copy, locale: locale),
+      icon: "bolt.fill",
+      color: dollarsPerKilowattHour == nil ? .secondary : .orange,
+      accessibilityLabel:
+        dollarsPerKilowattHour == nil
+        ? copy.generalPriceUnavailableAccessibility
+        : copy.generalPriceAccessibility
+    )
+  }
+
+  static func feedInPrice(
+    dollarsPerKilowattHour: Double?,
+    mode: BruceMode,
+    locale: Locale = .current
+  ) -> Self {
+    let copy = HomeEnergyCopy(mode: mode)
+    if let dollarsPerKilowattHour, dollarsPerKilowattHour < 0 {
+      return Self(
+        title: copy.feedInCharge,
+        value: price(abs(dollarsPerKilowattHour), copy: copy, locale: locale),
+        icon: "exclamationmark.triangle.fill",
+        color: .orange,
+        accessibilityLabel: copy.feedInChargeAccessibility
+      )
+    }
+    return Self(
+      title:
+        dollarsPerKilowattHour == nil
+        ? copy.feedInPriceUnavailable
+        : copy.feedInPrice,
+      value: price(dollarsPerKilowattHour, copy: copy, locale: locale),
+      icon: "arrow.up.right.circle.fill",
+      color: dollarsPerKilowattHour == nil ? .secondary : .green,
+      accessibilityLabel:
+        dollarsPerKilowattHour == nil
+        ? copy.feedInPriceUnavailableAccessibility
+        : copy.feedInPriceAccessibility
+    )
+  }
+
   private static func power(
     _ kilowatts: Double?,
     copy: HomeEnergyCopy,
@@ -125,6 +176,20 @@ struct HomeEnergyMetricPresentation {
         .scale(1)
         .precision(.fractionLength(0))
     )
+  }
+
+  private static func price(
+    _ dollarsPerKilowattHour: Double?,
+    copy: HomeEnergyCopy,
+    locale: Locale
+  ) -> String {
+    guard let dollarsPerKilowattHour else { return copy.unavailable }
+    let currency = dollarsPerKilowattHour.formatted(
+      .currency(code: "AUD")
+        .locale(locale)
+        .precision(.fractionLength(3))
+    )
+    return "\(currency)/kWh"
   }
 
   private static func batteryIcon(_ value: Double?) -> String {

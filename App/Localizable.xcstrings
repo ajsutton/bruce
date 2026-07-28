@@ -2913,6 +2913,166 @@
         }
       }
     },
+    "homeEnergy.feedInPrice": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feed-in price"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solar Payback"
+          }
+        }
+      }
+    },
+    "homeEnergy.feedInCharge": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export charge"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paying to Flick It Back"
+          }
+        }
+      }
+    },
+    "homeEnergy.feedInChargeAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Electricity export charge"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Electricity export charge — paying to flick it back"
+          }
+        }
+      }
+    },
+    "homeEnergy.feedInPriceAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Electricity feed-in price"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Electricity feed-in price — solar payback"
+          }
+        }
+      }
+    },
+    "homeEnergy.feedInPriceUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feed-in price"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solar Payback Has Gone Walkabout"
+          }
+        }
+      }
+    },
+    "homeEnergy.feedInPriceUnavailableAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Electricity feed-in price unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Electricity feed-in price unavailable — solar payback has gone walkabout"
+          }
+        }
+      }
+    },
+    "homeEnergy.generalPrice": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General price"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Price of a Power Shout"
+          }
+        }
+      }
+    },
+    "homeEnergy.generalPriceAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General electricity price"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General electricity price — price of a power shout"
+          }
+        }
+      }
+    },
+    "homeEnergy.generalPriceUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General price"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Power Price Has Gone Walkabout"
+          }
+        }
+      }
+    },
+    "homeEnergy.generalPriceUnavailableAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General electricity price unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General electricity price unavailable — power price has gone walkabout"
+          }
+        }
+      }
+    },
     "homeEnergy.battery": {
       "localizations": {
         "en": {
@@ -3185,18 +3345,18 @@
         }
       }
     },
-    "homeEnergy.powerNow": {
+    "homeEnergy.energyNow": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Power now"
+            "value": "Energy now"
           }
         },
         "en-AU": {
           "stringUnit": {
             "state": "translated",
-            "value": "What the Juice Is Doing"
+            "value": "What the Juice Is Up To"
           }
         }
       }

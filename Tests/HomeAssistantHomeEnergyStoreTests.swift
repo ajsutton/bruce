@@ -132,7 +132,9 @@ final class HomeAssistantHomeEnergyStoreTests: XCTestCase {
       pvPowerKilowatts: solarPower,
       batteryStateOfCharge: 76,
       homeConsumptionKilowatts: 3.1,
-      gridPowerKilowatts: -2.7
+      gridPowerKilowatts: -2.7,
+      generalPriceDollarsPerKilowattHour: 0.341,
+      feedInPriceDollarsPerKilowattHour: 0.127
     )
   }
 }

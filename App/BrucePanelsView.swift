@@ -61,7 +61,9 @@ private enum BrucePanelsPreview {
         pvPowerKilowatts: 8.4,
         batteryStateOfCharge: 76,
         homeConsumptionKilowatts: 3.1,
-        gridPowerKilowatts: -2.7
+        gridPowerKilowatts: -2.7,
+        generalPriceDollarsPerKilowattHour: 0.341,
+        feedInPriceDollarsPerKilowattHour: 0.127
       ),
       isLive: true
     )

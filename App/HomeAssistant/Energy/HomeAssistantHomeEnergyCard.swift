@@ -15,7 +15,7 @@ struct HomeAssistantHomeEnergyCard: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
       HStack(alignment: .firstTextBaseline) {
-        Text(copy.powerNow)
+        Text(copy.energyNow)
           .font(.headline)
           .foregroundStyle(primaryForeground)
         Spacer()
@@ -96,6 +96,20 @@ struct HomeAssistantHomeEnergyCard: View {
     )
     metric(
       .grid(kilowatts: store.snapshot.gridPowerKilowatts, mode: mode)
+    )
+    metric(
+      .generalPrice(
+        dollarsPerKilowattHour:
+          store.snapshot.generalPriceDollarsPerKilowattHour,
+        mode: mode
+      )
+    )
+    metric(
+      .feedInPrice(
+        dollarsPerKilowattHour:
+          store.snapshot.feedInPriceDollarsPerKilowattHour,
+        mode: mode
+      )
     )
   }
 

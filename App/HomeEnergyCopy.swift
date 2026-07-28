@@ -5,7 +5,7 @@ struct HomeEnergyCopy {
     copy = BruceCopy(mode: mode)
   }
 
-  var powerNow: String { text(.powerNow) }
+  var energyNow: String { text(.energyNow) }
   var manage: String { text(.manage) }
   var refresh: String { text(.refresh) }
   var updating: String { text(.updating) }
@@ -22,6 +22,11 @@ struct HomeEnergyCopy {
   var gridExport: String { text(.gridExport) }
   var gridImport: String { text(.gridImport) }
   var gridIdle: String { text(.gridIdle) }
+  var generalPrice: String { text(.generalPrice) }
+  var generalPriceUnavailable: String { text(.generalPriceUnavailable) }
+  var feedInPrice: String { text(.feedInPrice) }
+  var feedInCharge: String { text(.feedInCharge) }
+  var feedInPriceUnavailable: String { text(.feedInPriceUnavailable) }
   var pvGenerationAccessibility: String { text(.pvGenerationAccessibility) }
   var pvGenerationUnavailableAccessibility: String {
     text(.pvGenerationUnavailableAccessibility)
@@ -34,6 +39,15 @@ struct HomeEnergyCopy {
   var gridExportAccessibility: String { text(.gridExportAccessibility) }
   var gridImportAccessibility: String { text(.gridImportAccessibility) }
   var gridIdleAccessibility: String { text(.gridIdleAccessibility) }
+  var generalPriceAccessibility: String { text(.generalPriceAccessibility) }
+  var generalPriceUnavailableAccessibility: String {
+    text(.generalPriceUnavailableAccessibility)
+  }
+  var feedInPriceAccessibility: String { text(.feedInPriceAccessibility) }
+  var feedInChargeAccessibility: String { text(.feedInChargeAccessibility) }
+  var feedInPriceUnavailableAccessibility: String {
+    text(.feedInPriceUnavailableAccessibility)
+  }
 
   func lastKnown(_ value: String) -> String {
     "\(lastKnown): \(value)"
@@ -59,19 +73,24 @@ struct HomeEnergyCopy {
 
 extension HomeEnergyCopy {
   fileprivate enum Key {
-    case powerNow, manage, refresh, updating, updatingLastKnownStatus, lastKnown, unavailable
+    case energyNow, manage, refresh, updating, updatingLastKnownStatus, lastKnown, unavailable
     case updatingLastKnown, pvGeneration, pvGenerationUnavailable, battery, batteryUnavailable
     case usage, usageUnavailable, grid, gridExport, gridImport, gridIdle
+    case generalPrice, generalPriceUnavailable, feedInPrice, feedInCharge
+    case feedInPriceUnavailable
     case pvGenerationAccessibility, pvGenerationUnavailableAccessibility
     case batteryAccessibility, batteryUnavailableAccessibility
     case usageAccessibility, usageUnavailableAccessibility
     case gridAccessibility, gridExportAccessibility, gridImportAccessibility
     case gridIdleAccessibility
+    case generalPriceAccessibility, generalPriceUnavailableAccessibility
+    case feedInPriceAccessibility, feedInChargeAccessibility
+    case feedInPriceUnavailableAccessibility
     case connectionNeedsManagement, connectionUnavailable, signInRequired, invalidResponse
 
     var entry: BruceCopy.Entry {
       switch self {
-      case .powerNow: .localized("homeEnergy.powerNow")
+      case .energyNow: .localized("homeEnergy.energyNow")
       case .manage: .localized("homeEnergy.manage")
       case .refresh: .localized("homeEnergy.refresh")
       case .updating: .localized("homeEnergy.updating")
@@ -94,6 +113,13 @@ extension HomeEnergyCopy {
       case .gridExport: .localized("homeEnergy.gridExport")
       case .gridImport: .localized("homeEnergy.gridImport")
       case .gridIdle: .localized("homeEnergy.gridIdle")
+      case .generalPrice: .localized("homeEnergy.generalPrice")
+      case .generalPriceUnavailable:
+        .localized("homeEnergy.generalPriceUnavailable")
+      case .feedInPrice: .localized("homeEnergy.feedInPrice")
+      case .feedInCharge: .localized("homeEnergy.feedInCharge")
+      case .feedInPriceUnavailable:
+        .localized("homeEnergy.feedInPriceUnavailable")
       case .pvGenerationAccessibility:
         .localized("homeEnergy.pvGenerationAccessibility")
       case .pvGenerationUnavailableAccessibility:
@@ -114,6 +140,16 @@ extension HomeEnergyCopy {
         .localized("homeEnergy.gridImportAccessibility")
       case .gridIdleAccessibility:
         .localized("homeEnergy.gridIdleAccessibility")
+      case .generalPriceAccessibility:
+        .localized("homeEnergy.generalPriceAccessibility")
+      case .generalPriceUnavailableAccessibility:
+        .localized("homeEnergy.generalPriceUnavailableAccessibility")
+      case .feedInPriceAccessibility:
+        .localized("homeEnergy.feedInPriceAccessibility")
+      case .feedInChargeAccessibility:
+        .localized("homeEnergy.feedInChargeAccessibility")
+      case .feedInPriceUnavailableAccessibility:
+        .localized("homeEnergy.feedInPriceUnavailableAccessibility")
       case .connectionNeedsManagement:
         .localized("homeEnergy.connectionNeedsManagement")
       case .connectionUnavailable:

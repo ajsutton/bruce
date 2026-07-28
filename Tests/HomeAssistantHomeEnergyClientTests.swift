@@ -19,7 +19,9 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
         pvPowerKilowatts: 8.4,
         batteryStateOfCharge: 76,
         homeConsumptionKilowatts: 3.1,
-        gridPowerKilowatts: -2.7
+        gridPowerKilowatts: -2.7,
+        generalPriceDollarsPerKilowattHour: 0.341,
+        feedInPriceDollarsPerKilowattHour: 0.127
       )
     )
     XCTAssertEqual(fixture.apiLoader.requests.first?.url?.path, "/api/states")
@@ -43,7 +45,8 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
       solarPower: "8.4",
       battery: "76",
       usage: "3.1",
-      grid: "-2.7"
+      grid: "-2.7",
+      prices: (general: "0.341", feedIn: "0.127")
     )
   }
 
@@ -52,7 +55,8 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
       solarPower: "-1",
       battery: "101",
       usage: "unknown",
-      grid: "unavailable"
+      grid: "unavailable",
+      prices: (general: "NaN", feedIn: "infinite")
     )
   }
 
@@ -60,7 +64,8 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
     solarPower: String,
     battery: String,
     usage: String,
-    grid: String
+    grid: String,
+    prices: (general: String, feedIn: String)
   ) -> Data {
     Data(
       """
@@ -83,6 +88,16 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
         {
           "entity_id": "sensor.sigen_plant_grid_active_power",
           "state": "\(grid)",
+          "attributes": {}
+        },
+        {
+          "entity_id": "sensor.electricity_general_price",
+          "state": "\(prices.general)",
+          "attributes": {}
+        },
+        {
+          "entity_id": "sensor.electricity_feed_in_price",
+          "state": "\(prices.feedIn)",
           "attributes": {}
         }
       ]
