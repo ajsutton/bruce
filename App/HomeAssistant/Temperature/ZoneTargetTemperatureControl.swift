@@ -11,6 +11,10 @@ struct ZoneTargetTemperatureControl: View {
     TemperatureCardStyle(reading: reading, mode: mode)
   }
 
+  private var copy: TemperatureCopy {
+    TemperatureCopy(mode: mode)
+  }
+
   private var step: Double {
     reading.effectiveTargetValueStep
   }
@@ -33,11 +37,11 @@ struct ZoneTargetTemperatureControl: View {
 
         VStack(spacing: 0) {
           adjustmentButton(
-            accessibilityLabel: "Increase \(reading.name) target",
+            accessibilityLabel: copy.increaseTarget(name: reading.name),
             value: adjustedTarget(by: step)
           )
           adjustmentButton(
-            accessibilityLabel: "Decrease \(reading.name) target",
+            accessibilityLabel: copy.decreaseTarget(name: reading.name),
             value: adjustedTarget(by: -step)
           )
         }
@@ -51,7 +55,7 @@ struct ZoneTargetTemperatureControl: View {
       ) {}
       .labelsHidden()
       .disabled(!isEnabled)
-      .accessibilityLabel("\(reading.name) target")
+      .accessibilityLabel(copy.target(name: reading.name))
       .accessibilityValue(targetAccessibilityValue)
       .tint(style.controlTint)
       .foregroundStyle(style.primaryForeground)
@@ -105,7 +109,7 @@ struct ZoneTargetTemperatureControl: View {
 
   private var targetAccessibilityValue: Text {
     guard let value = reading.targetValue else {
-      return Text("Unavailable")
+      return Text(copy.unavailable)
     }
     let formattedValue = value.formatted(
       .number.precision(.fractionLength(fractionLength))

@@ -6,9 +6,18 @@ struct HomeAssistantPresentation: Equatable {
     case panels
   }
 
+  enum ConnectionProblem: Equatable {
+    case removalFailed
+    case restoreFailed
+    case disconnectFailed
+    case signInRequired
+    case unavailable
+    case needsAttention
+  }
+
   let screen: Screen
   let isConnecting: Bool
-  let connectionProblem: String?
+  let connectionProblem: ConnectionProblem?
   let connection: HomeAssistantConnectionState
 
   var canRefresh: Bool {
@@ -68,16 +77,16 @@ struct HomeAssistantPresentation: Equatable {
   private static func connectionProblem(
     for step: HomeAssistantSetupStore.Step,
     connectionCheckState: HomeAssistantSetupStore.ConnectionCheckState
-  ) -> String? {
+  ) -> ConnectionProblem? {
     switch step {
     case .restoring where connectionCheckState == .disconnectFailed:
-      "Bruce couldn’t remove the saved Home Assistant connection."
+      .removalFailed
     case .restoreFailed:
-      "The saved Home Assistant connection couldn’t be restored."
+      .restoreFailed
     case .configured:
       configuredConnectionProblem(connectionCheckState)
     case .connected where connectionCheckState == .disconnectFailed:
-      "Bruce couldn’t disconnect from Home Assistant. The saved connection is still present."
+      .disconnectFailed
     case .restoring, .introduction, .chooseServer, .manualEntry, .confirmation,
       .unencryptedWarning, .onboardingRequired, .readyForAuthentication, .authenticationFailed,
       .connected, .cancelled:
@@ -87,18 +96,18 @@ struct HomeAssistantPresentation: Equatable {
 
   private static func configuredConnectionProblem(
     _ connectionCheckState: HomeAssistantSetupStore.ConnectionCheckState
-  ) -> String? {
+  ) -> ConnectionProblem? {
     switch connectionCheckState {
     case .reauthenticationRequired:
-      "Sign in to Home Assistant again to update temperatures."
+      .signInRequired
     case .failed(.networkUnavailable):
-      "Home Assistant can’t be reached. Temperatures may be out of date."
+      .unavailable
     case .failed, .idle, .succeeded:
-      "The Home Assistant connection needs attention."
+      .needsAttention
     case .checking:
       nil
     case .disconnectFailed:
-      "Bruce couldn’t disconnect from Home Assistant. The saved connection is still present."
+      .disconnectFailed
     }
   }
 }

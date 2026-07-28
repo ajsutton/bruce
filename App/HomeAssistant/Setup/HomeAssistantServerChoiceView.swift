@@ -7,7 +7,15 @@ import SwiftUI
 struct HomeAssistantServerChoiceView: View {
   @Environment(\.openURL) private var openURL
   @ObservedObject var store: HomeAssistantSetupStore
-  let copy: HomeAssistantCopy
+  let mode: BruceMode
+
+  private var copy: HomeAssistantSetupCopy {
+    HomeAssistantSetupCopy(mode: mode)
+  }
+
+  private var interfaceCopy: HomeAssistantInterfaceCopy {
+    HomeAssistantInterfaceCopy(mode: mode)
+  }
 
   var body: some View {
     List {
@@ -52,11 +60,13 @@ struct HomeAssistantServerChoiceView: View {
                 .contentShape(.rect)
               }
               .buttonStyle(.plain)
-              .accessibilityValue(store.selectedInstanceID == instance.id ? "Selected" : "")
+              .accessibilityValue(
+                store.selectedInstanceID == instance.id ? interfaceCopy.selected : ""
+              )
             }
           }
         } header: {
-          Text("Homes")
+          Text(interfaceCopy.homesSection)
         } footer: {
           Text(store.isSearching ? copy.searchingFooter : copy.searchInactive)
         }
@@ -75,7 +85,7 @@ struct HomeAssistantServerChoiceView: View {
       }
     }
     .safeAreaInset(edge: .bottom) {
-      Button("Continue") {
+      Button(interfaceCopy.continueButton) {
         store.confirmSelectedInstance()
       }
       .buttonStyle(.borderedProminent)
@@ -96,7 +106,7 @@ struct HomeAssistantServerChoiceView: View {
         Text(copy.localNetworkAccessOff)
           .font(.headline)
         Text(permissionRecoveryMessage)
-        Button("Open Settings") {
+        Button(interfaceCopy.openSettings) {
           if let settingsURL {
             openURL(settingsURL)
           }
@@ -106,7 +116,7 @@ struct HomeAssistantServerChoiceView: View {
       VStack(alignment: .leading, spacing: 8) {
         Text(copy.discoveryFailed)
           .font(.headline)
-        Button("Try Again") {
+        Button(interfaceCopy.retryDiscovery) {
           store.startDiscovery()
         }
       }
@@ -116,10 +126,10 @@ struct HomeAssistantServerChoiceView: View {
   private func instanceDetail(_ instance: HomeAssistantInstance) -> String? {
     let address = instance.internalURL ?? instance.externalURL
     if address == nil {
-      return "Resolving address…"
+      return interfaceCopy.resolvingAddress
     }
     if instance.internalURL == nil, instance.eligibleExternalURL == nil {
-      return "Remote access requires HTTPS"
+      return interfaceCopy.remoteAccessRequiresHTTPS
     }
     let detail = [address?.host(), instance.version].compactMap(\.self).joined(separator: " · ")
     return detail.isEmpty ? nil : detail
@@ -127,9 +137,9 @@ struct HomeAssistantServerChoiceView: View {
 
   private var permissionRecoveryMessage: String {
     #if os(iOS)
-      "Allow Bruce in Settings, or enter the server address manually."
+      interfaceCopy.allowLocalNetworkIOS
     #else
-      "Allow Bruce in System Settings, or enter the server address manually."
+      interfaceCopy.allowLocalNetworkMac
     #endif
   }
 

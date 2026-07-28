@@ -33,7 +33,7 @@ final class HomeAssistantPresentationTests: XCTestCase {
     XCTAssertEqual(presentation.screen, .panels)
     XCTAssertEqual(
       presentation.connectionProblem,
-      "Home Assistant can’t be reached. Temperatures may be out of date."
+      .unavailable
     )
     XCTAssertEqual(presentation.connection, .unavailable)
   }
@@ -57,9 +57,11 @@ final class HomeAssistantPresentationTests: XCTestCase {
   }
 
   func testSmartChargingLabelDoesNotImplyTheBatteryIsThePowerSource() {
-    XCTAssertEqual(HomeAssistantEVChargingMode.smart.title, "Smart")
+    let copy = EVChargingCopy(mode: .standard)
+
+    XCTAssertEqual(copy.chargingModeTitle(.smart), "Smart")
     XCTAssertEqual(
-      HomeAssistantEVChargingMode.smart.neutralDescription,
+      copy.chargingModeDescription(.smart),
       "Charges when the home has energy to spare"
     )
   }
@@ -81,9 +83,15 @@ final class HomeAssistantPresentationTests: XCTestCase {
       mode: .full
     )
 
-    XCTAssertEqual(presentation.text, "Taking a breather")
+    XCTAssertEqual(
+      presentation.text,
+      "Car charging’s parked — saving the house battery’s bacon"
+    )
     XCTAssertEqual(presentation.icon, "pause.circle.fill")
-    XCTAssertEqual(presentation.accessibilityText, "Taking a breather")
+    XCTAssertEqual(
+      presentation.accessibilityText,
+      "Car charging’s parked — saving the house battery’s bacon"
+    )
   }
 
   private func makePresentation(

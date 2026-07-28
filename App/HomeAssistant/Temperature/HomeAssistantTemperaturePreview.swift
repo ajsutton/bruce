@@ -15,7 +15,7 @@ import SwiftUI
 #Preview("Full Bruce Problem") {
   HomeAssistantTemperaturePreview.view(
     mode: .full,
-    connectionProblem: "Sign in to Home Assistant again to update temperatures."
+    connectionProblem: HomeAssistantInterfaceCopy(mode: .full).presentationProblem(.signInRequired)
   )
 }
 

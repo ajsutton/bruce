@@ -33,7 +33,7 @@ final class ConcurrentClimateControlStoreTests: XCTestCase {
 
     XCTAssertEqual(
       store.controlProblem,
-      .init(message: "Bruce couldn’t update Second.")
+      .init(name: "Second")
     )
     loader.finishRequest(0)
     await load.value
@@ -67,7 +67,7 @@ final class ConcurrentClimateControlStoreTests: XCTestCase {
 
     XCTAssertEqual(
       store.controlProblem,
-      .init(message: "Bruce couldn’t update First.")
+      .init(name: "First")
     )
     loader.finishRequest(0)
     await load.value

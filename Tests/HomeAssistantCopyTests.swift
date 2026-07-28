@@ -3,94 +3,110 @@ import XCTest
 @testable import Bruce
 
 final class HomeAssistantCopyTests: XCTestCase {
-  func testRoutineSetupAndSuccessCopyChangesWithBrandMode() {
-    let standard = HomeAssistantCopy(mode: .standard)
-    let full = HomeAssistantCopy(mode: .full)
-
-    XCTAssertNotEqual(standard.introductionTitle, full.introductionTitle)
-    XCTAssertNotEqual(standard.searching, full.searching)
-    XCTAssertNotEqual(standard.searchInactive, full.searchInactive)
-    XCTAssertNotEqual(standard.findHomeAssistant, full.findHomeAssistant)
-    XCTAssertNotEqual(standard.enterAddressManually, full.enterAddressManually)
-    XCTAssertNotEqual(standard.searchAgain, full.searchAgain)
-    XCTAssertNotEqual(standard.chooseAnotherServer, full.chooseAnotherServer)
-    XCTAssertNotEqual(standard.chooseDiscoveredHome, full.chooseDiscoveredHome)
-    XCTAssertNotEqual(standard.manageConnection, full.manageConnection)
-    XCTAssertNotEqual(standard.testConnection, full.testConnection)
-    XCTAssertNotEqual(standard.changeServer, full.changeServer)
-    XCTAssertNotEqual(standard.setUpHomeAssistant, full.setUpHomeAssistant)
-    XCTAssertNotEqual(
-      standard.connectedTitle(instanceName: "Home"),
-      full.connectedTitle(instanceName: "Home")
-    )
-    XCTAssertNotEqual(standard.connectionSucceeded, full.connectionSucceeded)
-    XCTAssertNotEqual(standard.notConnected, full.notConnected)
-    XCTAssertNotEqual(standard.connectedStatus, full.connectedStatus)
-    XCTAssertEqual(standard.connectionChecking, full.connectionChecking)
+  func testRoutineSetupAndConnectionCopyChangesWithBrandMode() {
+    assertBrandCopyDiffers(\.navigationTitle)
+    assertBrandCopyDiffers(\.introductionTitle)
+    assertBrandCopyDiffers(\.introductionDescription)
+    assertBrandCopyDiffers(\.searching)
+    assertBrandCopyDiffers(\.noHomesFound)
+    assertBrandCopyDiffers(\.findHomeAssistant)
+    assertBrandCopyDiffers(\.enterAddressManually)
+    assertBrandCopyDiffers(\.searchAgain)
+    assertBrandCopyDiffers(\.chooseAnotherServer)
+    assertBrandCopyDiffers(\.recoveryChooseAnotherServer)
+    assertBrandCopyDiffers(\.restoringTitle)
+    assertBrandCopyDiffers(\.restoringDetail)
+    assertBrandCopyDiffers(\.localNetworkAccessOff)
+    assertBrandCopyDiffers(\.discoveryFailed)
+    assertBrandCopyDiffers(\.onboardingTitle)
+    assertBrandCopyDiffers(\.openingHomeAssistant)
+    assertBrandCopyDiffers(\.connectionChecking)
+    assertBrandCopyDiffers(\.connectionSucceeded)
+    assertBrandCopyDiffers(\.reauthenticationRequired)
+    assertBrandCopyDiffers(\.disconnectFailed)
+    assertBrandCopyDiffers(\.restoreFailedTitle)
+    assertBrandCopyDiffers(\.restoreFailedMessage)
   }
 
-  func testAuthenticationRecoveryCopyDoesNotChangeWithBrandMode() {
-    let standard = HomeAssistantCopy(mode: .standard)
-    let full = HomeAssistantCopy(mode: .full)
+  func testAuthenticationAndRecoveryCopyChangesWithBrandMode() {
+    let standard = HomeAssistantAuthenticationCopy(mode: .standard)
+    let full = HomeAssistantAuthenticationCopy(mode: .full)
 
     for problem in authenticationProblems {
-      XCTAssertEqual(
+      XCTAssertNotEqual(
         standard.authenticationTitle(problem),
         full.authenticationTitle(problem)
       )
-      XCTAssertEqual(
+      XCTAssertNotEqual(
         standard.authenticationMessage(problem),
         full.authenticationMessage(problem)
       )
     }
-  }
-
-  func testValidationCopyDoesNotChangeWithBrandMode() {
-    let standard = HomeAssistantCopy(mode: .standard)
-    let full = HomeAssistantCopy(mode: .full)
-
     for error in validationErrors {
-      XCTAssertEqual(
+      XCTAssertNotEqual(
         standard.manualValidationMessage(error),
         full.manualValidationMessage(error)
       )
     }
   }
 
-  func testSafetyAndRecoveryCopyDoesNotChangeWithBrandMode() {
-    let standard = HomeAssistantCopy(mode: .standard)
-    let full = HomeAssistantCopy(mode: .full)
+  func testConnectionFailuresKeepFullBruceVoice() {
+    let standard = HomeAssistantSetupCopy(mode: .standard)
+    let full = HomeAssistantSetupCopy(mode: .full)
 
-    XCTAssertEqual(standard.restoringTitle, full.restoringTitle)
-    XCTAssertEqual(standard.restoringDetail, full.restoringDetail)
-    XCTAssertEqual(standard.localNetworkAccessOff, full.localNetworkAccessOff)
-    XCTAssertEqual(standard.discoveryFailed, full.discoveryFailed)
-    XCTAssertEqual(standard.unencryptedTitle, full.unencryptedTitle)
-    XCTAssertEqual(standard.unencryptedMessage, full.unencryptedMessage)
-    XCTAssertEqual(standard.onboardingTitle, full.onboardingTitle)
-    XCTAssertEqual(standard.openingHomeAssistant, full.openingHomeAssistant)
     for problem in connectionCheckProblems {
-      XCTAssertEqual(
+      XCTAssertNotEqual(
         standard.connectionFailed(problem),
         full.connectionFailed(problem)
       )
-      XCTAssertEqual(
+      XCTAssertNotEqual(
         standard.connectionFailedStatus(problem),
         full.connectionFailedStatus(problem)
       )
-      XCTAssertEqual(
+      XCTAssertNotEqual(
         standard.connectionCheckAnnouncement(.failed(problem)),
         full.connectionCheckAnnouncement(.failed(problem))
       )
     }
-    XCTAssertEqual(standard.reauthenticationRequired, full.reauthenticationRequired)
-    XCTAssertEqual(standard.disconnectFailed, full.disconnectFailed)
-    XCTAssertEqual(
-      standard.recoveryChooseAnotherServer,
-      full.recoveryChooseAnotherServer
+  }
+
+  func testTransportSecurityWarningRetainsFullBruceVoice() {
+    let standard = HomeAssistantSetupCopy(mode: .standard)
+    let full = HomeAssistantSetupCopy(mode: .full)
+    let standardInterface = HomeAssistantInterfaceCopy(mode: .standard)
+    let fullInterface = HomeAssistantInterfaceCopy(mode: .full)
+
+    XCTAssertNotEqual(standard.unencryptedTitle, full.unencryptedTitle)
+    XCTAssertNotEqual(standard.unencryptedMessage, full.unencryptedMessage)
+    XCTAssertNotEqual(standardInterface.continueWithHTTP, fullInterface.continueWithHTTP)
+    XCTAssertNotEqual(standardInterface.goBackFromHTTP, fullInterface.goBackFromHTTP)
+    XCTAssertTrue(full.unencryptedMessage.contains("HTTP"))
+    XCTAssertTrue(full.unencryptedMessage.contains("Home Assistant sign-in"))
+  }
+
+  func testFullBruceRetryActionsStateTheirIntent() {
+    let setup = HomeAssistantSetupCopy(mode: .full)
+    let interface = HomeAssistantInterfaceCopy(mode: .full)
+
+    XCTAssertTrue(setup.searchAgain.contains("Search Again"))
+    XCTAssertTrue(interface.signInAgain.contains("Sign In Again"))
+    XCTAssertTrue(interface.retryAuthentication.contains("Sign-In Again"))
+    XCTAssertTrue(interface.retryAuthentication.contains("Home Assistant"))
+    XCTAssertTrue(interface.retryDiscovery.contains("Search"))
+    XCTAssertTrue(interface.retryDiscovery.contains("Home Assistant"))
+  }
+
+  private func assertBrandCopyDiffers(
+    _ keyPath: KeyPath<HomeAssistantSetupCopy, String>,
+    file: StaticString = #filePath,
+    line: UInt = #line
+  ) {
+    XCTAssertNotEqual(
+      HomeAssistantSetupCopy(mode: .standard)[keyPath: keyPath],
+      HomeAssistantSetupCopy(mode: .full)[keyPath: keyPath],
+      file: file,
+      line: line
     )
-    XCTAssertEqual(standard.restoreFailedTitle, full.restoreFailedTitle)
-    XCTAssertEqual(standard.restoreFailedMessage, full.restoreFailedMessage)
   }
 
   private var authenticationProblems: [HomeAssistantSetupStore.AuthenticationProblem] {

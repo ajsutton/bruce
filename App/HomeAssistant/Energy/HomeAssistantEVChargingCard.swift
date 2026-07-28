@@ -9,6 +9,10 @@ struct HomeAssistantEVChargingCard: View {
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
 
+  private var copy: EVChargingCopy {
+    EVChargingCopy(mode: mode)
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
       header
@@ -59,17 +63,17 @@ struct HomeAssistantEVChargingCard: View {
         Image(systemName: "exclamationmark.triangle.fill")
           .foregroundStyle(.red)
           .accessibilityHidden(true)
-        Text(problem.message)
+        Text(copy.problem(problem))
           .foregroundStyle(primaryForeground)
       }
       .font(.footnote)
       .frame(maxWidth: .infinity, alignment: .leading)
 
       if problem.needsConnectionManagement {
-        Button("Manage", action: manageConnection)
+        Button(copy.manage, action: manageConnection)
           .frame(minHeight: 44)
       } else {
-        Button(problem.refreshButtonTitle, action: requestRefresh)
+        Button(problem.refreshButtonTitle(copy: copy), action: requestRefresh)
           .frame(minHeight: 44)
       }
     }
@@ -79,12 +83,12 @@ struct HomeAssistantEVChargingCard: View {
   @ViewBuilder
   private var chargingModePicker: some View {
     if dynamicTypeSize.isAccessibilitySize {
-      Picker("Charging mode", selection: selection) {
+      Picker(copy.chargingMode, selection: selection) {
         chargingModeOptions
       }
       .pickerStyle(.menu)
     } else {
-      Picker("Charging mode", selection: selection) {
+      Picker(copy.chargingMode, selection: selection) {
         chargingModeOptions
       }
       .pickerStyle(.segmented)
@@ -94,8 +98,9 @@ struct HomeAssistantEVChargingCard: View {
   @ViewBuilder
   private var chargingModeOptions: some View {
     ForEach(HomeAssistantEVChargingMode.allCases, id: \.self) { chargingMode in
-      Text(chargingMode.title)
+      Text(copy.chargingModeTitle(chargingMode))
         .tag(Optional(chargingMode))
+        .accessibilityLabel(copy.chargingModeAccessibilityLabel(chargingMode))
     }
   }
 
@@ -132,7 +137,7 @@ struct HomeAssistantEVChargingCard: View {
 
   private var chargerDescription: some View {
     VStack(alignment: .leading, spacing: 2) {
-      Text("Car charger")
+      Text(copy.carCharger)
         .font(.headline)
         .foregroundStyle(primaryForeground)
       Text(status)
@@ -167,41 +172,31 @@ struct HomeAssistantEVChargingCard: View {
 
   private var status: String {
     if store.isLoading && store.mode == nil {
-      return "Checking mode"
+      return copy.checkingMode
     }
     if !store.isLive && !store.isLoading {
-      return qualifiedStatus(prefix: "Last known")
+      return store.mode.map {
+        copy.lastKnown(copy.chargingModeDescription($0))
+      } ?? copy.modeUnavailable
     }
-    return store.mode?.description(for: mode) ?? "Mode unavailable"
-  }
-
-  private func qualifiedStatus(prefix: String) -> String {
-    guard let mode = store.mode else {
-      return prefix == "Last known"
-        ? "Mode unavailable"
-        : prefix.replacingOccurrences(
-          of: " — last known",
-          with: ""
-        )
-    }
-    return "\(prefix): \(mode.neutralDescription)"
+    return store.mode.map(copy.chargingModeDescription) ?? copy.modeUnavailable
   }
 
   private var progressLabel: String {
-    store.isChanging ? "Changing charging mode" : "Checking charging mode"
+    store.isChanging ? copy.changingChargingMode : copy.checkingChargingMode
   }
 
   private var accessibilityValue: String {
     if store.isChanging {
-      return "\(store.mode?.title ?? "Requested mode"). Updating"
+      return "\(store.mode.map(copy.chargingModeTitle) ?? copy.requestedMode). \(copy.updating)"
     }
     if store.isLoading, let currentMode = store.mode {
-      return "\(currentMode.title). Checking current mode"
+      return "\(copy.chargingModeTitle(currentMode)). \(copy.checkingCurrentMode)"
     }
     guard store.isLive else {
-      return store.mode.map { "Last known: \($0.title)" } ?? "Unavailable"
+      return store.mode.map { copy.lastKnown(copy.chargingModeTitle($0)) } ?? copy.unavailable
     }
-    return store.mode?.title ?? "Unavailable"
+    return store.mode.map(copy.chargingModeTitle) ?? copy.unavailable
   }
 
   private var primaryForeground: AnyShapeStyle {
@@ -260,7 +255,7 @@ struct HomeAssistantEVChargingCard: View {
 }
 
 extension HomeAssistantEVChargingStore.Problem {
-  fileprivate var refreshButtonTitle: String {
-    self == .updateFailed || self == .updateTimedOut ? "Check Current Mode" : "Refresh"
+  fileprivate func refreshButtonTitle(copy: EVChargingCopy) -> String {
+    self == .updateFailed || self == .updateTimedOut ? copy.checkCurrentMode : copy.refresh
   }
 }

@@ -5,52 +5,63 @@
   struct HomeAssistantConnectionManagementView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var store: HomeAssistantSetupStore
-    let copy: HomeAssistantCopy
+    let mode: BruceMode
     let reauthenticate: () -> Void
     @State private var showsDisconnectConfirmation = false
+
+    private var setupCopy: HomeAssistantSetupCopy {
+      HomeAssistantSetupCopy(mode: mode)
+    }
+
+    private var copy: HomeAssistantInterfaceCopy {
+      HomeAssistantInterfaceCopy(mode: mode)
+    }
 
     var body: some View {
       Form {
         if let credentials = store.connectedCredentials {
-          Section("Connection") {
-            LabeledContent("Home", value: credentials.instanceName)
+          Section(copy.connectionSection) {
+            LabeledContent(copy.homeLabel, value: credentials.instanceName)
             if let internalURL = credentials.internalURL {
-              LabeledContent("Internal", value: internalURL.absoluteString)
+              LabeledContent(copy.internalRoute, value: internalURL.absoluteString)
             }
             if let externalURL = credentials.externalURL {
-              LabeledContent("External", value: externalURL.absoluteString)
+              LabeledContent(copy.externalRoute, value: externalURL.absoluteString)
             }
             LabeledContent(
-              "Last successful route",
+              copy.lastSuccessfulRoute,
               value: credentials.lastSuccessfulURL.absoluteString
             )
             connectionStatus
           }
 
           Section {
-            Button(copy.testConnection) {
+            Button(setupCopy.testConnection) {
               store.testConnection()
             }
             .disabled(store.connectionCheckState == .checking || store.isDisconnecting)
             .accessibilityValue(
-              store.connectionCheckState == .checking ? "Checking" : "Ready"
+              store.connectionCheckState == .checking ? copy.checking : copy.ready
             )
 
             if store.connectionCheckState.canSignInAgain {
-              Button("Sign In Again") {
+              Button(copy.signInAgain) {
                 reauthenticate()
                 dismiss()
               }
               .disabled(store.isDisconnecting)
             }
 
-            Button(copy.changeServer) {
+            Button(setupCopy.changeServer) {
               store.changeServer()
               dismiss()
             }
             .disabled(store.isDisconnecting)
 
-            Button(store.connectionCheckState.disconnectButtonTitle, role: .destructive) {
+            Button(
+              copy.disconnectButtonTitle(state: store.connectionCheckState),
+              role: .destructive
+            ) {
               showsDisconnectConfirmation = true
             }
             .disabled(store.isDisconnecting)
@@ -58,7 +69,7 @@
         }
       }
       .formStyle(.grouped)
-      .navigationTitle("Connection")
+      .navigationTitle(copy.connectionTitle)
       .navigationBarTitleDisplayMode(.inline)
       .onChange(of: store.connectedCredentials) { _, credentials in
         if credentials == nil {
@@ -66,20 +77,20 @@
         }
       }
       .onChange(of: store.connectionCheckState) { _, state in
-        if let announcement = copy.connectionCheckAnnouncement(state) {
+        if let announcement = setupCopy.connectionCheckAnnouncement(state) {
           AccessibilityNotification.Announcement(announcement).post()
         }
       }
       .confirmationDialog(
-        "Disconnect from Home Assistant?",
+        copy.disconnectQuestion,
         isPresented: $showsDisconnectConfirmation
       ) {
-        Button("Disconnect", role: .destructive) {
+        Button(copy.disconnect, role: .destructive) {
           store.disconnect()
         }
-        Button("Cancel", role: .cancel) {}
+        Button(copy.cancel, role: .cancel) {}
       } message: {
-        Text("Bruce will remove the saved Home Assistant connection from this device.")
+        Text(copy.disconnectExplanation)
       }
     }
 
@@ -87,29 +98,29 @@
     private var connectionStatus: some View {
       Group {
         if store.isDisconnecting {
-          LabeledContent("Status") {
+          LabeledContent(copy.status) {
             ProgressView()
               .controlSize(.small)
-              .accessibilityLabel("Disconnecting")
+              .accessibilityLabel(copy.disconnectingAccessibility)
           }
         } else {
           switch store.connectionCheckState {
           case .idle:
-            LabeledContent("Status", value: "Not checked")
+            LabeledContent(copy.status, value: copy.notChecked)
           case .checking:
-            LabeledContent("Status") {
+            LabeledContent(copy.status) {
               ProgressView()
                 .controlSize(.small)
-                .accessibilityLabel("Checking connection")
+                .accessibilityLabel(copy.checkingConnectionAccessibility)
             }
           case .succeeded:
-            LabeledContent("Status", value: copy.connectedStatus)
+            LabeledContent(copy.status, value: setupCopy.connectedStatus)
           case .failed(let problem):
-            LabeledContent("Status", value: copy.connectionFailedStatus(problem))
+            LabeledContent(copy.status, value: setupCopy.connectionFailedStatus(problem))
           case .reauthenticationRequired:
-            LabeledContent("Status", value: "Sign-in required")
+            LabeledContent(copy.status, value: copy.signInRequiredStatus)
           case .disconnectFailed:
-            LabeledContent("Status", value: copy.disconnectFailed)
+            LabeledContent(copy.status, value: setupCopy.disconnectFailed)
           }
         }
       }

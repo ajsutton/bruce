@@ -8,10 +8,14 @@ struct HomeAssistantHomeEnergyCard: View {
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
 
+  private var copy: HomeEnergyCopy {
+    HomeEnergyCopy(mode: mode)
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
       HStack(alignment: .firstTextBaseline) {
-        Text("Power now")
+        Text(copy.powerNow)
           .font(.headline)
           .foregroundStyle(primaryForeground)
         Spacer()
@@ -64,14 +68,14 @@ struct HomeAssistantHomeEnergyCard: View {
         Image(systemName: "exclamationmark.triangle.fill")
           .foregroundStyle(.red)
           .accessibilityHidden(true)
-        Text(problem.message)
+        Text(copy.problem(problem))
           .font(.footnote)
           .foregroundStyle(primaryForeground)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
 
       Button(
-        problem.needsConnectionManagement ? "Manage" : "Refresh",
+        problem.needsConnectionManagement ? copy.manage : copy.refresh,
         action: problem.needsConnectionManagement ? manageConnection : requestRefresh
       )
       .frame(minHeight: 44)
@@ -119,15 +123,17 @@ struct HomeAssistantHomeEnergyCard: View {
     .frame(maxWidth: .infinity, minHeight: 74, alignment: .leading)
     .background(metricBackground, in: RoundedRectangle(cornerRadius: 14))
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel(presentation.title)
+    .accessibilityLabel(presentation.accessibilityLabel)
     .accessibilityValue(accessibilityValue(for: presentation))
   }
 
   private var statusText: String {
     if store.showsProgress {
-      return store.snapshot.hasReadings ? "Last known · Updating" : "Updating"
+      return store.snapshot.hasReadings
+        ? copy.updatingLastKnownStatus
+        : copy.updating
     }
-    return store.snapshot.hasReadings ? "Last known" : "Unavailable"
+    return store.snapshot.hasReadings ? copy.lastKnown : copy.unavailable
   }
 
   private var showsStatus: Bool {
@@ -138,19 +144,19 @@ struct HomeAssistantHomeEnergyCard: View {
     for presentation: HomeEnergyMetricPresentation
   ) -> String {
     if store.showsProgress {
-      return presentation.value == "Unavailable"
-        ? "Updating. Unavailable"
-        : "Updating. Last known: \(presentation.value)"
+      return presentation.value == copy.unavailable
+        ? "\(copy.updating). \(copy.unavailable)"
+        : copy.updating(lastKnown: presentation.value)
     }
     if store.isLive {
       return presentation.value
     }
-    if presentation.value == "Unavailable" {
-      return "Unavailable"
+    if presentation.value == copy.unavailable {
+      return copy.unavailable
     }
     return store.snapshot.hasReadings
-      ? "Last known: \(presentation.value)"
-      : "Unavailable"
+      ? copy.lastKnown(presentation.value)
+      : copy.unavailable
   }
 
   private func metricColor(_ color: Color) -> Color {

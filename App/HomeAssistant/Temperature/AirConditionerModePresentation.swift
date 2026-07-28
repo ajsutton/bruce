@@ -6,45 +6,70 @@ struct AirConditionerModePresentation {
   let showsName: Bool
   let style: AirConditionerCardStyle
 
+  private var copy: TemperatureCopy {
+    TemperatureCopy(mode: mode)
+  }
+
   var label: String {
     switch reading.operatingMode {
     case .automatic:
-      "Auto"
+      copy.automatic
     case .cooling:
-      "Cool"
+      copy.cooling
     case .drying:
-      "Dry"
+      copy.drying
     case .fanOnly:
-      "Fan"
+      copy.fanOnly
     case .heating:
-      "Heat"
+      copy.heating
     case .off:
-      "Off"
+      copy.powerOff
     case .active:
-      "On"
+      copy.powerOn
     case .unavailable:
-      "Unavailable"
+      copy.unavailable
     }
   }
 
   var statusLabel: String {
     if showsName {
-      return "\(reading.name) mode"
+      return copy.mode(name: reading.name)
     }
-    return mode.isFullBruce ? "Air-con mode" : "Mode"
+    return copy.mode
+  }
+
+  var accessibilityLabel: String {
+    switch reading.operatingMode {
+    case .automatic:
+      copy.automaticAccessibility
+    case .cooling:
+      copy.coolingAccessibility
+    case .drying:
+      copy.dryingAccessibility
+    case .fanOnly:
+      copy.fanOnlyAccessibility
+    case .heating:
+      copy.heatingAccessibility
+    case .off:
+      copy.powerOffAccessibility
+    case .active:
+      copy.powerOnAccessibility
+    case .unavailable:
+      copy.unavailableAccessibility
+    }
   }
 
   func powerAccessibilityLabel(isControlling: Bool) -> String {
     if isControlling {
-      return "Updating \(reading.name)"
+      return copy.updating(name: reading.name)
     }
     switch reading.powerState {
     case .poweredOn:
-      return "Turn off \(reading.name)"
+      return copy.turnOff(name: reading.name)
     case .off:
-      return "Turn on \(reading.name)"
+      return copy.turnOn(name: reading.name)
     case .unavailable:
-      return "\(reading.name) power unavailable"
+      return copy.powerUnavailable(name: reading.name)
     }
   }
 

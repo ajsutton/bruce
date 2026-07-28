@@ -6,7 +6,7 @@ import OSLog
 final class BruceModeController: ObservableObject {
   @Published private(set) var mode = BruceMode.standard
   @Published private(set) var isTransitioning = false
-  @Published var appIconErrorMessage: String?
+  @Published private(set) var hasAppIconError = false
 
   private let store: any BruceModeStoring
   private let iconApplier: any AppIconApplying
@@ -43,6 +43,10 @@ final class BruceModeController: ObservableObject {
       start()
     }
     enqueue(selectedMode, shouldPersist: true)
+  }
+
+  func dismissAppIconError() {
+    hasAppIconError = false
   }
 
   func refreshLocalPreference() async {
@@ -156,7 +160,7 @@ final class BruceModeController: ObservableObject {
       if request.shouldPersist {
         store.saveMode(mode)
       }
-      appIconErrorMessage = "The current look is still active."
+      hasAppIconError = true
     }
   }
 

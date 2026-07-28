@@ -45,6 +45,10 @@ struct HomeAssistantAirConditionerCard: View {
     AirConditionerCardStyle(mode: mode, colorScheme: colorScheme)
   }
 
+  private var copy: TemperatureCopy {
+    TemperatureCopy(mode: mode)
+  }
+
   private var modePresentation: AirConditionerModePresentation {
     AirConditionerModePresentation(
       reading: reading,
@@ -126,7 +130,7 @@ struct HomeAssistantAirConditionerCard: View {
       cardDivider
 
       temperature(
-        label: "Target",
+        label: copy.target,
         value: reading.targetValue,
         foreground: AnyShapeStyle(style.accentForeground),
         isCondensed: density == .condensed,
@@ -154,7 +158,7 @@ struct HomeAssistantAirConditionerCard: View {
       )
       cardDivider
       temperature(
-        label: "Target",
+        label: copy.target,
         value: reading.targetValue,
         foreground: AnyShapeStyle(style.accentForeground),
         isCondensed: false,
@@ -233,6 +237,7 @@ struct HomeAssistantAirConditionerCard: View {
         HomeAssistantClimateModePicker(
           modes: reading.availableModes,
           operatingMode: reading.operatingMode,
+          mode: mode,
           isCondensed: isCondensed
         ) { selectedMode in
           isShowingModePicker = false
@@ -241,9 +246,11 @@ struct HomeAssistantAirConditionerCard: View {
         .presentationCompactAdaptation(.popover)
       }
       .accessibilityLabel(
-        isControlling ? "Updating \(reading.name)" : "\(reading.name) mode"
+        isControlling ? copy.updating(name: reading.name) : copy.mode(name: reading.name)
       )
-      .accessibilityValue(isControlling ? "In progress" : modePresentation.label)
+      .accessibilityValue(
+        isControlling ? copy.inProgress : modePresentation.accessibilityLabel
+      )
     } else {
       modeText(isCondensed: isCondensed)
     }
@@ -283,7 +290,7 @@ extension HomeAssistantAirConditionerCard {
           }
         } else {
           Text("—")
-            .accessibilityLabel("Unavailable")
+            .accessibilityLabel(copy.unavailable)
         }
       }
       .font(
@@ -305,7 +312,7 @@ extension HomeAssistantAirConditionerCard {
   }
 
   fileprivate var averageLabel: String {
-    showsName ? "House avg." : "Average"
+    showsName ? copy.houseAverage : copy.average
   }
 
   fileprivate var targetColumnTrailingClearance: CGFloat {

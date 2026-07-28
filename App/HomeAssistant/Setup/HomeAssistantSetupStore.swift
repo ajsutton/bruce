@@ -321,9 +321,6 @@ extension HomeAssistantSetupStore.ConnectionCheckState {
     }
   }
 
-  var disconnectButtonTitle: String {
-    self == .disconnectFailed ? "Retry Disconnect" : "Disconnect from Home Assistant"
-  }
 }
 
 extension HomeAssistantSetupStore {

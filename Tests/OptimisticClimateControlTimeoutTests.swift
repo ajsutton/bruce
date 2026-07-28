@@ -104,7 +104,7 @@ final class OptimisticClimateControlTimeoutTests: XCTestCase {
     XCTAssertFalse(store.isControlling(entityID: reading.id))
     XCTAssertEqual(
       store.controlProblem,
-      .init(message: "Bruce couldn’t update Air Conditioner.")
+      .init(name: "Air Conditioner")
     )
   }
 }

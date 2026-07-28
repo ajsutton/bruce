@@ -6,6 +6,10 @@ struct HomeAssistantEVOperationalStatusView: View {
   let isLoading: Bool
   let mode: BruceMode
 
+  private var copy: EVChargingCopy {
+    EVChargingCopy(mode: mode)
+  }
+
   @ViewBuilder
   var body: some View {
     if mode.isFullBruce {
@@ -29,7 +33,7 @@ struct HomeAssistantEVOperationalStatusView: View {
     }
     .foregroundStyle(foreground)
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("Charger status")
+    .accessibilityLabel(copy.chargerStatus)
     .accessibilityValue(accessibilityValue)
   }
 
@@ -37,34 +41,30 @@ struct HomeAssistantEVOperationalStatusView: View {
     HomeAssistantEVActivityPresentation(activity: activity, mode: mode)
   }
 
-  private var neutralPresentation: HomeAssistantEVActivityPresentation {
-    HomeAssistantEVActivityPresentation(activity: activity, mode: .standard)
-  }
-
   private var statusText: String {
     if isLoading, !isLive {
-      return "Checking charger status"
+      return copy.checkingChargerStatus
     }
     if isLive {
       return presentation.text
     }
     if activity != .unavailable {
-      return "Last known: \(neutralPresentation.text)"
+      return copy.lastKnown(presentation.text)
     }
-    return "Charger status unavailable"
+    return copy.chargerStatusUnavailable
   }
 
   private var accessibilityValue: String {
     if isLoading, !isLive {
-      return "Checking charger status"
+      return copy.checkingChargerStatus
     }
     if isLive {
       return presentation.accessibilityText
     }
     if activity != .unavailable {
-      return "Last known: \(neutralPresentation.accessibilityText)"
+      return copy.lastKnown(presentation.accessibilityText)
     }
-    return "Unavailable"
+    return copy.unavailable
   }
 
   private var statusIcon: String {

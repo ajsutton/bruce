@@ -3,8 +3,13 @@ import SwiftUI
 struct HomeAssistantClimateModePicker: View {
   let modes: [HomeAssistantTemperatureReading.ClimateMode]
   let operatingMode: HomeAssistantTemperatureReading.OperatingMode
+  let mode: BruceMode
   let isCondensed: Bool
   let select: (HomeAssistantTemperatureReading.ClimateMode) -> Void
+
+  private var copy: TemperatureCopy {
+    TemperatureCopy(mode: mode)
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
@@ -13,7 +18,7 @@ struct HomeAssistantClimateModePicker: View {
           select(mode)
         } label: {
           HStack(spacing: 12) {
-            Text(mode.label)
+            Text(mode.label(copy: copy))
             Spacer(minLength: 16)
             Image(systemName: "checkmark")
               .opacity(mode.isCurrent(operatingMode) ? 1 : 0)
@@ -26,6 +31,7 @@ struct HomeAssistantClimateModePicker: View {
           .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(mode.accessibilityLabel(copy: copy))
         .accessibilityAddTraits(accessibilityTraits(for: mode))
       }
     }
@@ -58,18 +64,33 @@ struct HomeAssistantClimateModePicker: View {
 }
 
 extension HomeAssistantTemperatureReading.ClimateMode {
-  fileprivate var label: String {
+  fileprivate func label(copy: TemperatureCopy) -> String {
     switch self {
     case .automatic:
-      "Auto"
+      copy.automatic
     case .cooling:
-      "Cool"
+      copy.cooling
     case .drying:
-      "Dry"
+      copy.drying
     case .fanOnly:
-      "Fan"
+      copy.fanOnly
     case .heating:
-      "Heat"
+      copy.heating
+    }
+  }
+
+  fileprivate func accessibilityLabel(copy: TemperatureCopy) -> String {
+    switch self {
+    case .automatic:
+      copy.automaticAccessibility
+    case .cooling:
+      copy.coolingAccessibility
+    case .drying:
+      copy.dryingAccessibility
+    case .fanOnly:
+      copy.fanOnlyAccessibility
+    case .heating:
+      copy.heatingAccessibility
     }
   }
 
@@ -90,6 +111,7 @@ extension HomeAssistantTemperatureReading.ClimateMode {
   HomeAssistantClimateModePicker(
     modes: [.heating, .cooling, .automatic, .drying, .fanOnly],
     operatingMode: .cooling,
+    mode: .full,
     isCondensed: false,
     select: { _ in }
   )

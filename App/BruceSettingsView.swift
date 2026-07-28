@@ -16,17 +16,21 @@ import SwiftUI
       )
     }
 
+    private var copy: AppCopy {
+      AppCopy(mode: modeController.mode)
+    }
+
     var body: some View {
       TabView(selection: $settingsNavigation.selectedSection) {
         generalSettings
           .tabItem {
-            Label("General", systemImage: "gear")
+            Label(copy.generalSettingsTab, systemImage: "gear")
           }
           .tag(BruceSettingsNavigation.Section.general)
 
         HomeAssistantSetupView(store: setupStore, mode: modeController.mode)
           .tabItem {
-            Label("Home Assistant", systemImage: "house")
+            Label(copy.homeAssistantSettingsTab, systemImage: "house")
           }
           .tag(BruceSettingsNavigation.Section.homeAssistant)
       }
@@ -48,29 +52,29 @@ import SwiftUI
         startDiscoveryIfNeeded()
       }
       .alert(
-        "Bruce couldn’t change the app icon",
+        copy.iconChangeFailedTitle,
         isPresented: Binding(
-          get: { modeController.appIconErrorMessage != nil },
+          get: { modeController.hasAppIconError },
           set: { isPresented in
             if !isPresented {
-              modeController.appIconErrorMessage = nil
+              modeController.dismissAppIconError()
             }
           }
         )
       ) {
-        Button("OK", role: .cancel) {}
+        Button(copy.dismiss, role: .cancel) {}
       } message: {
-        Text(modeController.appIconErrorMessage ?? "")
+        Text(copy.iconChangeFailedMessage)
       }
     }
 
     private var generalSettings: some View {
       Form {
         Section {
-          Toggle("Go The Full Bruce", isOn: isFullBruce)
+          Toggle(copy.fullBruceToggle, isOn: isFullBruce)
             .disabled(modeController.isTransitioning)
         } footer: {
-          Text("Changes Bruce’s icon, styling and eligible language on this device.")
+          Text(copy.fullBruceFooter)
         }
       }
       .formStyle(.grouped)

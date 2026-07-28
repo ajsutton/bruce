@@ -2,31 +2,34 @@ import Foundation
 
 extension HomeAssistantTemperatureCard {
   var powerStateLabel: String {
+    let copy = TemperatureCopy(mode: mode)
     switch reading.powerState {
     case .poweredOn:
-      "On"
+      return copy.powerOn
     case .off:
-      "Off"
+      return copy.powerOff
     case .unavailable:
-      "Unavailable"
+      return copy.unavailable
     }
   }
 
   var powerAccessibilityLabel: String {
+    let copy = TemperatureCopy(mode: mode)
     if isControlling {
-      return "Updating \(reading.name)"
+      return copy.updating(name: reading.name)
     }
     switch reading.powerState {
     case .poweredOn:
-      return "Turn off \(reading.name)"
+      return copy.turnOff(name: reading.name)
     case .off:
-      return "Turn on \(reading.name)"
+      return copy.turnOn(name: reading.name)
     case .unavailable:
-      return "\(reading.name) power unavailable"
+      return copy.powerUnavailable(name: reading.name)
     }
   }
 
   var powerAccessibilityValue: String {
+    let copy = TemperatureCopy(mode: mode)
     let currentValue = temperatureAccessibilityValue(
       reading.value,
       fractionLength: 1
@@ -37,9 +40,13 @@ extension HomeAssistantTemperatureCard {
           $0,
           fractionLength: targetValueFractionLength
         )
-      } ?? "Unavailable"
-    let progress = isControlling ? "Updating. " : ""
-    return "\(progress)\(powerStateLabel). Current \(currentValue). Target \(targetValue)"
+      } ?? copy.unavailable
+    return copy.accessibilityValue(
+      isUpdating: isControlling,
+      power: powerStateLabel,
+      current: currentValue,
+      target: targetValue
+    )
   }
 
   func temperatureAccessibilityValue(

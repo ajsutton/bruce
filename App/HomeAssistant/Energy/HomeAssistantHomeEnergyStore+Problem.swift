@@ -7,19 +7,6 @@ extension HomeAssistantHomeEnergyStore {
     case signInRequired
     case invalidResponse
 
-    var message: String {
-      switch self {
-      case .connectionNeedsManagement:
-        "The Home Assistant connection needs attention. Power readings may be out of date."
-      case .connectionUnavailable:
-        "Home Assistant can’t be reached. Power readings may be out of date."
-      case .signInRequired:
-        "Sign in to Home Assistant again to update power readings."
-      case .invalidResponse:
-        "Home Assistant returned power readings Bruce couldn’t read."
-      }
-    }
-
     var needsConnectionManagement: Bool {
       self == .connectionNeedsManagement || self == .signInRequired
     }

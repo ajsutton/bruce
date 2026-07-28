@@ -12,96 +12,62 @@ struct HomeAssistantEVActivityPresentation {
     mode: BruceMode,
     locale: Locale = .current
   ) {
-    let values = Self.values(for: activity, locale: locale)
+    let copy = EVChargingCopy(mode: mode)
+    let values = Self.values(for: activity, copy: copy, locale: locale)
     icon = values.icon
     statusIcon = values.statusIcon
-    if mode.isFullBruce {
-      text = Self.fullBruceText(for: activity, locale: locale)
-      accessibilityText = text
-    } else {
-      text = values.text
-      accessibilityText = values.text
-    }
+    text = values.text
+    accessibilityText = values.text
     color = values.color
   }
 
   private static func values(
     for activity: HomeAssistantEVChargingActivity,
+    copy: EVChargingCopy,
     locale: Locale
   ) -> Values {
     switch activity {
     case .unavailable:
-      Values("bolt.car", "questionmark.circle", "Charger status unavailable", .secondary)
+      Values("bolt.car", "questionmark.circle", copy.chargerStatusUnavailable, .secondary)
     case .notPluggedIn:
-      Values("bolt.car", "powerplug.portrait", "Not plugged in", .secondary)
+      Values("bolt.car", "powerplug.portrait", copy.notPluggedIn, .secondary)
     case .connected:
-      Values("bolt.car", "checkmark.circle", "Connected — ready", .secondary)
+      Values("bolt.car", "checkmark.circle", copy.connectedReady, .secondary)
     case .waitingForVehicle:
-      Values("bolt.car", "hourglass", "Waiting for vehicle", .secondary)
+      Values("bolt.car", "hourglass", copy.waitingForVehicle, .secondary)
     case .charging(let powerWatts):
       Values(
         "bolt.car.fill",
         "bolt.fill",
-        chargingText(powerWatts: powerWatts, locale: locale),
+        copy.charging(powerWatts: powerWatts, locale: locale),
         .green
       )
     case .complete:
-      Values("checkmark.circle.fill", "checkmark.circle.fill", "Charge complete", .green)
+      Values("checkmark.circle.fill", "checkmark.circle.fill", copy.chargeComplete, .green)
     case .paused(let reason):
-      Values("pause.circle.fill", "pause.circle.fill", pausedText(reason: reason), .orange)
+      Values(
+        "pause.circle.fill",
+        "pause.circle.fill",
+        pausedText(reason: reason, copy: copy),
+        .orange
+      )
     case .switchedOff:
-      Values("bolt.car", "power", "Charging switched off", .secondary)
+      Values("bolt.car", "power", copy.chargingSwitchedOff, .secondary)
     }
-  }
-
-  private static func chargingText(powerWatts: Double?, locale: Locale) -> String {
-    guard let powerWatts else {
-      return "Charging"
-    }
-    return "Charging · \(formattedPower(powerWatts, locale: locale))"
   }
 
   private static func pausedText(
-    reason: HomeAssistantEVChargingActivity.PauseReason?
+    reason: HomeAssistantEVChargingActivity.PauseReason?,
+    copy: EVChargingCopy
   ) -> String {
     switch reason {
     case .electricityPrice:
-      "Paused — electricity price too high"
+      copy.pausedForPrice
     case .homeBattery:
-      "Paused — protecting home battery"
+      copy.pausedForBattery
     case nil:
-      "Charging paused"
+      copy.chargingPaused
     }
-  }
-
-  private static func fullBruceText(
-    for activity: HomeAssistantEVChargingActivity,
-    locale: Locale
-  ) -> String {
-    switch activity {
-    case .unavailable:
-      "Charger status unavailable"
-    case .notPluggedIn:
-      "Not plugged in. Can’t charge fresh air."
-    case .connected:
-      "Plugged in and ready to rip"
-    case .waitingForVehicle:
-      "Waiting on the car"
-    case .charging(let powerWatts):
-      "\(chargingText(powerWatts: powerWatts, locale: locale)) — giving it the berries"
-    case .complete:
-      "Charged. Good as gold."
-    case .paused:
-      "Taking a breather"
-    case .switchedOff:
-      "Off. Charger’s knocked off."
-    }
-  }
-
-  private static func formattedPower(_ powerWatts: Double, locale: Locale) -> String {
-    let kilowatts = powerWatts / 1_000
-    return
-      "\(kilowatts.formatted(.number.locale(locale).precision(.fractionLength(1)))) kW"
   }
 }
 

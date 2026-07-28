@@ -31,7 +31,7 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
         mode: .full,
         locale: locale
       ).title,
-      "Old mate sun’s cranking"
+      "Solar PV Is Cranking"
     )
     XCTAssertEqual(
       HomeEnergyMetricPresentation.battery(
@@ -39,7 +39,7 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
         mode: .full,
         locale: locale
       ).title,
-      "Juice in the tank"
+      "Battery Juice Tank"
     )
     XCTAssertEqual(
       HomeEnergyMetricPresentation.consumption(
@@ -47,7 +47,7 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
         mode: .full,
         locale: locale
       ).title,
-      "House is on the chew"
+      "House Power Chew"
     )
   }
 
@@ -97,14 +97,14 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
     XCTAssertEqual(exporting.value, "0.1 kW")
   }
 
-  func testUnavailablePresentationRemainsNeutralInFullBruce() {
+  func testUnavailablePresentationRetainsFullBruceVoice() {
     XCTAssertEqual(
       HomeEnergyMetricPresentation.pv(
         kilowatts: nil,
         mode: .full,
         locale: locale
       ).title,
-      "PV generation"
+      "Solar PV Has Gone Walkabout"
     )
     XCTAssertEqual(
       HomeEnergyMetricPresentation.grid(
@@ -112,7 +112,7 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
         mode: .full,
         locale: locale
       ).title,
-      "Grid"
+      "The Grid Mob"
     )
   }
 }

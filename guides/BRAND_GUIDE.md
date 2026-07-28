@@ -33,7 +33,7 @@ Users may explicitly enable **Go The Full Bruce**.
 - Affectionate, exaggerated and unapologetically Australian.
 - Green and gold, resort-pool blue, sunburn red and Zincalume.
 - Bold signwriting-inspired display typography and graphic badges.
-- More larrikin language for safe, routine household information.
+- Larrikin language for the vast majority of user-facing copy.
 - Never weakens clarity, accessibility or perceived reliability.
 
 Full Bruce is a coordinated mode, not a collection of independent novelty settings. Enabling it
@@ -112,18 +112,23 @@ Avoid:
 - Artificial enthusiasm.
 - Chatbot filler.
 - Describing routine actions as smart, intelligent or magical.
-- Forced slang in standard Bruce or in serious, safety-sensitive states.
+- Forced slang in standard Bruce or in safety-critical Full Bruce messages.
 - Calling the user `mate`, `champ` or another nickname unless a future explicit preference
   supports it.
 
 ### Full Bruce language
 
 Full Bruce should enthusiastically use dry humour, vivid Australian phrasing and larrikin
-confidence for routine, reversible and low-stakes information. It is allowed to be conspicuously
-different from standard Bruce; a timid synonym swap is not enough.
+confidence for the vast majority of user-facing language. Full Bruce is the default voice for
+titles, labels, status, actions, confirmations, onboarding, settings, permissions, privacy,
+account recovery, empty states, unavailable states and errors. It is allowed to be
+conspicuously different from standard Bruce; a timid synonym swap is not enough.
 
-Prefer short phrases with a strong point of view. Routine dashboards may use playful labels
-throughout when the surrounding icon, value and layout keep the underlying meaning clear.
+Prefer short phrases with a strong point of view. Playful language may appear throughout, but the
+phrase or its complete accessibility label and value must identify the relevant device, action
+and state without relying on visual context. Icons, values and layout may reinforce the meaning.
+A message being serious, technical, destructive, constrained for space or likely to require
+attention is not by itself a reason to fall back to standard Bruce.
 
 Acceptable:
 
@@ -134,26 +139,59 @@ Acceptable:
 
 Humour must never delay the actual state or action.
 
-Stale routine readings may retain Full Bruce language when the UI clearly identifies them as
+Stale readings should retain Full Bruce language when the UI clearly identifies them as
 `Last known`. The qualifier must apply to the whole group and VoiceOver value; do not phrase a
 cached value as newly observed.
 
 ## Safety boundary
 
-The following language never changes between modes:
+Safety-critical messages are the only language exception to Full Bruce. Use standard, direct
+language when misunderstanding a message presents a credible risk of harm to a person or damage
+to a device being controlled. In those messages, do not use humour, slang, euphemism or
+brand-coloured wording.
 
-- Smoke, fire, gas, water-leak and security alarms.
-- Lock or access ambiguity.
-- Destructive confirmations.
-- Unavailable or unverified state when no reliable value exists.
-- Errors where misunderstanding could cause harm or damage.
-- Permissions, privacy and account recovery.
+Apply this test to the specific message and consequence, not to a broad category or screen.
+Smoke, fire, gas and similar alarms will normally meet it. A control failure, ambiguous state or
+confirmation meets it only when misunderstanding that particular message could cause the stated
+harm. Data loss, inconvenience, privacy sensitivity, account access, an ordinary error or an
+unavailable low-risk value does not meet the boundary on its own and should remain Full Bruce.
 
 Use direct language such as:
 
 - `Smoke detected in the kitchen.`
-- `The front door may be unlocked. Current state is unavailable.`
-- `The garage did not close.`
+- `The garage door is obstructed. Keep clear.`
+- `The heater did not turn off and may overheat. Turn off its power supply.`
+
+These examples use standard language because their stated context crosses the safety boundary.
+A low-risk control failure such as an unconfirmed charging-mode preference remains Full Bruce.
+
+When a message crosses the boundary, change only the safety-critical message. Nearby headings,
+navigation and unrelated supporting copy remain Full Bruce.
+
+## Language resources
+
+Treat Full Bruce as an Australian English language variant, not as conditional prose embedded
+in views.
+
+- Store standard Bruce as `en` and Full Bruce as `en-AU` in `App/Localizable.xcstrings`.
+- Give both variants the same stable key and select the localization centrally from `BruceMode`.
+- Keep domain-specific copy accessors for typed state mapping, interpolation and accessibility
+  composition. They should resolve catalog keys rather than contain alternate prose.
+- Do not scatter `isFullBruce` text branches through views or presentation types.
+- For a safety-critical entry, put the same direct wording in both language variants. Do not
+  bypass the catalog.
+
+Non-linguistic values such as URLs, numbers, units and an unavailable-value dash do not require
+catalog entries.
+
+### OS-owned language surfaces
+
+Some user-facing strings are loaded by the operating system outside Bruce's process and cannot
+read the stored Bruce mode or use its runtime catalog selector. This currently includes
+`NSLocalNetworkUsageDescription` and the iOS `Settings.bundle`. Keep these strings plain,
+concise and compatible with both modes. This is a platform boundary, not an additional reason
+for in-app copy to fall back to standard Bruce. If Apple provides a mode-aware mechanism for
+these surfaces, move them into the coordinated language variants.
 
 ## UI behaviour
 
@@ -163,8 +201,9 @@ Use direct language such as:
 - Mode changes must not rearrange controls, alter accessibility identifiers or change the
   meaning of an action.
 - Full Bruce decoration must respect Reduce Motion, Increase Contrast and Dynamic Type.
-- Every Full Bruce treatment needs a restrained fallback for constrained contexts such as
-  complications, notifications and CarPlay.
+- Full Bruce decoration needs a restrained fallback for constrained contexts such as
+  complications, notifications and CarPlay. The language remains Full Bruce unless the specific
+  message crosses the safety boundary.
 
 ## Privacy
 

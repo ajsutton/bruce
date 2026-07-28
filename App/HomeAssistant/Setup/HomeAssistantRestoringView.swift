@@ -2,30 +2,40 @@ import SwiftUI
 
 struct HomeAssistantRestoringView: View {
   @ObservedObject var store: HomeAssistantSetupStore
-  let title: String
-  let detail: String
+  let mode: BruceMode
   let requestRemoval: () -> Void
+
+  private var setupCopy: HomeAssistantSetupCopy {
+    HomeAssistantSetupCopy(mode: mode)
+  }
+
+  private var interfaceCopy: HomeAssistantInterfaceCopy {
+    HomeAssistantInterfaceCopy(mode: mode)
+  }
 
   var body: some View {
     if store.connectionCheckState == .disconnectFailed {
       ContentUnavailableView {
-        Label("Couldn’t Remove Connection", systemImage: "trash.slash")
+        Label(interfaceCopy.couldNotRemoveConnection, systemImage: "trash.slash")
       } description: {
-        Text("Bruce couldn’t remove the saved Home Assistant connection.")
+        Text(interfaceCopy.couldNotRemoveConnectionMessage)
       } actions: {
-        Button("Try Removing Again", role: .destructive, action: requestRemoval)
+        Button(interfaceCopy.tryRemovingAgain, role: .destructive, action: requestRemoval)
       }
       .padding()
     } else {
       VStack(spacing: 0) {
-        HomeAssistantProgressView(title: title, detail: detail)
+        HomeAssistantProgressView(
+          title: setupCopy.restoringTitle,
+          detail: setupCopy.restoringDetail
+        )
 
         if store.isDisconnecting {
-          ProgressView("Removing connection…")
+          ProgressView(interfaceCopy.disconnecting)
             .controlSize(.small)
             .padding()
         } else {
-          Button("Remove Connection", role: .destructive, action: requestRemoval)
+          Button(interfaceCopy.removeConnection, role: .destructive, action: requestRemoval)
             .padding()
         }
       }

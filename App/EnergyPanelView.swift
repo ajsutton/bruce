@@ -9,6 +9,10 @@ struct EnergyPanelView: View {
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
 
+  private var copy: EnergyPanelCopy {
+    EnergyPanelCopy(mode: mode)
+  }
+
   var body: some View {
     NavigationStack {
       ScrollView {
@@ -31,7 +35,7 @@ struct EnergyPanelView: View {
         .frame(maxWidth: .infinity)
       }
       .background(mode.panelBackgroundColor(for: colorScheme))
-      .navigationTitle("Energy")
+      .navigationTitle(copy.navigationTitle)
       #if os(iOS)
         .toolbarTitleDisplayMode(
           dynamicTypeSize.isAccessibilitySize ? .large : .inline

@@ -10,8 +10,12 @@ struct HomeAssistantTemperatureView: View {
   let requestRefresh: () -> Void
   let isRemovingConnection: Bool
 
+  private var copy: TemperatureCopy {
+    TemperatureCopy(mode: mode)
+  }
+
   private var displayedProblem: String? {
-    connectionProblem ?? store.problem?.message
+    connectionProblem ?? store.problem.map(copy.problem)
   }
 
   private var isAwaitingFirstLoad: Bool {
@@ -53,12 +57,12 @@ struct HomeAssistantTemperatureView: View {
         temperatureContent
       }
       .background(screenBackground)
-      .navigationTitle("Climate")
+      .navigationTitle(copy.navigationTitle)
       .toolbarTitleDisplayMode(.inline)
       .tint(mode.accentColor)
       .modifier(TemperatureNavigationStyle(mode: mode))
       .alert(
-        "Climate Control Failed",
+        copy.controlFailedTitle,
         isPresented: Binding(
           get: { store.controlProblem != nil },
           set: { isPresented in
@@ -68,9 +72,9 @@ struct HomeAssistantTemperatureView: View {
           }
         )
       ) {
-        Button("OK", role: .cancel) {}
+        Button(copy.dismiss, role: .cancel) {}
       } message: {
-        Text(store.controlProblem?.message ?? "")
+        Text(store.controlProblem.map { copy.controlFailed(name: $0.name) } ?? "")
       }
     }
   }
@@ -149,13 +153,13 @@ struct HomeAssistantTemperatureView: View {
   private var emptyState: some View {
     ContentUnavailableView {
       if displayedProblem != nil {
-        Label("Temperatures Unavailable", systemImage: "thermometer.medium.slash")
+        Label(copy.temperaturesUnavailable, systemImage: "thermometer.medium.slash")
       } else {
-        Label("No Current Temperatures", systemImage: "thermometer.medium")
+        Label(copy.noCurrentTemperatures, systemImage: "thermometer.medium")
       }
     } description: {
       if displayedProblem == nil {
-        Text("Bruce couldn’t find a current temperature from any air conditioner.")
+        Text(copy.noCurrentTemperaturesDescription)
       }
     }
     .padding()
@@ -174,10 +178,10 @@ struct HomeAssistantTemperatureView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
 
       if problemNeedsConnectionManagement {
-        Button("Manage", action: manageConnection)
+        Button(copy.manage, action: manageConnection)
           .frame(minWidth: 44, minHeight: 44)
       } else {
-        Button("Try Again", action: requestRefresh)
+        Button(copy.tryAgain, action: requestRefresh)
           .frame(minWidth: 44, minHeight: 44)
       }
     }
@@ -194,16 +198,16 @@ struct HomeAssistantTemperatureView: View {
           .accessibilityLabel(progressAccessibilityLabel)
       }
       if isRemovingConnection {
-        Text("Removing connection")
+        Text(copy.removingConnection)
       } else if store.isLive {
-        Text("Live")
+        Text(copy.live)
       } else if let lastChecked = store.lastChecked {
-        Text("Last checked")
+        Text(copy.lastChecked)
         relativeDateText(lastChecked)
       } else if isConnecting {
-        Text("Checking connection")
+        Text(copy.checkingConnection)
       } else if store.isLoading {
-        Text("Updating")
+        Text(copy.updating)
       }
       Spacer()
     }
@@ -214,9 +218,9 @@ struct HomeAssistantTemperatureView: View {
 
   private var progressAccessibilityLabel: String {
     if isRemovingConnection {
-      return "Removing connection"
+      return copy.removingConnection
     }
-    return isConnecting ? "Checking connection" : "Updating temperatures"
+    return isConnecting ? copy.checkingConnection : copy.updatingTemperatures
   }
 }
 

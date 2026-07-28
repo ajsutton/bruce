@@ -21,6 +21,10 @@ struct ContentView: View {
     modeController.mode
   }
 
+  private var copy: AppCopy {
+    AppCopy(mode: mode)
+  }
+
   var body: some View {
     content
       .preferredColorScheme(mode.isFullBruce ? .dark : nil)
@@ -47,19 +51,19 @@ struct ContentView: View {
         }
       }
       .alert(
-        "Bruce couldn’t change the app icon",
+        copy.iconChangeFailedTitle,
         isPresented: Binding(
-          get: { modeController.appIconErrorMessage != nil },
+          get: { modeController.hasAppIconError },
           set: { isPresented in
             if !isPresented {
-              modeController.appIconErrorMessage = nil
+              modeController.dismissAppIconError()
             }
           }
         )
       ) {
-        Button("OK", role: .cancel) {}
+        Button(copy.dismiss, role: .cancel) {}
       } message: {
-        Text(modeController.appIconErrorMessage ?? "")
+        Text(copy.iconChangeFailedMessage)
       }
       #if os(iOS)
         .sheet(isPresented: $showsConnectionManagement) {
@@ -77,7 +81,9 @@ struct ContentView: View {
         homeEnergyStore: homeEnergyStore,
         mode: mode,
         isConnecting: presentation.isConnecting,
-        connectionProblem: presentation.connectionProblem,
+        connectionProblem: presentation.connectionProblem.map(
+          HomeAssistantInterfaceCopy(mode: mode).presentationProblem
+        ),
         manageConnection: manageConnection,
         requestHomeRefresh: requestHomeRefresh,
         isRemovingConnection: setupStore.isDisconnecting
@@ -85,11 +91,11 @@ struct ContentView: View {
     } else {
       #if os(macOS)
         ContentUnavailableView {
-          Label("Home Assistant Isn’t Connected", systemImage: "house.fill")
+          Label(copy.notConnectedTitle, systemImage: "house.fill")
         } description: {
-          Text("Connect Home Assistant in Bruce Settings.")
+          Text(copy.notConnectedDescription)
         } actions: {
-          Button("Connect Home Assistant") {
+          Button(copy.connectHomeAssistant) {
             manageConnection()
           }
           .buttonStyle(.borderedProminent)

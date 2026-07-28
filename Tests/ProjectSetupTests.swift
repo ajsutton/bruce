@@ -76,7 +76,7 @@ final class ProjectSetupTests: XCTestCase {
 
     XCTAssertEqual(controller.mode, .standard)
     XCTAssertEqual(store.localMode, .full)
-    XCTAssertNil(controller.appIconErrorMessage)
+    XCTAssertFalse(controller.hasAppIconError)
 
     await controller.restore()
 
@@ -123,10 +123,7 @@ final class ProjectSetupTests: XCTestCase {
 
     XCTAssertEqual(store.localMode, .standard)
     XCTAssertEqual(controller.mode, .standard)
-    XCTAssertEqual(
-      controller.appIconErrorMessage,
-      "The current look is still active."
-    )
+    XCTAssertTrue(controller.hasAppIconError)
   }
 
   func testUnsupportedFullBruceIconKeepsStandardMode() async {

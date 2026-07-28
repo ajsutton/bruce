@@ -1,0 +1,4262 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "app.climateTab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Climate"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Air-con"
+          }
+        }
+      }
+    },
+    "app.connectHomeAssistant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect Home Assistant"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hook Up Home Assistant"
+          }
+        }
+      }
+    },
+    "app.dismiss": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Righto"
+          }
+        }
+      }
+    },
+    "app.energyTab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energy"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Power"
+          }
+        }
+      }
+    },
+    "app.fullBruceFooter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changes Bruce’s icon, styling and language on this device."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cranks Bruce’s icon, colours and yarns right up on this device."
+          }
+        }
+      }
+    },
+    "app.fullBruceToggle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Go The Full Bruce"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep The Full Bruce Cranked"
+          }
+        }
+      }
+    },
+    "app.generalSettingsTab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The General Bits"
+          }
+        }
+      }
+    },
+    "app.homeAssistantSettingsTab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Home Assistant Gear"
+          }
+        }
+      }
+    },
+    "app.iconChangeFailedMessage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current look is still active."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The old clobber’s staying on for now."
+          }
+        }
+      }
+    },
+    "app.iconChangeFailedTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce couldn’t change the app icon"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce couldn’t swap the badge"
+          }
+        }
+      }
+    },
+    "app.notConnectedDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect Home Assistant in Bruce Settings."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pop into Bruce Settings and hook Home Assistant up."
+          }
+        }
+      }
+    },
+    "app.notConnectedTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant Isn’t Connected"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant Isn’t Hooked Up"
+          }
+        }
+      }
+    },
+    "energyPanel.navigationTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energy"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Juice"
+          }
+        }
+      }
+    },
+    "evCharging.carCharger": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car charger"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Car’s Juice Lead"
+          }
+        }
+      }
+    },
+    "evCharging.changingChargingMode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changing charging mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giving the charger new marching orders"
+          }
+        }
+      }
+    },
+    "evCharging.chargeComplete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charge complete"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car’s charged. Good as gold."
+          }
+        }
+      }
+    },
+    "evCharging.chargerStatus": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charger status"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What the Charger’s Up To"
+          }
+        }
+      }
+    },
+    "evCharging.chargerStatusUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charger status unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charger’s gone quiet on Bruce"
+          }
+        }
+      }
+    },
+    "evCharging.charging": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charging"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car’s drinking juice — giving it the berries"
+          }
+        }
+      }
+    },
+    "evCharging.chargingMode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charging mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How the Charger Runs"
+          }
+        }
+      }
+    },
+    "evCharging.chargingModeOff": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Knocked Off"
+          }
+        }
+      }
+    },
+    "evCharging.chargingModeOffAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charging off"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charging is off — knocked off"
+          }
+        }
+      }
+    },
+    "evCharging.chargingModeOffDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charger’s off and has knocked off"
+          }
+        }
+      }
+    },
+    "evCharging.chargingModeOn": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flat Chat"
+          }
+        }
+      }
+    },
+    "evCharging.chargingModeOnAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charging on"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charging is on — flat chat"
+          }
+        }
+      }
+    },
+    "evCharging.chargingModeOnDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charges regardless of home battery level"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charger goes regardless of the house battery. Flat chat."
+          }
+        }
+      }
+    },
+    "evCharging.chargingModeSmart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smart"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spare Juice"
+          }
+        }
+      }
+    },
+    "evCharging.chargingModeSmartAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smart charging"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smart charging uses spare juice"
+          }
+        }
+      }
+    },
+    "evCharging.chargingModeSmartDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charges when the home has energy to spare"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charger uses the house’s spare juice. Too easy."
+          }
+        }
+      }
+    },
+    "evCharging.chargingPaused": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charging paused"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car charging’s taking a breather"
+          }
+        }
+      }
+    },
+    "evCharging.chargingSwitchedOff": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charging switched off"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car charger’s knocked off"
+          }
+        }
+      }
+    },
+    "evCharging.chargingWithPower": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charging · %@"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car’s charging at %@ — giving it the berries"
+          }
+        }
+      }
+    },
+    "evCharging.checkCurrentMode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check Current Mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check the Charger Again"
+          }
+        }
+      }
+    },
+    "evCharging.checkingChargerStatus": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking charger status"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Having a squiz at the charger"
+          }
+        }
+      }
+    },
+    "evCharging.checkingChargingMode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking charging mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking the charger’s marching orders"
+          }
+        }
+      }
+    },
+    "evCharging.checkingCurrentMode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking current mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking what it’s doing"
+          }
+        }
+      }
+    },
+    "evCharging.checkingMode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking the charger’s marching orders"
+          }
+        }
+      }
+    },
+    "evCharging.connectedReady": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected — ready"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car’s plugged in and ready to rip"
+          }
+        }
+      }
+    },
+    "evCharging.connectionNeedsManagement": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Home Assistant connection needs attention. The charging mode may be out of date."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant needs a bit of a sort-out. The charger mode may be yesterday’s news."
+          }
+        }
+      }
+    },
+    "evCharging.connectionUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant can’t be reached. The charging mode may be out of date."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant’s not answering the knock. The charger mode may be old news."
+          }
+        }
+      }
+    },
+    "evCharging.invalidResponse": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant returned a charging mode Bruce couldn’t read."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant sent back charger gibberish Bruce couldn’t make head nor tail of."
+          }
+        }
+      }
+    },
+    "evCharging.lastKnown": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last known"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last word Bruce got"
+          }
+        }
+      }
+    },
+    "evCharging.manage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Connection — Sort It Out"
+          }
+        }
+      }
+    },
+    "evCharging.modeUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charger mode’s gone walkabout"
+          }
+        }
+      }
+    },
+    "evCharging.notPluggedIn": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not plugged in"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car’s not plugged in — can’t charge fresh air"
+          }
+        }
+      }
+    },
+    "evCharging.pausedForBattery": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused — protecting home battery"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car charging’s parked — saving the house battery’s bacon"
+          }
+        }
+      }
+    },
+    "evCharging.pausedForPrice": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused — electricity price too high"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Car charging’s parked — power price is having a lend"
+          }
+        }
+      }
+    },
+    "evCharging.refresh": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Charger — Have Another Squiz"
+          }
+        }
+      }
+    },
+    "evCharging.requestedMode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requested mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode Bruce asked for"
+          }
+        }
+      }
+    },
+    "evCharging.signInRequired": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to Home Assistant again to update the charging mode."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give Home Assistant another sign-in so Bruce can sort the charger mode."
+          }
+        }
+      }
+    },
+    "evCharging.unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gone walkabout"
+          }
+        }
+      }
+    },
+    "evCharging.updateFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce couldn’t change the charging mode."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce gave the charger new orders, but they didn’t stick."
+          }
+        }
+      }
+    },
+    "evCharging.updateTimedOut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant took too long to confirm the charging mode."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant took the scenic route confirming the charger mode."
+          }
+        }
+      }
+    },
+    "evCharging.updating": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Getting the latest"
+          }
+        }
+      }
+    },
+    "evCharging.waitingForVehicle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for vehicle"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charger’s waiting on the car"
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationMessage.browserSessionEnded": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sign-in window either couldn’t open or closed before Home Assistant returned to Bruce. Try again when you’re ready."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sign-in window shut up shop before Home Assistant got back to Bruce. Give it another burl when you’re ready."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationMessage.browserUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce could not open the sign-in window. Try again. If it still doesn’t open, quit and reopen Bruce."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce couldn’t get the sign-in window out of the shed. Try again; if it stays put, quit and reopen Bruce."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationMessage.couldNotSave": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce could not store the connection securely. Try again."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce couldn’t put the connection away safely. Give it another burl."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationMessage.inactiveUser": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activate this user in Home Assistant, then try again."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Put this user back on the roster in Home Assistant, then have another crack."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationMessage.invalidCallback": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sign-in response did not match this request. Start sign-in again."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That sign-in came back wearing the wrong hat. Start the Home Assistant sign-in again."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationMessage.other": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try again, or choose a different Home Assistant server."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Have another crack, or point Bruce at a different Home Assistant joint."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationMessage.rejected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in again and approve Bruce in Home Assistant."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Have another sign-in and give Bruce the nod in Home Assistant."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationMessage.unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check that the server is running and that this device can reach it."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check the Home Assistant server’s up and this device can give it a hoy."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationMessage.verificationFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-in finished, but Bruce could not verify the Home Assistant API."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sign-in landed, but the Home Assistant API didn’t pass Bruce’s pub test."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationTitle.browserSessionEnded": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-In Didn’t Complete"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Sign-In Pulled Up Stumps"
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationTitle.browserUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-In Window Didn’t Open"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Sign-In Window Stayed in the Shed"
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationTitle.couldNotSave": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection Couldn’t Be Saved"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Connection Wouldn’t Stay Put"
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationTitle.inactiveUser": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant User Is Inactive"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That Home Assistant User’s Off the Roster"
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationTitle.invalidCallback": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-In Couldn’t Be Verified"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That Sign-In Didn’t Pass Muster"
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationTitle.other": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t Connect to Home Assistant"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant Wouldn’t Come to the Party"
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationTitle.rejected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant Didn’t Approve Sign-In"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant Knocked the Sign-In Back"
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationTitle.unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant Is Unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant’s Gone Walkabout"
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.authenticationTitle.verificationFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection Check Failed"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Connection Check Came Up Crook"
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.manualValidationMessage.containsCredentials": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove the username and password from the address."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take the username and password out of the address before Bruce uses it."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.manualValidationMessage.containsFragment": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove everything after the number sign."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give everything after the number sign the flick."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.manualValidationMessage.containsQuery": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove everything after the question mark."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give everything after the question mark the flick."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.manualValidationMessage.empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter your Home Assistant address."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give Bruce the Home Assistant address."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.manualValidationMessage.missingHost": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a complete server address."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce needs the whole server address."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.manualValidationMessage.pointsToEndpoint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the server’s base address, not an API or sign-in page."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Point Bruce at the server’s front gate, not an API or sign-in page."
+          }
+        }
+      }
+    },
+    "homeAssistantAuthentication.manualValidationMessage.unsupportedScheme": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use an HTTP or HTTPS address."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce needs an HTTP or HTTPS address."
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.addressErrorPrefix": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Address error"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Address is crook"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.addressField": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant address"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Where Home Assistant Lives"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.addressHelp": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the base address, not an API or sign-in page."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Point Bruce at Home Assistant’s front gate, not an API or sign-in page."
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.addressLabel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Address"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Where It Lives"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.allowLocalNetworkIOS": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Bruce in Settings, or enter the server address manually."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let Bruce onto the local network in Settings, or point him at the server yourself."
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.allowLocalNetworkMac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Bruce in System Settings, or enter the server address manually."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let Bruce onto the local network in System Settings, or point him at the server yourself."
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.cancel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel — Pull Up Stumps"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.checking": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce is having a squiz"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.checkingConnectionAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking connection"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce is checking the Home Assistant connection"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.connectionSection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Hook-up"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.connectionTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant Hook-up"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.continueButton": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue Home Assistant Setup — On We Go"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.continueWithHTTP": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue with HTTP"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carry On with Unencrypted HTTP"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.couldNotRemoveConnection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t Remove Connection"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Connection Dodged the Flick"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.couldNotRemoveConnectionMessage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce couldn’t remove the saved Home Assistant connection."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved Home Assistant connection wriggled free when Bruce tried to remove it."
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.disconnect": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect Home Assistant"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.disconnectExplanation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce will remove the saved Home Assistant connection from this device."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce will give the saved Home Assistant connection the flick from this device."
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.disconnecting": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnecting from Home Assistant…"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giving Home Assistant the flick…"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.disconnectingAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnecting from Home Assistant"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce is disconnecting Home Assistant"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.disconnectQuestion": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect from Home Assistant?"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give Home Assistant the Flick?"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.externalRoute": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "External"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outside Route"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.goBackFromHTTP": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Go Back"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Go Back — Leave HTTP Alone"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.homeLabel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Joint"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.homeSection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Joint"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.homesSection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Homes"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant Joints"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.internalRoute": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Internal"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inside Route"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.lastSuccessfulRoute": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last successful route"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last route that did the job"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.nameLabel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What It’s Called"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.notChecked": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not checked"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce hasn’t had a squiz yet"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.openSettings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pop Open Settings"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.presentationProblem.disconnectFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce couldn’t disconnect from Home Assistant. The saved connection is still present."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant dodged the disconnect. The saved connection is still hanging around."
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.presentationProblem.needsAttention": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Home Assistant connection needs attention."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Home Assistant connection needs a bit of a tune-up."
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.presentationProblem.restoreFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved Home Assistant connection couldn’t be restored."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved Home Assistant connection wouldn’t get back on deck."
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.presentationProblem.signInRequired": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to Home Assistant again to update temperatures."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give Home Assistant another sign-in so Bruce can fetch fresh temperatures."
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.presentationProblem.unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant can’t be reached. Temperatures may be out of date."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant’s not answering. These temperatures may be old news."
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.ready": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready to rip"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.remoteAccessRequiresHTTPS": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote access requires HTTPS"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote Home Assistant access needs HTTPS to get past the gate"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.removeConnection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Connection"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give the Connection the Flick"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.removeConnectionQuestion": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Home Assistant Connection?"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give the Home Assistant Connection the Flick?"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.resolvingAddress": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolving address…"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tracking down the Home Assistant address…"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.retryAuthentication": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try Sign-In Again"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try Home Assistant Sign-In Again — Give It Another Burl"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.retryDisconnect": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry Disconnect"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Have Another Crack at Disconnecting"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.retryDiscovery": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search Again"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search for Home Assistant Again — Give It Another Burl"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.selected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That’s the One"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.setUpAgain": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set Up Home Assistant Again"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get Home Assistant Sorted Again"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.signIn": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign In to Home Assistant"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign In to Home Assistant — Give It the Nod"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.signInAgain": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign In Again"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign In Again — Give Home Assistant Another Nod"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.signInRequiredStatus": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-in required"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant wants another sign-in"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.status": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How It’s Travelling"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.technicalDetails": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technical Details"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Nuts and Bolts"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.tryRemovingAgain": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try Removing Again"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give Removal Another Burl"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.authenticationHandoff": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to %@ in the system browser window."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to %@ in the browser window, then Bruce will take it from there."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.changeServer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change Server"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swap Home Assistant Joints"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.chooseAnotherServer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Another Server"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick Another Home Assistant Joint"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.chooseDiscoveredHome": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a Discovered Home"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick One Bruce Found"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.configuredTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant is configured for %@"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant knows about %@, but the connection needs a tune-up"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectedStatus": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hooked up. Good as gold."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectedTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to %@"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is hooked up. Good as gold."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionChecking": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking the Home Assistant connection…"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giving the Home Assistant connection a good kick…"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionFailed.incompatibleServer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This address doesn’t appear to be a Home Assistant server. Check the server address, then try again."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There’s no Home Assistant joint at this address. Check where you pointed Bruce, then have another go."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionFailed.invalidResponse": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant returned a response Bruce could not read. Try again."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant sent back gibberish Bruce couldn’t make head nor tail of. Try again."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionFailed.networkUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce could not reach Home Assistant. Check the network and server address, then try again."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant’s not answering Bruce’s knock. Check the network and server address, then have another crack."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionFailed.other": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Home Assistant connection check failed. Try again or sign in again."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Home Assistant connection check went pear-shaped. Try again or sign in again."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionFailed.serverRejectedRequest": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant responded with an error. Check the server, then try again."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant sent Bruce packing. Check the server, then give it another burl."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionFailedStatus.incompatibleServer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Address is not a Home Assistant server"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Home Assistant joint at that address"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionFailedStatus.invalidResponse": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid Home Assistant response"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant sent back gibberish"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionFailedStatus.networkUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant could not be reached"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant’s not answering"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionFailedStatus.other": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection check failed"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection check went pear-shaped"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionFailedStatus.serverRejectedRequest": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant returned an error"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant sent Bruce packing"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionIdle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce will automatically try the saved internal and external addresses."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce will give both saved Home Assistant addresses a burl on his own."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.connectionSucceeded": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection verified."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant connection’s good as gold."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.disconnectFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved Home Assistant connection was not removed and remains active. Try disconnecting again."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved Home Assistant connection dodged the flick and is still active. Give disconnect another burl."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.discoveryFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce Couldn’t Search the Network"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Network Hunt Came Up Stumps"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.enterAddressManually": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter Address Manually"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Point Bruce at the Address"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.findHomeAssistant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find Home Assistant"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Have a Squiz for Home Assistant"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.introductionDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce can look on your local network for Home Assistant. You can also enter its address yourself."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce can have a proper squiz around the local network for Home Assistant, or you can point him straight at the address."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.introductionTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find Your Home"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let’s Find the Joint"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.localNetworkAccessOff": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local Network Access Is Off"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local Network Access Has Knocked Off"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.manageConnection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Connection"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sort Out the Connection"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.navigationTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant HQ"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.noHomesFound": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No homes found"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Home Assistant joints turned up"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.notConnected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not connected"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant isn’t hooked up yet"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.onboardingMessage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hasn’t finished its own setup yet. Complete that in Home Assistant, then try again."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hasn’t finished setting itself up. Sort that out in Home Assistant, then give Bruce another burl."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.onboardingTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish Setting Up Home Assistant"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant Isn’t Done Cooking Yet"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.openingHomeAssistant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opening Home Assistant"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Handing the Baton to Home Assistant"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.reauthenticationRequired": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant requires you to sign in again."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant wants another sign-in before Bruce can carry on."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.recoveryChooseAnotherServer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Another Server"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try Another Home Assistant Joint"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.restoreFailedMessage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce could not read the saved Home Assistant connection securely."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce couldn’t safely make head nor tail of the saved Home Assistant connection."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.restoreFailedTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved Connection Couldn’t Be Loaded"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Saved Connection Came Up Crook"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.restoringDetail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking your saved Home Assistant connection."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce is giving the saved Home Assistant connection a proper once-over."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.restoringTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring Connection"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Getting Home Assistant Back on Deck"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.searchAgain": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search Again"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search Again — Have Another Squiz"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.searchInactive": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search is not active."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Home Assistant hunt is parked."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.searching": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Looking for Home Assistant…"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce is having a squiz for Home Assistant…"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.searchingFooter": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce keeps looking while this screen is open."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce keeps poking around for Home Assistant while this screen’s open."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.settingsRestoreFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved Home Assistant connection could not be loaded."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved Home Assistant connection wouldn’t come to the party."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.setupCancelledTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setup Cancelled"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant Setup’s Parked for Now"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.setUpHomeAssistant": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set Up Home Assistant"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get Home Assistant Sorted"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.startAgain": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Again"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give the Setup Another Burl"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.testConnection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test Connection"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test Connection — Give It a Kick"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.unencryptedMessage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This HTTP address can expose your Home Assistant sign-in on the local network. Continue only if you trust this network."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This HTTP address can put your Home Assistant sign-in on display to the local network. Only carry on if you trust this network."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.unencryptedTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection Isn’t Encrypted"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant Connection Is Running Bare"
+          }
+        }
+      }
+    },
+    "homeEnergy.battery": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Battery"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Battery Juice Tank"
+          }
+        }
+      }
+    },
+    "homeEnergy.batteryAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home battery"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home battery — juice in the tank"
+          }
+        }
+      }
+    },
+    "homeEnergy.batteryUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Battery"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Battery Level Has Gone Walkabout"
+          }
+        }
+      }
+    },
+    "homeEnergy.batteryUnavailableAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home battery unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home battery level unavailable — gone walkabout"
+          }
+        }
+      }
+    },
+    "homeEnergy.connectionNeedsManagement": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Home Assistant connection needs attention. Power readings may be out of date."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant needs a tune-up. These power numbers may be old news."
+          }
+        }
+      }
+    },
+    "homeEnergy.connectionUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant can’t be reached. Power readings may be out of date."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant’s not answering. These power numbers may be yesterday’s."
+          }
+        }
+      }
+    },
+    "homeEnergy.grid": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Grid Mob"
+          }
+        }
+      }
+    },
+    "homeEnergy.gridAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid power unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid power unavailable — gone walkabout"
+          }
+        }
+      }
+    },
+    "homeEnergy.gridExport": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid export"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flicking Juice Back"
+          }
+        }
+      }
+    },
+    "homeEnergy.gridExportAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid export"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid export — flicking juice back"
+          }
+        }
+      }
+    },
+    "homeEnergy.gridIdle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid idle"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid’s on Smoko"
+          }
+        }
+      }
+    },
+    "homeEnergy.gridIdleAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid idle"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid idle — grid’s on smoko"
+          }
+        }
+      }
+    },
+    "homeEnergy.gridImport": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid import"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid’s Shouting a Round"
+          }
+        }
+      }
+    },
+    "homeEnergy.gridImportAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid import"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid import — grid’s shouting a round"
+          }
+        }
+      }
+    },
+    "homeEnergy.invalidResponse": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant returned power readings Bruce couldn’t read."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant sent power numbers Bruce couldn’t make head nor tail of."
+          }
+        }
+      }
+    },
+    "homeEnergy.lastKnown": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last known"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last word Bruce got"
+          }
+        }
+      }
+    },
+    "homeEnergy.manage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Connection — Sort It Out"
+          }
+        }
+      }
+    },
+    "homeEnergy.powerNow": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Power now"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What the Juice Is Doing"
+          }
+        }
+      }
+    },
+    "homeEnergy.pvGeneration": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PV generation"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solar PV Is Cranking"
+          }
+        }
+      }
+    },
+    "homeEnergy.pvGenerationAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PV generation"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solar PV generation — cranking"
+          }
+        }
+      }
+    },
+    "homeEnergy.pvGenerationUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PV generation"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solar PV Has Gone Walkabout"
+          }
+        }
+      }
+    },
+    "homeEnergy.pvGenerationUnavailableAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PV generation unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solar PV generation unavailable — gone walkabout"
+          }
+        }
+      }
+    },
+    "homeEnergy.refresh": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Energy — Have Another Squiz"
+          }
+        }
+      }
+    },
+    "homeEnergy.signInRequired": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to Home Assistant again to update power readings."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give Home Assistant another sign-in so Bruce can fetch the fresh power numbers."
+          }
+        }
+      }
+    },
+    "homeEnergy.unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gone walkabout"
+          }
+        }
+      }
+    },
+    "homeEnergy.updating": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Getting the latest"
+          }
+        }
+      }
+    },
+    "homeEnergy.updatingLastKnown": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating. Last known: %@"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Getting the latest. Last word Bruce got: %@"
+          }
+        }
+      }
+    },
+    "homeEnergy.updatingLastKnownStatus": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last known · Updating"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last word Bruce got · Getting the latest"
+          }
+        }
+      }
+    },
+    "homeEnergy.usage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "House Power Chew"
+          }
+        }
+      }
+    },
+    "homeEnergy.usageAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home power usage"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home power usage — house power chew"
+          }
+        }
+      }
+    },
+    "homeEnergy.usageUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "House Power Use Has Gone Walkabout"
+          }
+        }
+      }
+    },
+    "homeEnergy.usageUnavailableAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home power usage unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home power usage unavailable — gone walkabout"
+          }
+        }
+      }
+    },
+    "temperature.accessibilityValue": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@. Current %2$@. Target %3$@"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@. Right now %2$@ and aiming for %3$@"
+          }
+        }
+      }
+    },
+    "temperature.automatic": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto Pilot"
+          }
+        }
+      }
+    },
+    "temperature.automaticAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic air-con mode — auto pilot"
+          }
+        }
+      }
+    },
+    "temperature.average": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Average"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Average, Roughly"
+          }
+        }
+      }
+    },
+    "temperature.checkingConnection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking connection"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking Home Assistant’s still on deck"
+          }
+        }
+      }
+    },
+    "temperature.connectionUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant can’t be reached. Temperatures may be out of date."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant’s not answering the knock. These temperatures may be old news."
+          }
+        }
+      }
+    },
+    "temperature.controlFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce couldn’t update %@."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce had a crack at %@, but it didn’t stick."
+          }
+        }
+      }
+    },
+    "temperature.controlFailedTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Climate Control Failed"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Air-con Had a Barry"
+          }
+        }
+      }
+    },
+    "temperature.cooling": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cool"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Big Chill"
+          }
+        }
+      }
+    },
+    "temperature.coolingAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cooling mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cooling air-con mode — the big chill"
+          }
+        }
+      }
+    },
+    "temperature.current": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right Now"
+          }
+        }
+      }
+    },
+    "temperature.decreaseTarget": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decrease %@ target"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nudge %@ target down"
+          }
+        }
+      }
+    },
+    "temperature.dismiss": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Righto"
+          }
+        }
+      }
+    },
+    "temperature.drying": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dry"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drying the Joint"
+          }
+        }
+      }
+    },
+    "temperature.dryingAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drying mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drying air-con mode — drying the joint"
+          }
+        }
+      }
+    },
+    "temperature.fanOnly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fan"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Just the Fan"
+          }
+        }
+      }
+    },
+    "temperature.fanOnlyAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fan-only mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fan-only air-con mode — just the fan"
+          }
+        }
+      }
+    },
+    "temperature.heating": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heat"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bringing the Heat"
+          }
+        }
+      }
+    },
+    "temperature.heatingAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heating mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heating air-con mode — bringing the heat"
+          }
+        }
+      }
+    },
+    "temperature.houseAverage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "House avg."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "House Average"
+          }
+        }
+      }
+    },
+    "temperature.increaseTarget": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Increase %@ target"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nudge %@ target up"
+          }
+        }
+      }
+    },
+    "temperature.inProgress": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In progress"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce is on it"
+          }
+        }
+      }
+    },
+    "temperature.invalidResponse": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant returned temperature data Bruce couldn’t read."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home Assistant sent temperature gibberish Bruce couldn’t make head nor tail of."
+          }
+        }
+      }
+    },
+    "temperature.lastChecked": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last checked"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last squiz"
+          }
+        }
+      }
+    },
+    "temperature.live": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fresh as"
+          }
+        }
+      }
+    },
+    "temperature.manage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Connection — Sort It Out"
+          }
+        }
+      }
+    },
+    "temperature.mode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Air-con Game Plan"
+          }
+        }
+      }
+    },
+    "temperature.namedMode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ mode"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ air-con game plan"
+          }
+        }
+      }
+    },
+    "temperature.namedTarget": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ target"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ air-con target"
+          }
+        }
+      }
+    },
+    "temperature.navigationTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Climate"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Air-con Country"
+          }
+        }
+      }
+    },
+    "temperature.noCurrentTemperatures": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Current Temperatures"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Fresh Temperatures on the Board"
+          }
+        }
+      }
+    },
+    "temperature.noCurrentTemperaturesDescription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce couldn’t find a current temperature from any air conditioner."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce had a proper squiz, but none of the air-cons coughed up a fresh temperature."
+          }
+        }
+      }
+    },
+    "temperature.otherProblem": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce couldn’t update the temperatures."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce went for fresh temperatures and came back empty-handed."
+          }
+        }
+      }
+    },
+    "temperature.powerOff": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Knocked Off"
+          }
+        }
+      }
+    },
+    "temperature.powerOffAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Air-con is off and has knocked off"
+          }
+        }
+      }
+    },
+    "temperature.powerOn": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up and About"
+          }
+        }
+      }
+    },
+    "temperature.powerOnAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Air-con is on and up and about"
+          }
+        }
+      }
+    },
+    "temperature.powerUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ power unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ power has gone walkabout"
+          }
+        }
+      }
+    },
+    "temperature.reconnecting": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting to Home Assistant. Temperatures may be out of date."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce is hooking Home Assistant back up. These temperatures may be old news."
+          }
+        }
+      }
+    },
+    "temperature.removingConnection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removing connection"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giving the connection the flick"
+          }
+        }
+      }
+    },
+    "temperature.signInRequired": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to Home Assistant again to update temperatures."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Give Home Assistant another sign-in so Bruce can fetch the fresh temperatures."
+          }
+        }
+      }
+    },
+    "temperature.target": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aiming For"
+          }
+        }
+      }
+    },
+    "temperature.temperaturesUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperatures Unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Temperatures Have Gone Walkabout"
+          }
+        }
+      }
+    },
+    "temperature.tryAgain": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try Again"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Temperatures — Give It Another Burl"
+          }
+        }
+      }
+    },
+    "temperature.turnOff": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn off %@"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Knock %@ off"
+          }
+        }
+      }
+    },
+    "temperature.turnOn": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on %@"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fire %@ up"
+          }
+        }
+      }
+    },
+    "temperature.unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gone Walkabout"
+          }
+        }
+      }
+    },
+    "temperature.unavailableAccessibility": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Air-con mode has gone walkabout"
+          }
+        }
+      }
+    },
+    "temperature.updating": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetching the fresh numbers"
+          }
+        }
+      }
+    },
+    "temperature.updatingAccessibilityValue": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating. %1$@. Current %2$@. Target %3$@"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce is updating the air-con. %1$@. Currently %2$@ and aiming for %3$@"
+          }
+        }
+      }
+    },
+    "temperature.updatingName": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating %@"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce is sorting %@ out"
+          }
+        }
+      }
+    },
+    "temperature.updatingTemperatures": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating temperatures"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetching fresh air-con numbers"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

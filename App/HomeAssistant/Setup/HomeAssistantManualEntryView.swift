@@ -2,13 +2,25 @@ import SwiftUI
 
 struct HomeAssistantManualEntryView: View {
   @ObservedObject var store: HomeAssistantSetupStore
-  let copy: HomeAssistantCopy
+  let mode: BruceMode
+
+  private var setupCopy: HomeAssistantSetupCopy {
+    HomeAssistantSetupCopy(mode: mode)
+  }
+
+  private var authenticationCopy: HomeAssistantAuthenticationCopy {
+    HomeAssistantAuthenticationCopy(mode: mode)
+  }
+
+  private var interfaceCopy: HomeAssistantInterfaceCopy {
+    HomeAssistantInterfaceCopy(mode: mode)
+  }
 
   var body: some View {
     Form {
       Section {
         TextField(
-          "Home Assistant address",
+          interfaceCopy.addressField,
           text: Binding(
             get: { store.manualAddress },
             set: { store.updateManualAddress($0) }
@@ -26,21 +38,23 @@ struct HomeAssistantManualEntryView: View {
         }
 
         if let error = store.manualValidationError {
-          Text(copy.manualValidationMessage(error))
+          Text(authenticationCopy.manualValidationMessage(error))
             .foregroundStyle(.red)
-            .accessibilityLabel("Address error: \(copy.manualValidationMessage(error))")
+            .accessibilityLabel(
+              "\(interfaceCopy.addressErrorPrefix): \(authenticationCopy.manualValidationMessage(error))"
+            )
         }
       } footer: {
-        Text("Enter the base address, not an API or sign-in page.")
+        Text(interfaceCopy.addressHelp)
       }
 
       Section {
-        Button("Continue") {
+        Button(interfaceCopy.continueButton) {
           store.validateManualAddress()
         }
         .disabled(store.manualAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-        Button(copy.chooseDiscoveredHome) {
+        Button(setupCopy.chooseDiscoveredHome) {
           store.showDiscoveredHomes()
         }
       }

@@ -11,9 +11,13 @@ struct BrucePanelsView: View {
   let requestHomeRefresh: () -> Void
   let isRemovingConnection: Bool
 
+  private var copy: AppCopy {
+    AppCopy(mode: mode)
+  }
+
   var body: some View {
     TabView {
-      Tab("Climate", systemImage: "thermometer") {
+      Tab(copy.climateTab, systemImage: "thermometer") {
         HomeAssistantTemperatureView(
           store: temperatureStore,
           mode: mode,
@@ -25,7 +29,7 @@ struct BrucePanelsView: View {
         )
       }
 
-      Tab("Energy", systemImage: "bolt") {
+      Tab(copy.energyTab, systemImage: "bolt") {
         EnergyPanelView(
           chargingStore: chargingStore,
           homeEnergyStore: homeEnergyStore,

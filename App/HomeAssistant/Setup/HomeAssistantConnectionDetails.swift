@@ -2,14 +2,15 @@ import SwiftUI
 
 struct HomeAssistantConnectionDetails: View {
   let credentials: HomeAssistantCredentials
+  let copy: HomeAssistantInterfaceCopy
 
   var body: some View {
     if let internalURL = credentials.internalURL {
-      LabeledContent("Internal", value: internalURL.absoluteString)
+      LabeledContent(copy.internalRoute, value: internalURL.absoluteString)
     }
     if let externalURL = credentials.externalURL {
-      LabeledContent("External", value: externalURL.absoluteString)
+      LabeledContent(copy.externalRoute, value: externalURL.absoluteString)
     }
-    LabeledContent("Last successful route", value: credentials.lastSuccessfulURL.absoluteString)
+    LabeledContent(copy.lastSuccessfulRoute, value: credentials.lastSuccessfulURL.absoluteString)
   }
 }

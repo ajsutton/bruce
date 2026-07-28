@@ -11,8 +11,12 @@ struct HomeAssistantSetupView: View {
   @State private var showsDisconnectConfirmation = false
   @State private var showsRestoreRemovalConfirmation = false
 
-  private var copy: HomeAssistantCopy {
-    HomeAssistantCopy(mode: mode)
+  private var setupCopy: HomeAssistantSetupCopy {
+    HomeAssistantSetupCopy(mode: mode)
+  }
+
+  private var interfaceCopy: HomeAssistantInterfaceCopy {
+    HomeAssistantInterfaceCopy(mode: mode)
   }
 
   var body: some View {
@@ -22,8 +26,7 @@ struct HomeAssistantSetupView: View {
         case .restoring:
           HomeAssistantRestoringView(
             store: store,
-            title: copy.restoringTitle,
-            detail: copy.restoringDetail,
+            mode: mode,
             requestRemoval: {
               showsRestoreRemovalConfirmation = true
             }
@@ -33,9 +36,9 @@ struct HomeAssistantSetupView: View {
         case .introduction:
           introduction
         case .chooseServer:
-          HomeAssistantServerChoiceView(store: store, copy: copy)
+          HomeAssistantServerChoiceView(store: store, mode: mode)
         case .manualEntry:
-          HomeAssistantManualEntryView(store: store, copy: copy)
+          HomeAssistantManualEntryView(store: store, mode: mode)
         case .confirmation(let candidate):
           confirmation(candidate)
         case .unencryptedWarning(let candidate):
@@ -46,7 +49,7 @@ struct HomeAssistantSetupView: View {
           authenticationHandoff(candidate)
         case .authenticationFailed(_, let failure):
           HomeAssistantAuthenticationFailureView(
-            copy: copy,
+            mode: mode,
             failure: failure,
             showsTechnicalDetails: $showsAuthenticationTechnicalDetails,
             retry: { beginAuthentication(retrying: true) },
@@ -60,7 +63,7 @@ struct HomeAssistantSetupView: View {
           cancelled
         }
       }
-      .navigationTitle(copy.navigationTitle)
+      .navigationTitle(setupCopy.navigationTitle)
       #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
       #endif
@@ -76,37 +79,37 @@ struct HomeAssistantSetupView: View {
     }
     #if os(macOS)
       .onChange(of: store.connectionCheckState) { _, state in
-        if let announcement = copy.connectionCheckAnnouncement(state) {
+        if let announcement = setupCopy.connectionCheckAnnouncement(state) {
           AccessibilityNotification.Announcement(announcement).post()
         }
       }
       .onChange(of: store.isDisconnecting) { _, isDisconnecting in
         if isDisconnecting {
-          AccessibilityNotification.Announcement("Disconnecting from Home Assistant").post()
+          AccessibilityNotification.Announcement(interfaceCopy.disconnectingAccessibility).post()
         }
       }
     #endif
     .confirmationDialog(
-      "Disconnect from Home Assistant?",
+      interfaceCopy.disconnectQuestion,
       isPresented: $showsDisconnectConfirmation
     ) {
-      Button("Disconnect", role: .destructive) {
+      Button(interfaceCopy.disconnect, role: .destructive) {
         store.disconnect()
       }
-      Button("Cancel", role: .cancel) {}
+      Button(interfaceCopy.cancel, role: .cancel) {}
     } message: {
-      Text("Bruce will remove the saved Home Assistant connection from this device.")
+      Text(interfaceCopy.disconnectExplanation)
     }
     .confirmationDialog(
-      "Remove Home Assistant Connection?",
+      interfaceCopy.removeConnectionQuestion,
       isPresented: $showsRestoreRemovalConfirmation
     ) {
-      Button("Remove Connection", role: .destructive) {
+      Button(interfaceCopy.removeConnection, role: .destructive) {
         store.disconnect()
       }
-      Button("Cancel", role: .cancel) {}
+      Button(interfaceCopy.cancel, role: .cancel) {}
     } message: {
-      Text("Bruce will remove the saved Home Assistant connection from this device.")
+      Text(interfaceCopy.disconnectExplanation)
     }
   }
 }
@@ -115,16 +118,16 @@ extension HomeAssistantSetupView {
   private var introduction: some View {
     scrollableState {
       ContentUnavailableView {
-        Label(copy.introductionTitle, systemImage: "house.and.flag.fill")
+        Label(setupCopy.introductionTitle, systemImage: "house.and.flag.fill")
       } description: {
-        Text(copy.introductionDescription)
+        Text(setupCopy.introductionDescription)
       } actions: {
-        Button(copy.findHomeAssistant) {
+        Button(setupCopy.findHomeAssistant) {
           store.startDiscovery()
         }
         .buttonStyle(.borderedProminent)
 
-        Button(copy.enterAddressManually) {
+        Button(setupCopy.enterAddressManually) {
           store.showManualEntry()
         }
       }
@@ -134,18 +137,18 @@ extension HomeAssistantSetupView {
 
   private func confirmation(_ candidate: HomeAssistantConnectionCandidate) -> some View {
     Form {
-      Section("Home") {
-        LabeledContent("Name", value: candidate.name)
-        LabeledContent("Address", value: candidate.activeURL.absoluteString)
+      Section(interfaceCopy.homeSection) {
+        LabeledContent(interfaceCopy.nameLabel, value: candidate.name)
+        LabeledContent(interfaceCopy.addressLabel, value: candidate.activeURL.absoluteString)
       }
 
       Section {
-        Button("Sign In to Home Assistant") {
+        Button(interfaceCopy.signIn) {
           beginAuthentication()
         }
         .buttonStyle(.borderedProminent)
 
-        Button(copy.chooseAnotherServer) {
+        Button(setupCopy.chooseAnotherServer) {
           store.showDiscoveredHomes()
         }
       }
@@ -158,16 +161,16 @@ extension HomeAssistantSetupView {
   ) -> some View {
     scrollableState {
       ContentUnavailableView {
-        Label(copy.unencryptedTitle, systemImage: "exclamationmark.triangle.fill")
+        Label(setupCopy.unencryptedTitle, systemImage: "exclamationmark.triangle.fill")
       } description: {
-        Text(copy.unencryptedMessage)
+        Text(setupCopy.unencryptedMessage)
       } actions: {
-        Button("Continue with HTTP") {
+        Button(interfaceCopy.continueWithHTTP) {
           store.acceptUnencryptedConnection()
         }
         .buttonStyle(.borderedProminent)
 
-        Button("Go Back", role: .cancel) {
+        Button(interfaceCopy.goBackFromHTTP, role: .cancel) {
           store.rejectUnencryptedConnection()
         }
       }
@@ -178,11 +181,11 @@ extension HomeAssistantSetupView {
   private func onboardingRequired(_ instance: HomeAssistantInstance) -> some View {
     scrollableState {
       ContentUnavailableView {
-        Label(copy.onboardingTitle, systemImage: "wrench.and.screwdriver.fill")
+        Label(setupCopy.onboardingTitle, systemImage: "wrench.and.screwdriver.fill")
       } description: {
-        Text(copy.onboardingMessage(instanceName: instance.name))
+        Text(setupCopy.onboardingMessage(instanceName: instance.name))
       } actions: {
-        Button(copy.recoveryChooseAnotherServer) {
+        Button(setupCopy.recoveryChooseAnotherServer) {
           store.showDiscoveredHomes()
         }
       }
@@ -195,11 +198,11 @@ extension HomeAssistantSetupView {
   ) -> some View {
     scrollableState {
       ContentUnavailableView {
-        Label(copy.openingHomeAssistant, systemImage: "person.badge.key.fill")
+        Label(setupCopy.openingHomeAssistant, systemImage: "person.badge.key.fill")
       } description: {
-        Text(copy.authenticationHandoff(instanceName: candidate.name))
+        Text(setupCopy.authenticationHandoff(instanceName: candidate.name))
       } actions: {
-        Button("Cancel", role: .cancel) {
+        Button(interfaceCopy.cancel, role: .cancel) {
           store.cancelAuthentication()
         }
       }
@@ -234,7 +237,7 @@ extension HomeAssistantSetupView {
     Form {
       Section {
         Label(
-          copy.connectedTitle(instanceName: credentials.instanceName),
+          setupCopy.connectedTitle(instanceName: credentials.instanceName),
           systemImage: "checkmark.circle.fill"
         )
         connectionOverviewDetails(credentials)
@@ -253,7 +256,7 @@ extension HomeAssistantSetupView {
     Form {
       Section {
         Label(
-          copy.configuredTitle(instanceName: credentials.instanceName),
+          setupCopy.configuredTitle(instanceName: credentials.instanceName),
           systemImage: "exclamationmark.circle"
         )
         connectionOverviewDetails(credentials)
@@ -274,24 +277,24 @@ extension HomeAssistantSetupView {
       HStack {
         ProgressView()
           .controlSize(.small)
-        Text("Disconnecting from Home Assistant…")
+        Text(interfaceCopy.disconnecting)
       }
       .accessibilityElement(children: .combine)
-      .accessibilityLabel("Disconnecting from Home Assistant")
+      .accessibilityLabel(interfaceCopy.disconnectingAccessibility)
     } else {
       switch store.connectionCheckState {
       case .idle:
-        Text(copy.connectionIdle)
+        Text(setupCopy.connectionIdle)
       case .checking:
-        Text(copy.connectionChecking)
+        Text(setupCopy.connectionChecking)
       case .succeeded:
-        Text(copy.connectionSucceeded)
+        Text(setupCopy.connectionSucceeded)
       case .failed(let problem):
-        Text(copy.connectionFailed(problem))
+        Text(setupCopy.connectionFailed(problem))
       case .reauthenticationRequired:
-        Text(copy.reauthenticationRequired)
+        Text(setupCopy.reauthenticationRequired)
       case .disconnectFailed:
-        Text(copy.disconnectFailed)
+        Text(setupCopy.disconnectFailed)
       }
     }
   }
@@ -299,10 +302,10 @@ extension HomeAssistantSetupView {
   @ViewBuilder
   private func connectionOverviewDetails(_ credentials: HomeAssistantCredentials) -> some View {
     #if os(macOS)
-      HomeAssistantConnectionDetails(credentials: credentials)
+      HomeAssistantConnectionDetails(credentials: credentials, copy: interfaceCopy)
     #else
       LabeledContent(
-        "Last successful route",
+        interfaceCopy.lastSuccessfulRoute,
         value: credentials.lastSuccessfulURL.absoluteString
       )
     #endif
@@ -311,33 +314,38 @@ extension HomeAssistantSetupView {
   @ViewBuilder
   private var connectionManagementControls: some View {
     #if os(macOS)
-      Button(copy.testConnection) {
+      Button(setupCopy.testConnection) {
         store.testConnection()
       }
       .disabled(store.connectionCheckState == .checking || store.isDisconnecting)
-      .accessibilityValue(store.connectionCheckState == .checking ? "Checking" : "Ready")
+      .accessibilityValue(
+        store.connectionCheckState == .checking ? interfaceCopy.checking : interfaceCopy.ready
+      )
 
       if store.connectionCheckState.canSignInAgain {
-        Button("Sign In Again") {
+        Button(interfaceCopy.signInAgain) {
           store.reauthenticate()
         }
         .disabled(store.isDisconnecting)
       }
 
-      Button(copy.changeServer) {
+      Button(setupCopy.changeServer) {
         store.changeServer()
       }
       .disabled(store.isDisconnecting)
 
-      Button(store.connectionCheckState.disconnectButtonTitle, role: .destructive) {
+      Button(
+        interfaceCopy.disconnectButtonTitle(state: store.connectionCheckState),
+        role: .destructive
+      ) {
         showsDisconnectConfirmation = true
       }
       .disabled(store.isDisconnecting)
     #else
-      NavigationLink(copy.manageConnection) {
+      NavigationLink(setupCopy.manageConnection) {
         HomeAssistantConnectionManagementView(
           store: store,
-          copy: copy,
+          mode: mode,
           reauthenticate: beginReauthentication
         )
       }
@@ -352,9 +360,9 @@ extension HomeAssistantSetupView {
   private var cancelled: some View {
     scrollableState {
       ContentUnavailableView {
-        Label(copy.setupCancelledTitle, systemImage: "xmark.circle")
+        Label(setupCopy.setupCancelledTitle, systemImage: "xmark.circle")
       } actions: {
-        Button(copy.startAgain) {
+        Button(setupCopy.startAgain) {
           store.startDiscovery()
         }
       }
@@ -365,11 +373,11 @@ extension HomeAssistantSetupView {
   private var restoreFailed: some View {
     scrollableState {
       ContentUnavailableView {
-        Label(copy.restoreFailedTitle, systemImage: "key.slash")
+        Label(setupCopy.restoreFailedTitle, systemImage: "key.slash")
       } description: {
-        Text(copy.restoreFailedMessage)
+        Text(setupCopy.restoreFailedMessage)
       } actions: {
-        Button("Set Up Home Assistant Again") {
+        Button(interfaceCopy.setUpAgain) {
           store.changeServer()
         }
       }

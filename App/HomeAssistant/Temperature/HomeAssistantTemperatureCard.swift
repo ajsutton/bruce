@@ -43,6 +43,10 @@ struct HomeAssistantTemperatureCard: View {
     TemperatureCardStyle(reading: reading, mode: mode)
   }
 
+  private var copy: TemperatureCopy {
+    TemperatureCopy(mode: mode)
+  }
+
   private var usesAdjustableCard: Bool {
     #if os(iOS)
       showsControl
@@ -202,7 +206,7 @@ struct HomeAssistantTemperatureCard: View {
 
   private func currentTemperature(isCondensed: Bool) -> some View {
     temperature(
-      label: "Current",
+      label: copy.current,
       value: reading.value,
       foreground: style.primaryForeground,
       isCondensed: isCondensed
@@ -212,7 +216,7 @@ struct HomeAssistantTemperatureCard: View {
   @ViewBuilder
   private func targetTemperature(isCondensed: Bool) -> some View {
     temperature(
-      label: "Target",
+      label: copy.target,
       value: reading.targetValue,
       foreground: AnyShapeStyle(style.emphasizedForeground),
       isCondensed: isCondensed,
@@ -243,7 +247,7 @@ struct HomeAssistantTemperatureCard: View {
           }
         } else {
           Text("—")
-            .accessibilityLabel("Unavailable")
+            .accessibilityLabel(copy.unavailable)
         }
       }
       .font(

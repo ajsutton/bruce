@@ -9,23 +9,6 @@ extension HomeAssistantEVChargingStore {
     case updateFailed
     case updateTimedOut
 
-    var message: String {
-      switch self {
-      case .connectionNeedsManagement:
-        "The Home Assistant connection needs attention. The charging mode may be out of date."
-      case .connectionUnavailable:
-        "Home Assistant can’t be reached. The charging mode may be out of date."
-      case .signInRequired:
-        "Sign in to Home Assistant again to update the charging mode."
-      case .invalidResponse:
-        "Home Assistant returned a charging mode Bruce couldn’t read."
-      case .updateFailed:
-        "Bruce couldn’t change the charging mode."
-      case .updateTimedOut:
-        "Home Assistant took too long to confirm the charging mode."
-      }
-    }
-
     var needsConnectionManagement: Bool {
       self == .connectionNeedsManagement || self == .signInRequired
     }

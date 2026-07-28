@@ -66,7 +66,7 @@ final class HomeAssistantRestoreRemovalTests: XCTestCase {
     XCTAssertFalse(presentation.isConnecting)
     XCTAssertEqual(
       presentation.connectionProblem,
-      "Bruce couldn’t remove the saved Home Assistant connection."
+      .removalFailed
     )
     withExtendedLifetime(subscription) {}
   }

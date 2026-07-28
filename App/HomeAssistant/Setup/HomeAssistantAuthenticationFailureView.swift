@@ -1,24 +1,36 @@
 import SwiftUI
 
 struct HomeAssistantAuthenticationFailureView: View {
-  let copy: HomeAssistantCopy
+  let mode: BruceMode
   let failure: HomeAssistantAuthenticationFailure
   @Binding var showsTechnicalDetails: Bool
   let retry: () -> Void
   let chooseAnotherServer: () -> Void
 
+  private var setupCopy: HomeAssistantSetupCopy {
+    HomeAssistantSetupCopy(mode: mode)
+  }
+
+  private var authenticationCopy: HomeAssistantAuthenticationCopy {
+    HomeAssistantAuthenticationCopy(mode: mode)
+  }
+
+  private var interfaceCopy: HomeAssistantInterfaceCopy {
+    HomeAssistantInterfaceCopy(mode: mode)
+  }
+
   var body: some View {
     ScrollView {
       ContentUnavailableView {
         Label(
-          copy.authenticationTitle(failure.problem),
+          authenticationCopy.authenticationTitle(failure.problem),
           systemImage: "exclamationmark.triangle.fill"
         )
       } description: {
         VStack(spacing: 8) {
-          Text(copy.authenticationMessage(failure.problem))
+          Text(authenticationCopy.authenticationMessage(failure.problem))
           DisclosureGroup(
-            "Technical Details",
+            interfaceCopy.technicalDetails,
             isExpanded: $showsTechnicalDetails
           ) {
             Text(failure.diagnostic)
@@ -28,10 +40,10 @@ struct HomeAssistantAuthenticationFailureView: View {
           }
         }
       } actions: {
-        Button("Try Again", action: retry)
+        Button(interfaceCopy.retryAuthentication, action: retry)
           .buttonStyle(.borderedProminent)
 
-        Button(copy.recoveryChooseAnotherServer, action: chooseAnotherServer)
+        Button(setupCopy.recoveryChooseAnotherServer, action: chooseAnotherServer)
       }
       .padding()
       .frame(maxWidth: .infinity)

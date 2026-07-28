@@ -387,7 +387,7 @@ extension HomeAssistantTemperatureStore {
       return
     }
     presentedControlProblemSequence = sequence
-    controlProblem = ControlProblem(message: "Bruce couldn’t update \(name).")
+    controlProblem = ControlProblem(name: name)
   }
 
   fileprivate func publishReadings() {

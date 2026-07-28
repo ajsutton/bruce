@@ -49,7 +49,7 @@ final class HomeAssistantClimateControlStoreTests: XCTestCase {
     XCTAssertEqual(store.readings, [reading])
     XCTAssertEqual(
       store.controlProblem,
-      .init(message: "Bruce couldn’t update Air Conditioner.")
+      .init(name: "Air Conditioner")
     )
     loader.finishRequest(0)
     await load.value
@@ -129,7 +129,7 @@ final class HomeAssistantClimateControlStoreTests: XCTestCase {
     XCTAssertFalse(store.isControlling(entityID: reading.id))
     XCTAssertEqual(
       store.controlProblem,
-      .init(message: "Bruce couldn’t update Air Conditioner.")
+      .init(name: "Air Conditioner")
     )
     loader.finishRequest(0)
     await load.value
