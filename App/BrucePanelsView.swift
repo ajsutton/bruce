@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BrucePanelsView: View {
+  @AppStorage(BrucePanel.storageKey) private var selectedPanel = BrucePanel.climate
   @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
   @ObservedObject var chargingStore: HomeAssistantEVChargingStore
   @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
@@ -16,8 +17,8 @@ struct BrucePanelsView: View {
   }
 
   var body: some View {
-    TabView {
-      Tab(copy.climateTab, systemImage: "thermometer") {
+    TabView(selection: $selectedPanel) {
+      Tab(copy.climateTab, systemImage: "thermometer", value: BrucePanel.climate) {
         HomeAssistantTemperatureView(
           store: temperatureStore,
           mode: mode,
@@ -29,7 +30,7 @@ struct BrucePanelsView: View {
         )
       }
 
-      Tab(copy.energyTab, systemImage: "bolt") {
+      Tab(copy.energyTab, systemImage: "bolt", value: BrucePanel.energy) {
         EnergyPanelView(
           chargingStore: chargingStore,
           homeEnergyStore: homeEnergyStore,

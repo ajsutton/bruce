@@ -14,6 +14,8 @@ Brand expression, palette, language and the Bruce/Full Bruce presentation modes 
 - Keep navigation, control placement and meaning identical across Bruce presentation modes.
 - Treat Go The Full Bruce as coordinated app icon, styling and eligible-language presentation,
   not as a separate feature set.
+- Restore the user's durable UI context after app restarts, including selected tabs and navigation,
+  whenever that context remains available and appropriate.
 
 ## Platform behaviour
 
@@ -81,5 +83,6 @@ Brand expression, palette, language and the Bruce/Full Bruce presentation modes 
 - Are loading, stale, unavailable, error, and success states represented?
 - Do routine state changes remain visually stable without selection, text, spinner, or layout
   flicker?
+- Does the app restore the user's durable UI context after a restart?
 - Are dangerous actions appropriately protected?
 - Does it work with Dynamic Type, VoiceOver, keyboard navigation, dark mode, and Reduce Motion?
