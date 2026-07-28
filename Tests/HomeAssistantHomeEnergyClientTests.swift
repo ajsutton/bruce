@@ -91,12 +91,12 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
           "attributes": {}
         },
         {
-          "entity_id": "sensor.electricity_general_price",
+          "entity_id": "sensor.01krmdgkh60wyckeepvgtbbgv3_general_price",
           "state": "\(prices.general)",
           "attributes": {}
         },
         {
-          "entity_id": "sensor.electricity_feed_in_price",
+          "entity_id": "sensor.01krmdgkh60wyckeepvgtbbgv3_feed_in_price",
           "state": "\(prices.feedIn)",
           "attributes": {}
         }

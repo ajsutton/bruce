@@ -35,10 +35,10 @@ extension HomeAssistantHomeEnergySnapshot {
     }
     gridPowerKilowatts = value("sensor.sigen_plant_grid_active_power")
     generalPriceDollarsPerKilowattHour = value(
-      "sensor.electricity_general_price"
+      "sensor.01krmdgkh60wyckeepvgtbbgv3_general_price"
     )
     feedInPriceDollarsPerKilowattHour = value(
-      "sensor.electricity_feed_in_price"
+      "sensor.01krmdgkh60wyckeepvgtbbgv3_feed_in_price"
     )
   }
 }
