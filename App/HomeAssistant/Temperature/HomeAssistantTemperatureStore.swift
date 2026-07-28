@@ -111,7 +111,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     presentedControlProblemSequence = nil
   }
 
-  func synchronize(with connection: HomeAssistantTemperatureConnection) async {
+  func synchronize(with connection: HomeAssistantConnectionState) async {
     switch connection {
     case .connected:
       await load()

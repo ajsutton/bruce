@@ -8,12 +8,13 @@ struct ContentView: View {
   @ObservedObject var modeController: BruceModeController
   @ObservedObject var setupStore: HomeAssistantSetupStore
   @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
+  @ObservedObject var chargingStore: HomeAssistantEVChargingStore
   #if os(macOS)
     @ObservedObject var settingsNavigation: BruceSettingsNavigation
   #else
     @State private var showsConnectionManagement = false
   #endif
-  @State private var temperatureRefreshRequest = 0
+  @State private var homeRefreshRequest = 0
 
   private var mode: BruceMode {
     modeController.mode
@@ -21,12 +22,16 @@ struct ContentView: View {
 
   var body: some View {
     content
+      .preferredColorScheme(mode.isFullBruce ? .dark : nil)
       .task {
         await modeController.restore()
         await setupStore.restoreSavedConnection()
       }
-      .task(id: temperatureLoadRequest) {
+      .task(id: refreshRequest) {
         await temperatureStore.synchronize(with: presentation.connection)
+      }
+      .task(id: refreshRequest) {
+        await synchronizeChargingStore()
       }
       .onChange(of: scenePhase) { _, newScenePhase in
         guard newScenePhase == .active else {
@@ -34,7 +39,7 @@ struct ContentView: View {
         }
         modeController.requestLocalPreferenceRefresh()
         if presentation.shouldRefresh(when: newScenePhase) {
-          temperatureRefreshRequest += 1
+          homeRefreshRequest += 1
         }
       }
       .alert(
@@ -61,14 +66,15 @@ struct ContentView: View {
 
   @ViewBuilder
   private var content: some View {
-    if presentation.screen == .temperatures {
+    if presentation.screen == .panels {
       BrucePanelsView(
         temperatureStore: temperatureStore,
+        chargingStore: chargingStore,
         mode: mode,
         isConnecting: presentation.isConnecting,
         connectionProblem: presentation.connectionProblem,
         manageConnection: manageConnection,
-        requestTemperatureRefresh: requestTemperatureRefresh,
+        requestHomeRefresh: requestHomeRefresh,
         isRemovingConnection: setupStore.isDisconnecting
       )
     } else {
@@ -90,17 +96,17 @@ struct ContentView: View {
     }
   }
 
-  private var presentation: HomeAssistantTemperaturePresentation {
-    HomeAssistantTemperaturePresentation(
+  private var presentation: HomeAssistantPresentation {
+    HomeAssistantPresentation(
       step: setupStore.step,
       connectionCheckState: setupStore.connectionCheckState
     )
   }
 
-  private var temperatureLoadRequest: TemperatureLoadRequest {
-    TemperatureLoadRequest(
+  private var refreshRequest: HomeAssistantRefreshRequest {
+    HomeAssistantRefreshRequest(
       connection: presentation.connection,
-      refreshRequest: temperatureRefreshRequest
+      refreshRequest: homeRefreshRequest
     )
   }
 
@@ -113,11 +119,24 @@ struct ContentView: View {
     #endif
   }
 
-  private func requestTemperatureRefresh() {
+  private func requestHomeRefresh() {
     guard presentation.canRefresh else {
       return
     }
-    temperatureRefreshRequest += 1
+    homeRefreshRequest += 1
+  }
+
+  private func synchronizeChargingStore() async {
+    switch presentation.connection {
+    case .connected:
+      await chargingStore.load()
+    case .disconnected:
+      chargingStore.reset()
+    case .connecting:
+      chargingStore.markConnectionInProgress()
+    case .unavailable:
+      chargingStore.markConnectionUnavailable()
+    }
   }
 }
 
@@ -132,6 +151,10 @@ struct ContentView: View {
       temperatureStore: HomeAssistantTemperatureStore(
         loader: PreviewContentTemperatureLoader()
       ),
+      chargingStore: HomeAssistantEVChargingStore(
+        client: PreviewContentEVChargingClient(),
+        mode: .smart
+      ),
       settingsNavigation: BruceSettingsNavigation()
     )
   #else
@@ -143,6 +166,10 @@ struct ContentView: View {
       setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery()),
       temperatureStore: HomeAssistantTemperatureStore(
         loader: PreviewContentTemperatureLoader()
+      ),
+      chargingStore: HomeAssistantEVChargingStore(
+        client: PreviewContentEVChargingClient(),
+        mode: .smart
       )
     )
   #endif
@@ -167,6 +194,18 @@ private struct PreviewHomeAssistantDiscovery: HomeAssistantDiscovering {
   }
 }
 
+private struct PreviewContentEVChargingClient: HomeAssistantEVCharging {
+  func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {
+    .smart
+  }
+
+  func setEVChargingMode(
+    _ mode: HomeAssistantEVChargingMode
+  ) async throws -> HomeAssistantEVChargingMode {
+    mode
+  }
+}
+
 private struct PreviewContentTemperatureLoader: HomeAssistantTemperatureLoading {
   func temperatureUpdates() -> AsyncThrowingStream<
     HomeAssistantTemperatureUpdate, any Error
@@ -178,7 +217,7 @@ private struct PreviewContentTemperatureLoader: HomeAssistantTemperatureLoading 
   }
 }
 
-private struct TemperatureLoadRequest: Equatable {
-  let connection: HomeAssistantTemperatureConnection
+private struct HomeAssistantRefreshRequest: Equatable {
+  let connection: HomeAssistantConnectionState
   let refreshRequest: Int
 }

@@ -1,15 +1,15 @@
 import SwiftUI
 
-struct HomeAssistantTemperaturePresentation: Equatable {
+struct HomeAssistantPresentation: Equatable {
   enum Screen: Equatable {
     case setup
-    case temperatures
+    case panels
   }
 
   let screen: Screen
   let isConnecting: Bool
   let connectionProblem: String?
-  let connection: HomeAssistantTemperatureConnection
+  let connection: HomeAssistantConnectionState
 
   var canRefresh: Bool {
     if case .connected = connection {
@@ -42,7 +42,7 @@ struct HomeAssistantTemperaturePresentation: Equatable {
   ) -> Screen {
     switch step {
     case .restoring, .restoreFailed, .configured, .connected:
-      .temperatures
+      .panels
     case .introduction, .chooseServer, .manualEntry, .confirmation, .unencryptedWarning,
       .onboardingRequired, .readyForAuthentication, .authenticationFailed, .cancelled:
       .setup
@@ -51,7 +51,7 @@ struct HomeAssistantTemperaturePresentation: Equatable {
 
   private static func connection(
     for step: HomeAssistantSetupStore.Step
-  ) -> HomeAssistantTemperatureConnection {
+  ) -> HomeAssistantConnectionState {
     switch step {
     case .connected(let credentials):
       .connected(credentials)

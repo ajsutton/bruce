@@ -54,7 +54,7 @@ final class HomeAssistantRestoreRemovalTests: XCTestCase {
     store.disconnect()
     await fulfillment(of: [failureShown, restoreFinished], timeout: 1)
     _ = await restore.value
-    let presentation = HomeAssistantTemperaturePresentation(
+    let presentation = HomeAssistantPresentation(
       step: store.step,
       connectionCheckState: store.connectionCheckState
     )

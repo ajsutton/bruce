@@ -2,11 +2,12 @@ import SwiftUI
 
 struct BrucePanelsView: View {
   @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
+  @ObservedObject var chargingStore: HomeAssistantEVChargingStore
   let mode: BruceMode
   let isConnecting: Bool
   let connectionProblem: String?
   let manageConnection: () -> Void
-  let requestTemperatureRefresh: () -> Void
+  let requestHomeRefresh: () -> Void
   let isRemovingConnection: Bool
 
   var body: some View {
@@ -18,8 +19,17 @@ struct BrucePanelsView: View {
           isConnecting: isConnecting,
           connectionProblem: connectionProblem,
           manageConnection: manageConnection,
-          requestRefresh: requestTemperatureRefresh,
+          requestRefresh: requestHomeRefresh,
           isRemovingConnection: isRemovingConnection
+        )
+      }
+
+      Tab("Energy", systemImage: "bolt") {
+        EnergyPanelView(
+          chargingStore: chargingStore,
+          mode: mode,
+          manageConnection: manageConnection,
+          requestRefresh: requestHomeRefresh
         )
       }
     }
@@ -35,19 +45,36 @@ private enum BrucePanelsPreview {
   @MainActor
   static var view: some View {
     let store = HomeAssistantTemperatureStore(loader: BrucePanelsPreviewLoader())
+    let chargingStore = HomeAssistantEVChargingStore(
+      client: BrucePanelsPreviewEVChargingClient(),
+      mode: .smart
+    )
     return BrucePanelsView(
       temperatureStore: store,
+      chargingStore: chargingStore,
       mode: .standard,
       isConnecting: false,
       connectionProblem: nil,
       manageConnection: {},
-      requestTemperatureRefresh: {},
+      requestHomeRefresh: {},
       isRemovingConnection: false
     )
     .tint(BruceMode.standard.accentColor)
     .task {
       await store.load()
     }
+  }
+}
+
+private struct BrucePanelsPreviewEVChargingClient: HomeAssistantEVCharging {
+  func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {
+    .smart
+  }
+
+  func setEVChargingMode(
+    _ mode: HomeAssistantEVChargingMode
+  ) async throws -> HomeAssistantEVChargingMode {
+    mode
   }
 }
 

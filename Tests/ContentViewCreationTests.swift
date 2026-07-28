@@ -12,6 +12,9 @@ final class ContentViewCreationTests: XCTestCase {
         temperatureStore: HomeAssistantTemperatureStore(
           loader: ContentViewEmptyTemperatureLoader()
         ),
+        chargingStore: HomeAssistantEVChargingStore(
+          client: ContentViewEVChargingClient()
+        ),
         settingsNavigation: BruceSettingsNavigation()
       )
     #else
@@ -20,9 +23,24 @@ final class ContentViewCreationTests: XCTestCase {
         setupStore: HomeAssistantSetupStore(discovery: ContentViewEmptyDiscovery()),
         temperatureStore: HomeAssistantTemperatureStore(
           loader: ContentViewEmptyTemperatureLoader()
+        ),
+        chargingStore: HomeAssistantEVChargingStore(
+          client: ContentViewEVChargingClient()
         )
       )
     #endif
+  }
+}
+
+private struct ContentViewEVChargingClient: HomeAssistantEVCharging {
+  func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {
+    .off
+  }
+
+  func setEVChargingMode(
+    _ mode: HomeAssistantEVChargingMode
+  ) async throws -> HomeAssistantEVChargingMode {
+    mode
   }
 }
 

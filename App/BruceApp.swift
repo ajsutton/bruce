@@ -6,6 +6,7 @@ struct BruceApp: App {
   @StateObject private var modeController = BruceModeController()
   @StateObject private var setupStore: HomeAssistantSetupStore
   @StateObject private var temperatureStore: HomeAssistantTemperatureStore
+  @StateObject private var chargingStore: HomeAssistantEVChargingStore
   #if os(macOS)
     @StateObject private var settingsNavigation = BruceSettingsNavigation()
   #endif
@@ -41,6 +42,14 @@ struct BruceApp: App {
     )
     let apiClient = HomeAssistantAPIClient(session: session)
     _setupStore = StateObject(wrappedValue: setupStore)
+    _chargingStore = StateObject(
+      wrappedValue: HomeAssistantEVChargingStore(
+        client: apiClient,
+        onAuthenticationRequired: {
+          setupStore.requireReauthentication()
+        }
+      )
+    )
     _temperatureStore = StateObject(
       wrappedValue: HomeAssistantTemperatureStore(
         loader: HomeAssistantTemperatureStream(
@@ -62,6 +71,7 @@ struct BruceApp: App {
           modeController: modeController,
           setupStore: setupStore,
           temperatureStore: temperatureStore,
+          chargingStore: chargingStore,
           settingsNavigation: settingsNavigation
         )
         .tint(modeController.mode.accentColor)
@@ -69,7 +79,8 @@ struct BruceApp: App {
         ContentView(
           modeController: modeController,
           setupStore: setupStore,
-          temperatureStore: temperatureStore
+          temperatureStore: temperatureStore,
+          chargingStore: chargingStore
         )
         .tint(modeController.mode.accentColor)
       #endif

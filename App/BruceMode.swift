@@ -46,6 +46,13 @@ enum BruceMode: String, CaseIterable {
     }
   }
 
+  func panelBackgroundColor(for colorScheme: ColorScheme) -> Color {
+    if isFullBruce || colorScheme == .light {
+      return backgroundColor
+    }
+    return Color(red: 0.13, green: 0.14, blue: 0.13)
+  }
+
   var foregroundColor: Color {
     switch self {
     case .standard:

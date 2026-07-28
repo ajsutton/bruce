@@ -20,7 +20,9 @@ protocol HomeAssistantClimateControlling: Sendable {
   ) async throws
 }
 
-struct HomeAssistantAPIClient: HomeAssistantClimateControlling, Sendable {
+struct HomeAssistantAPIClient:
+  HomeAssistantClimateControlling, HomeAssistantEVCharging, Sendable
+{
   private static let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "net.symphonious.bruce",
     category: "HomeAssistantAPI"
@@ -86,6 +88,29 @@ struct HomeAssistantAPIClient: HomeAssistantClimateControlling, Sendable {
     )
   }
 
+  func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {
+    let data = try await session.authenticatedGET(
+      path: "api/states/input_select.ev_charging_mode"
+    )
+    return try Self.evChargingMode(from: data)
+  }
+
+  func setEVChargingMode(
+    _ mode: HomeAssistantEVChargingMode
+  ) async throws -> HomeAssistantEVChargingMode {
+    let body = try JSONEncoder().encode(
+      HomeAssistantSelectOptionRequest(
+        entityID: "input_select.ev_charging_mode",
+        option: mode.rawValue
+      )
+    )
+    _ = try await session.authenticatedPOST(
+      path: "api/services/input_select/select_option",
+      body: body
+    )
+    return try await loadEVChargingMode()
+  }
+
   func loadTemperatures() async throws -> [HomeAssistantTemperatureReading] {
     try await loadTemperatureSnapshot().readings
   }
@@ -124,6 +149,20 @@ struct HomeAssistantAPIClient: HomeAssistantClimateControlling, Sendable {
     do {
       return try JSONDecoder().decode(HomeAssistantAPIConfiguration.self, from: data)
         .unitSystem.temperature
+    } catch {
+      throw HomeAssistantAPIError.invalidResponse
+    }
+  }
+
+  static func evChargingMode(from data: Data) throws -> HomeAssistantEVChargingMode {
+    do {
+      let state = try JSONDecoder().decode(HomeAssistantEVChargingState.self, from: data)
+      guard let mode = HomeAssistantEVChargingMode(rawValue: state.state) else {
+        throw HomeAssistantAPIError.invalidResponse
+      }
+      return mode
+    } catch let error as HomeAssistantAPIError {
+      throw error
     } catch {
       throw HomeAssistantAPIError.invalidResponse
     }
@@ -315,5 +354,19 @@ private struct HomeAssistantClimateTemperatureRequest: Encodable {
   enum CodingKeys: String, CodingKey {
     case entityID = "entity_id"
     case temperature
+  }
+}
+
+private struct HomeAssistantEVChargingState: Decodable {
+  let state: String
+}
+
+private struct HomeAssistantSelectOptionRequest: Encodable {
+  let entityID: String
+  let option: String
+
+  enum CodingKeys: String, CodingKey {
+    case entityID = "entity_id"
+    case option
   }
 }

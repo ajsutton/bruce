@@ -3,11 +3,11 @@ import XCTest
 @testable import Bruce
 
 @MainActor
-final class TemperaturePresentationTests: XCTestCase {
-  func testHealthyConnectionShowsTemperaturesWithoutAConnectionMessage() {
+final class HomeAssistantPresentationTests: XCTestCase {
+  func testHealthyConnectionShowsPanelsWithoutAConnectionMessage() {
     let presentation = makePresentation(step: .connected(credentials), state: .succeeded)
 
-    XCTAssertEqual(presentation.screen, .temperatures)
+    XCTAssertEqual(presentation.screen, .panels)
     XCTAssertFalse(presentation.isConnecting)
     XCTAssertNil(presentation.connectionProblem)
     XCTAssertEqual(presentation.connection, .connected(credentials))
@@ -15,10 +15,10 @@ final class TemperaturePresentationTests: XCTestCase {
     XCTAssertFalse(presentation.shouldRefresh(when: .background))
   }
 
-  func testRestoringShowsTemperatureLoadingState() {
+  func testRestoringShowsPanelLoadingState() {
     let presentation = makePresentation(step: .restoring)
 
-    XCTAssertEqual(presentation.screen, .temperatures)
+    XCTAssertEqual(presentation.screen, .panels)
     XCTAssertTrue(presentation.isConnecting)
     XCTAssertNil(presentation.connectionProblem)
     XCTAssertEqual(presentation.connection, .connecting)
@@ -30,7 +30,7 @@ final class TemperaturePresentationTests: XCTestCase {
       state: .failed(.networkUnavailable)
     )
 
-    XCTAssertEqual(presentation.screen, .temperatures)
+    XCTAssertEqual(presentation.screen, .panels)
     XCTAssertEqual(
       presentation.connectionProblem,
       "Home Assistant can’t be reached. Temperatures may be out of date."
@@ -48,7 +48,7 @@ final class TemperaturePresentationTests: XCTestCase {
     XCTAssertNil(presentation.connectionProblem)
   }
 
-  func testDisconnectedSetupDoesNotShowTemperatureScreen() {
+  func testDisconnectedSetupDoesNotShowPanels() {
     let presentation = makePresentation(step: .introduction)
 
     XCTAssertEqual(presentation.screen, .setup)
@@ -59,8 +59,8 @@ final class TemperaturePresentationTests: XCTestCase {
   private func makePresentation(
     step: HomeAssistantSetupStore.Step,
     state: HomeAssistantSetupStore.ConnectionCheckState = .idle
-  ) -> HomeAssistantTemperaturePresentation {
-    HomeAssistantTemperaturePresentation(
+  ) -> HomeAssistantPresentation {
+    HomeAssistantPresentation(
       step: step,
       connectionCheckState: state
     )

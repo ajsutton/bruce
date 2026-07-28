@@ -1,4 +1,4 @@
-enum HomeAssistantTemperatureConnection: Equatable {
+enum HomeAssistantConnectionState: Equatable {
   case disconnected
   case connecting
   case connected(HomeAssistantCredentials)

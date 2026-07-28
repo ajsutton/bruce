@@ -27,13 +27,7 @@ struct HomeAssistantTemperatureView: View {
   }
 
   private var screenBackground: Color {
-    if mode.isFullBruce {
-      return mode.backgroundColor
-    }
-    if colorScheme == .dark {
-      return Color(red: 0.13, green: 0.14, blue: 0.13)
-    }
-    return mode.backgroundColor
+    mode.panelBackgroundColor(for: colorScheme)
   }
 
   private var primaryCardForeground: AnyShapeStyle {
