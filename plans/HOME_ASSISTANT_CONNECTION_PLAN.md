@@ -115,7 +115,7 @@ local credentials.
 
 ### Transport security
 
-Bruce will support Home Assistant's common local HTTP configuration with these limits:
+Bruce will support user-selected Home Assistant HTTP configurations with these limits:
 
 - an `http://` URL may be used only as a confirmed internal connection candidate;
 - a discovered `internal_url` or resolved mDNS service becomes confirmed only after the user
@@ -127,10 +127,15 @@ Bruce will support Home Assistant's common local HTTP configuration with these l
   authentication or API requests;
 - Bruce must never follow a redirect that downgrades HTTPS to HTTP or forwards authorization to
   another origin; and
-- support for local HTTP must not weaken TLS or App Transport Security globally.
+- the app plists must allow arbitrary HTTP loads because the server hostname is selected at
+  runtime and cannot be added to static App Transport Security exceptions; Bruce's confirmation,
+  candidate, and redirect policies constrain when that exception is used. This disables ATS
+  enforcement for all connections, including its enhanced HTTPS requirements such as minimum TLS
+  versions and forward secrecy, although default HTTPS certificate trust evaluation still applies.
 
 This policy accepts the practical risk of sending credentials without TLS on a user-confirmed
-local network while preventing the same behaviour over the Internet.
+server. HTTPS connections retain normal certificate validation, advertised external candidates
+must use HTTPS, and redirects cannot downgrade HTTPS or forward authorization to another origin.
 
 ### OAuth client identity and callback
 
@@ -514,7 +519,11 @@ state.
 - Reject redirects that would forward an authorization header to another origin.
 - Reject every HTTPS-to-HTTP redirect.
 - Store credentials locally in Keychain and do not sync them.
-- Never weaken App Transport Security or certificate validation globally.
+- Keep default certificate trust evaluation for HTTPS. The global App Transport Security opt-out
+  also disables ATS's enhanced HTTPS requirements, including its minimum TLS version and forward
+  secrecy rules, and exists only because Home Assistant server hostnames are user-selected at
+  runtime; enforce the confirmation, candidate, and redirect controls in the transport policy
+  above.
 - Collect no analytics containing home names, local addresses, UUIDs, or authentication outcomes
   tied to a household.
 

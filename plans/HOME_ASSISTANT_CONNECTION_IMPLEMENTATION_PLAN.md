@@ -220,8 +220,11 @@ Tests/HomeAssistantDiscoveryClientTests.swift
 11. Add the required Bonjour and local-network usage keys to the applicable Info.plists.
 12. Allow HTTP only for a user-confirmed internal candidate.
 13. Retain but reject an HTTP external URL for authentication and API requests.
-14. Reject HTTPS-to-HTTP and cross-origin authorization redirects without weakening TLS or App
-    Transport Security globally.
+14. Reject HTTPS-to-HTTP and cross-origin authorization redirects. Configure the global App
+    Transport Security opt-out required for runtime-selected Home Assistant hostnames. Document
+    that this also disables ATS's enhanced HTTPS requirements, including its minimum TLS version
+    and forward secrecy rules, while default HTTPS certificate trust evaluation remains active,
+    and enforce the app-level HTTP confirmation policy.
 
 ### Unit tests
 

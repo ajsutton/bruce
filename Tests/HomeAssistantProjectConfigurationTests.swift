@@ -49,24 +49,11 @@ final class HomeAssistantProjectConfigurationTests: XCTestCase {
       let transportSecurity = try XCTUnwrap(
         propertyList["NSAppTransportSecurity"] as? [String: Any]
       )
-      XCTAssertEqual(transportSecurity["NSAllowsLocalNetworking"] as? Bool, true)
-      XCTAssertNil(transportSecurity["NSAllowsArbitraryLoads"])
-      if filename == "Info-iOS.plist" {
-        XCTAssertEqual(
-          transportSecurity["NSAllowsArbitraryLoadsInWebContent"] as? Bool,
-          true
-        )
-        let exceptionDomains = try XCTUnwrap(
-          transportSecurity["NSExceptionDomains"] as? [String: Any]
-        )
-        XCTAssertEqual(Set(exceptionDomains.keys), ["lan"])
-        let lanException = try XCTUnwrap(exceptionDomains["lan"] as? [String: Any])
-        XCTAssertEqual(lanException["NSExceptionAllowsInsecureHTTPLoads"] as? Bool, true)
-        XCTAssertEqual(lanException["NSIncludesSubdomains"] as? Bool, true)
-      } else {
-        XCTAssertNil(transportSecurity["NSAllowsArbitraryLoadsInWebContent"])
-        XCTAssertNil(transportSecurity["NSExceptionDomains"])
-      }
+      XCTAssertEqual(transportSecurity["NSAllowsArbitraryLoads"] as? Bool, true)
+      XCTAssertNil(transportSecurity["NSAllowsLocalNetworking"])
+      XCTAssertNil(transportSecurity["NSAllowsArbitraryLoadsForMedia"])
+      XCTAssertNil(transportSecurity["NSAllowsArbitraryLoadsInWebContent"])
+      XCTAssertNil(transportSecurity["NSExceptionDomains"])
     }
   }
 
