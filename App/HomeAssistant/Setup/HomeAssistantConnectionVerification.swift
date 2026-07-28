@@ -11,16 +11,6 @@ enum HomeAssistantConnectionVerification {
     )
   }
 
-  static func restore(
-    using connection: any HomeAssistantConnecting
-  ) async throws -> Outcome {
-    guard let credentials = try await connection.restore() else {
-      return .noSavedConnection
-    }
-    try Task.checkCancellation()
-    return try await check(using: connection, fallback: credentials)
-  }
-
   static func check(
     using connection: any HomeAssistantConnecting,
     fallback credentials: HomeAssistantCredentials

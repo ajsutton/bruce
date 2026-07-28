@@ -53,7 +53,9 @@ struct HomeAssistantAPIClient:
   }
 
   func checkConnection() async throws -> HomeAssistantAPIStatus {
-    let data = try await session.authenticatedGET(path: "api/")
+    let data = try await session.checkConnection { data in
+      _ = try Self.status(from: data)
+    }
     return try Self.status(from: data)
   }
 

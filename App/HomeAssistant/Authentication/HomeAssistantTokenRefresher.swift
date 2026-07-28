@@ -120,26 +120,61 @@ actor HomeAssistantTokenRefresher {
     authenticationClient: HomeAssistantAuthenticationClient
   ) async throws -> TokenResult {
     let candidates = try HomeAssistantRequestRouter.candidates(for: credentials)
-    var lastConnectivityError: (any Error)?
-    for (index, baseURL) in candidates.enumerated() {
-      do {
-        let token = try await authenticationClient.refresh(
-          refreshToken: credentials.refreshToken,
-          at: baseURL
-        )
-        return (token, baseURL)
-      } catch is CancellationError {
-        throw CancellationError()
-      } catch {
-        guard
-          HomeAssistantRequestRouter.isConnectivityFailure(error),
-          index + 1 < candidates.count
-        else {
-          throw error
-        }
-        lastConnectivityError = error
-      }
+    guard candidates.count > 1 else {
+      let baseURL = candidates[0]
+      let token = try await authenticationClient.refresh(
+        refreshToken: credentials.refreshToken,
+        at: baseURL
+      )
+      return (token, baseURL)
     }
-    throw lastConnectivityError ?? HomeAssistantAPIError.invalidServerURL
+    return try await withThrowingTaskGroup(
+      of: TokenRouteAttempt.self,
+      returning: TokenResult.self
+    ) { group in
+      for (index, baseURL) in candidates.enumerated() {
+        group.addTask {
+          do {
+            return .success(
+              try await authenticationClient.refresh(
+                refreshToken: credentials.refreshToken,
+                at: baseURL
+              ),
+              baseURL
+            )
+          } catch {
+            return .failure(index, error)
+          }
+        }
+      }
+
+      var failures = [(any Error)?](repeating: nil, count: candidates.count)
+      for try await attempt in group {
+        switch attempt {
+        case .success(let token, let baseURL):
+          group.cancelAll()
+          try Task.checkCancellation()
+          return (token, baseURL)
+        case .failure(let index, let error):
+          failures[index] = error
+        }
+      }
+      try Task.checkCancellation()
+      throw preferredFailure(from: failures)
+    }
   }
+
+  private static func preferredFailure(
+    from failures: [(any Error)?]
+  ) -> any Error {
+    let errors = failures.compactMap(\.self)
+    return errors.first(where: { !HomeAssistantRequestRouter.isConnectivityFailure($0) })
+      ?? errors.last
+      ?? HomeAssistantAPIError.invalidServerURL
+  }
+}
+
+private enum TokenRouteAttempt: Sendable {
+  case success(HomeAssistantToken, URL)
+  case failure(Int, any Error)
 }

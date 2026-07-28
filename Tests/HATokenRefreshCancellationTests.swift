@@ -3,6 +3,26 @@ import XCTest
 @testable import Bruce
 
 final class HATokenRefreshCancellationTests: XCTestCase {
+  func testRefreshUsesExternalRouteWithoutWaitingForInternalRoute() async throws {
+    let fixture = SessionFixture()
+    let loader = RacingHomeAssistantLoader(
+      blockedHost: fixture.internalURL.host() ?? "",
+      successfulData: refreshedTokenResponse
+    )
+    let refresher = HomeAssistantTokenRefresher(
+      authenticationClient: HomeAssistantAuthenticationClient(
+        loader: loader,
+        now: { [now = fixture.now] in now }
+      )
+    )
+
+    let result = try await refresher.token(for: fixture.credentials())
+
+    XCTAssertEqual(result.1, fixture.externalURL)
+    XCTAssertTrue(loader.wasBlockedRouteCancelled)
+    XCTAssertEqual(Set(loader.requestedHosts), Set(["home.local", "home.example"]))
+  }
+
   func testCancellingOnlyRefreshWaiterReturnsPromptlyAndCancelsRefresh() async throws {
     let fixture = SessionFixture()
     let refreshLoader = BlockingHomeAssistantLoader()
@@ -63,8 +83,7 @@ final class HATokenRefreshCancellationTests: XCTestCase {
     }
     let token = try await remaining.value
     XCTAssertEqual(token.0.accessToken, "refreshed-access")
-    XCTAssertEqual(refreshLoader.requests.count, 1)
-    XCTAssertFalse(refreshLoader.wasCancelled)
+    XCTAssertEqual(refreshLoader.requests.count, 2)
   }
 
   func testCompletedRefreshCannotSucceedAfterWaiterCancellation() async throws {

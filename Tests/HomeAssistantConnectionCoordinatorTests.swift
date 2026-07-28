@@ -7,8 +7,17 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
   func testConnectAuthenticatesVerifiesAndSavesBothAddresses() async throws {
     let fixture = CoordinatorFixture()
     fixture.authenticationLoader.results = [.success(fixture.tokenResponse, statusCode: 200)]
-    fixture.apiLoader.results = [.success(fixture.statusResponse, statusCode: 200)]
-    let coordinator = fixture.makeCoordinator()
+    let loader = RacingHomeAssistantLoader(
+      blockedHost: fixture.externalURL.host() ?? "",
+      successfulData: fixture.statusResponse
+    )
+    let session = HomeAssistantSession(
+      credentialStore: fixture.store,
+      authenticationClient: fixture.authenticationClient,
+      loader: loader,
+      now: { [now = fixture.now] in now }
+    )
+    let coordinator = fixture.makeCoordinator(session: session)
 
     let credentials = try await coordinator.connect(to: fixture.candidate)
 
@@ -19,6 +28,7 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
     let storedCredentials = await fixture.store.value
     XCTAssertEqual(storedCredentials, credentials)
     XCTAssertEqual(fixture.browser.authenticationCount, 1)
+    XCTAssertTrue(loader.wasBlockedRouteCancelled)
   }
 
   func testFailedVerificationPreservesExistingConnection() async throws {
@@ -27,7 +37,10 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
     let existing = fixture.existingCredentials()
     try await session.install(existing)
     fixture.authenticationLoader.results = [.success(fixture.tokenResponse, statusCode: 200)]
-    fixture.apiLoader.results = [.success(Data("{}".utf8), statusCode: 200)]
+    fixture.apiLoader.results = Array(
+      repeating: .success(Data("{}".utf8), statusCode: 200),
+      count: 2
+    )
     let coordinator = fixture.makeCoordinator(session: session)
 
     do {
@@ -47,17 +60,70 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
   func testConnectReturnsExternalRouteWhenInternalVerificationCannotConnect() async throws {
     let fixture = CoordinatorFixture()
     fixture.authenticationLoader.results = [.success(fixture.tokenResponse, statusCode: 200)]
-    fixture.apiLoader.results = [
-      .failure(URLError(.cannotConnectToHost)),
-      .success(fixture.statusResponse, statusCode: 200),
-    ]
-    let coordinator = fixture.makeCoordinator()
+    let loader = HostRoutingHomeAssistantLoader(
+      failingHost: fixture.internalURL.host() ?? "",
+      successfulData: fixture.statusResponse
+    )
+    let session = HomeAssistantSession(
+      credentialStore: fixture.store,
+      authenticationClient: fixture.authenticationClient,
+      loader: loader,
+      now: { [now = fixture.now] in now }
+    )
+    let coordinator = fixture.makeCoordinator(session: session)
 
     let credentials = try await coordinator.connect(to: fixture.candidate)
 
     XCTAssertEqual(credentials.lastSuccessfulURL, fixture.externalURL)
     let storedCredentials = await fixture.store.value
     XCTAssertEqual(storedCredentials?.lastSuccessfulURL, fixture.externalURL)
+  }
+
+  func testConnectionCheckUsesExternalRouteWithoutWaitingForInternalRoute() async throws {
+    let fixture = CoordinatorFixture()
+    let session = fixture.makeSession()
+    let existingCredentials = fixture.existingCredentials()
+    try await session.install(existingCredentials)
+    let loader = RacingHomeAssistantLoader(
+      blockedHost: existingCredentials.internalURL?.host() ?? "",
+      successfulData: fixture.statusResponse
+    )
+    let racingSession = HomeAssistantSession(
+      credentialStore: fixture.store,
+      authenticationClient: fixture.authenticationClient,
+      loader: loader,
+      now: { [now = fixture.now] in now }
+    )
+    _ = try await racingSession.restore()
+    let coordinator = fixture.makeCoordinator(session: racingSession)
+
+    let credentials = try await coordinator.testConnection()
+
+    XCTAssertEqual(credentials.lastSuccessfulURL, existingCredentials.externalURL)
+    XCTAssertTrue(loader.wasBlockedRouteCancelled)
+    XCTAssertEqual(Set(loader.requestedHosts), Set(["existing.local", "existing.example"]))
+  }
+
+  func testNewConnectionUsesExternalRouteWithoutWaitingForInternalRoute() async throws {
+    let fixture = CoordinatorFixture()
+    fixture.authenticationLoader.results = [.success(fixture.tokenResponse, statusCode: 200)]
+    let loader = RacingHomeAssistantLoader(
+      blockedHost: fixture.internalURL.host() ?? "",
+      successfulData: fixture.statusResponse
+    )
+    let session = HomeAssistantSession(
+      credentialStore: fixture.store,
+      authenticationClient: fixture.authenticationClient,
+      loader: loader,
+      now: { [now = fixture.now] in now }
+    )
+    let coordinator = fixture.makeCoordinator(session: session)
+
+    let credentials = try await coordinator.connect(to: fixture.candidate)
+
+    XCTAssertEqual(credentials.lastSuccessfulURL, fixture.externalURL)
+    XCTAssertTrue(loader.wasBlockedRouteCancelled)
+    XCTAssertEqual(Set(loader.requestedHosts), Set(["new.local", "new.example"]))
   }
 
   func testBrowserCancellationDoesNotChangeExistingConnection() async throws {
@@ -138,6 +204,36 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
   }
 }
 
+private final class HostRoutingHomeAssistantLoader:
+  HomeAssistantHTTPDataLoading, @unchecked Sendable
+{
+  private let failingHost: String
+  private let successfulData: Data
+
+  init(failingHost: String, successfulData: Data) {
+    self.failingHost = failingHost
+    self.successfulData = successfulData
+  }
+
+  func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    guard request.url?.host() != failingHost else {
+      throw URLError(.cannotConnectToHost)
+    }
+    let responseURL = request.url ?? URL(fileURLWithPath: "/")
+    guard
+      let response = HTTPURLResponse(
+        url: responseURL,
+        statusCode: 200,
+        httpVersion: nil,
+        headerFields: nil
+      )
+    else {
+      throw HomeAssistantAPIError.invalidResponse
+    }
+    return (successfulData, response)
+  }
+}
+
 @MainActor
 private final class CoordinatorFixture {
   let internalURL = URL(string: "http://new.local:8123") ?? URL(fileURLWithPath: "/")
@@ -211,7 +307,7 @@ private final class CoordinatorFixture {
     )
   }
 
-  private var authenticationClient: HomeAssistantAuthenticationClient {
+  var authenticationClient: HomeAssistantAuthenticationClient {
     HomeAssistantAuthenticationClient(
       loader: authenticationLoader,
       now: { [now] in now },

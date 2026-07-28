@@ -53,7 +53,9 @@ final class HomeAssistantConnectionCoordinator: HomeAssistantConnecting {
       accessTokenExpiresAt: token.expiresAt,
       clientID: HomeAssistantOAuthConfiguration.release.clientID
     )
-    try await session.verifyAndInstall(credentials)
+    try await session.verifyAndInstall(credentials) { data in
+      _ = try HomeAssistantAPIClient.status(from: data)
+    }
     guard let installedCredentials = await session.currentCredentials() else {
       throw HomeAssistantAPIError.noCredentials
     }

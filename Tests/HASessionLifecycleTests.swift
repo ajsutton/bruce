@@ -226,7 +226,9 @@ final class HASessionLifecycleTests: XCTestCase {
       now: { [now = fixture.now] in now }
     )
     let verification = Task {
-      try await session.verifyAndInstall(fixture.credentials())
+      try await session.verifyAndInstall(fixture.credentials()) { data in
+        _ = try HomeAssistantAPIClient.status(from: data)
+      }
     }
     await fulfillment(of: [apiLoader.started], timeout: 1)
 

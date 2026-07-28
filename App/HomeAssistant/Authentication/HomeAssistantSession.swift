@@ -67,15 +67,18 @@ actor HomeAssistantSession {
     }
   }
 
-  func verifyAndInstall(_ newCredentials: HomeAssistantCredentials) async throws {
+  func verifyAndInstall(
+    _ newCredentials: HomeAssistantCredentials,
+    validate: @escaping @Sendable (Data) throws -> Void
+  ) async throws {
     let generation = reserveCredentialGeneration()
     await tokenRefresher.cancel()
-    let response = try await transport.get(
+    let response = try await transport.getFirstAvailable(
       path: "api/",
-      credentials: newCredentials
+      credentials: newCredentials,
+      validate: validate
     )
     try Task.checkCancellation()
-    _ = try HomeAssistantAPIClient.status(from: response.data)
     var verifiedCredentials = newCredentials
     verifiedCredentials.lastSuccessfulURL = response.baseURL
     try await withHomeAssistantPersistence(gate: persistenceGate) {
@@ -250,6 +253,18 @@ actor HomeAssistantSession {
 }
 
 extension HomeAssistantSession {
+  func checkConnection(
+    validate: @escaping @Sendable (Data) throws -> Void
+  ) async throws -> Data {
+    try await refreshIfNeeded(force: false)
+    return try await performRequest(
+      path: "api/",
+      body: nil,
+      canRefreshAfterUnauthorized: true,
+      routeSelection: .firstValid(validate)
+    )
+  }
+
   func authenticatedGET(path: String) async throws -> Data {
     try await refreshIfNeeded(force: false)
     return try await performRequest(
@@ -271,7 +286,8 @@ extension HomeAssistantSession {
   private func performRequest(
     path: String,
     body: Data?,
-    canRefreshAfterUnauthorized: Bool
+    canRefreshAfterUnauthorized: Bool,
+    routeSelection: RouteSelection = .ordered
   ) async throws -> Data {
     guard let credentials else {
       throw HomeAssistantAPIError.noCredentials
@@ -279,16 +295,13 @@ extension HomeAssistantSession {
     let generation = credentialGeneration
     let sessionEpoch = authenticationSessionEpoch
     do {
-      let response =
-        if let body {
-          try await transport.post(
-            path: path,
-            body: body,
-            credentials: credentials
-          )
-        } else {
-          try await transport.get(path: path, credentials: credentials)
-        }
+      let response = try await loadResponse(
+        path: path,
+        body: body,
+        credentials: credentials,
+        routeSelection: routeSelection
+      )
+      try Task.checkCancellation()
       if body == nil {
         try await rememberSuccessful(
           response.baseURL,
@@ -313,9 +326,33 @@ extension HomeAssistantSession {
       return try await performRequest(
         path: path,
         body: body,
-        canRefreshAfterUnauthorized: false
+        canRefreshAfterUnauthorized: false,
+        routeSelection: routeSelection
       )
     }
+  }
+
+  private func loadResponse(
+    path: String,
+    body: Data?,
+    credentials: HomeAssistantCredentials,
+    routeSelection: RouteSelection
+  ) async throws -> HomeAssistantAuthenticatedResponse {
+    if case .firstValid(let validate) = routeSelection {
+      return try await transport.getFirstAvailable(
+        path: path,
+        credentials: credentials,
+        validate: validate
+      )
+    }
+    if let body {
+      return try await transport.post(
+        path: path,
+        body: body,
+        credentials: credentials
+      )
+    }
+    return try await transport.get(path: path, credentials: credentials)
   }
 
   func authenticatedWebSocketAccess() async throws -> HomeAssistantWebSocketAccess {

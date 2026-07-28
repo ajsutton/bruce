@@ -5,24 +5,23 @@ import XCTest
 final class HomeAssistantSessionWriteTests: XCTestCase {
   func testUnauthorizedWriteRefreshesAndRetriesWithOriginalBody() async throws {
     let fixture = SessionFixture()
+    let tokenResponse = Data(
+      """
+      {
+        "access_token": "refreshed-access",
+        "token_type": "Bearer",
+        "expires_in": 1800
+      }
+      """.utf8
+    )
     let session = fixture.makeSession(
       apiResponses: [
         .success(Data(), statusCode: 401),
         .success(Data("retried".utf8), statusCode: 200),
       ],
       authenticationResponses: [
-        .success(
-          Data(
-            """
-            {
-              "access_token": "refreshed-access",
-              "token_type": "Bearer",
-              "expires_in": 1800
-            }
-            """.utf8
-          ),
-          statusCode: 200
-        )
+        .success(tokenResponse, statusCode: 200),
+        .success(tokenResponse, statusCode: 200),
       ]
     )
     try await session.install(fixture.credentials())
@@ -45,19 +44,18 @@ final class HomeAssistantSessionWriteTests: XCTestCase {
   func testDelayedUnauthorizedWriteUsesTokenRefreshedByConcurrentWrite() async throws {
     let fixture = SessionFixture()
     let loader = OrderedBlockingHomeAssistantLoader(requestCount: 4)
+    let tokenResponse = Data(
+      """
+      {
+        "access_token": "refreshed-access",
+        "token_type": "Bearer",
+        "expires_in": 1800
+      }
+      """.utf8
+    )
     fixture.authenticationLoader.results = [
-      .success(
-        Data(
-          """
-          {
-            "access_token": "refreshed-access",
-            "token_type": "Bearer",
-            "expires_in": 1800
-          }
-          """.utf8
-        ),
-        statusCode: 200
-      )
+      .success(tokenResponse, statusCode: 200),
+      .success(tokenResponse, statusCode: 200),
     ]
     let session = makeSession(fixture: fixture, loader: loader)
     try await session.install(fixture.credentials())
@@ -88,7 +86,7 @@ final class HomeAssistantSessionWriteTests: XCTestCase {
 
     let secondResponse = try await secondWrite.value
     XCTAssertEqual(secondResponse, Data("second-complete".utf8))
-    XCTAssertEqual(fixture.authenticationLoader.requests.count, 1)
+    XCTAssertEqual(fixture.authenticationLoader.requests.count, 2)
     XCTAssertEqual(
       loader.requests[3].value(forHTTPHeaderField: "Authorization"),
       "Bearer refreshed-access"

@@ -90,28 +90,27 @@ final class HomeAssistantSessionTests: XCTestCase {
 
   func testExpiredTokenRefreshesBeforeRead() async throws {
     let fixture = SessionFixture()
+    let tokenResponse = Data(
+      """
+      {
+        "access_token": "refreshed-access",
+        "token_type": "Bearer",
+        "expires_in": 1800
+      }
+      """.utf8
+    )
     let session = fixture.makeSession(
       apiResponses: [.success(Data("response".utf8), statusCode: 200)],
       authenticationResponses: [
-        .success(
-          Data(
-            """
-            {
-              "access_token": "refreshed-access",
-              "token_type": "Bearer",
-              "expires_in": 1800
-            }
-            """.utf8
-          ),
-          statusCode: 200
-        )
+        .success(tokenResponse, statusCode: 200),
+        .success(tokenResponse, statusCode: 200),
       ]
     )
     try await session.install(fixture.credentials(expiresAt: fixture.past))
 
     _ = try await session.authenticatedGET(path: "api/")
 
-    XCTAssertEqual(fixture.authenticationLoader.requests.count, 1)
+    XCTAssertEqual(fixture.authenticationLoader.requests.count, 2)
     XCTAssertEqual(
       fixture.apiLoader.requests.first?.value(forHTTPHeaderField: "Authorization"),
       "Bearer refreshed-access"
@@ -120,24 +119,23 @@ final class HomeAssistantSessionTests: XCTestCase {
 
   func testUnauthorizedReadRefreshesAndRetriesOnce() async throws {
     let fixture = SessionFixture()
+    let tokenResponse = Data(
+      """
+      {
+        "access_token": "refreshed-access",
+        "token_type": "Bearer",
+        "expires_in": 1800
+      }
+      """.utf8
+    )
     let session = fixture.makeSession(
       apiResponses: [
         .success(Data(), statusCode: 401),
         .success(Data("retried".utf8), statusCode: 200),
       ],
       authenticationResponses: [
-        .success(
-          Data(
-            """
-            {
-              "access_token": "refreshed-access",
-              "token_type": "Bearer",
-              "expires_in": 1800
-            }
-            """.utf8
-          ),
-          statusCode: 200
-        )
+        .success(tokenResponse, statusCode: 200),
+        .success(tokenResponse, statusCode: 200),
       ]
     )
     try await session.install(fixture.credentials())
@@ -154,17 +152,16 @@ final class HomeAssistantSessionTests: XCTestCase {
 
   func testRejectedRefreshDeletesCredentialsAndRequiresAuthentication() async throws {
     let fixture = SessionFixture()
+    let rejectedResponse = Data(
+      """
+      {"error": "invalid_grant", "error_description": "Refresh token is invalid"}
+      """.utf8
+    )
     let session = fixture.makeSession(
       apiResponses: [],
       authenticationResponses: [
-        .success(
-          Data(
-            """
-            {"error": "invalid_grant", "error_description": "Refresh token is invalid"}
-            """.utf8
-          ),
-          statusCode: 400
-        )
+        .success(rejectedResponse, statusCode: 400),
+        .success(rejectedResponse, statusCode: 400),
       ]
     )
     try await session.install(fixture.credentials(expiresAt: fixture.past))
@@ -264,9 +261,15 @@ final class QueueHomeAssistantLoader: HomeAssistantHTTPDataLoading, @unchecked S
   }
 
   func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
-    let result = lock.withLock { () -> Result in
+    let result = lock.withLock { () -> Result? in
       storedRequests.append(request)
+      guard !storedResults.isEmpty else {
+        return nil
+      }
       return storedResults.removeFirst()
+    }
+    guard let result else {
+      throw HomeAssistantAPIError.invalidResponse
     }
     switch result {
     case .failure(let error):

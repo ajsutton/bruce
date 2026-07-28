@@ -33,7 +33,9 @@ struct HomeAssistantConnectionSummaryView: View {
   }
 
   private var title: String {
-    if isConnected {
+    if !isConnected, store.connectionCheckState == .checking {
+      credentials.instanceName
+    } else if isConnected {
       setupCopy.connectedTitle(instanceName: credentials.instanceName)
     } else {
       setupCopy.configuredTitle(instanceName: credentials.instanceName)
@@ -41,7 +43,11 @@ struct HomeAssistantConnectionSummaryView: View {
   }
 
   private var statusIcon: String {
-    isConnected ? "checkmark.circle.fill" : "exclamationmark.circle"
+    if !isConnected, store.connectionCheckState == .checking {
+      "ellipsis.circle"
+    } else {
+      isConnected ? "checkmark.circle.fill" : "exclamationmark.circle"
+    }
   }
 
   @ViewBuilder

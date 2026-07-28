@@ -162,7 +162,21 @@ final class HomeAssistantConnectionController: ObservableObject {
     generation: UUID
   ) async {
     do {
-      let outcome = try await HomeAssistantConnectionVerification.restore(using: connection)
+      guard let credentials = try await connection.restore() else {
+        apply(.noSavedConnection, generation: generation)
+        return
+      }
+      try Task.checkCancellation()
+      guard connectionGeneration == generation else {
+        return
+      }
+      connectedCredentials = credentials
+      connectionCheckState = .checking
+      step = .configured(credentials)
+      let outcome = try await HomeAssistantConnectionVerification.check(
+        using: connection,
+        fallback: credentials
+      )
       apply(outcome, generation: generation)
     } catch is CancellationError {
     } catch {

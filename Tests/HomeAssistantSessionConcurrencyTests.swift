@@ -21,7 +21,7 @@ final class HomeAssistantSessionConcurrencyTests: XCTestCase {
     let responses = try await [first, second]
 
     XCTAssertEqual(Set(responses), Set([Data("first".utf8), Data("second".utf8)]))
-    XCTAssertEqual(refreshLoader.requests.count, 1)
+    XCTAssertEqual(refreshLoader.requests.count, 2)
   }
 
   func testConcurrentReadsShareRejectedRefreshOutcome() async throws {
@@ -38,7 +38,7 @@ final class HomeAssistantSessionConcurrencyTests: XCTestCase {
     let results = await [first, second]
 
     XCTAssertEqual(results, [true, true])
-    XCTAssertEqual(refreshLoader.requests.count, 1)
+    XCTAssertEqual(refreshLoader.requests.count, 2)
     let currentCredentials = await session.currentCredentials()
     let storedCredentials = await fixture.store.value
     XCTAssertNil(currentCredentials)
@@ -133,6 +133,39 @@ final class HomeAssistantSessionConcurrencyTests: XCTestCase {
       XCTFail("Unexpected error: \(error)")
     }
     XCTAssertTrue(apiLoader.wasCancelled)
+  }
+
+  func testConnectionCheckRejectsSuccessAfterValidationCancelsCaller() async throws {
+    let fixture = SessionFixture()
+    let apiLoader = BlockingHomeAssistantLoader(honorsCancellation: false)
+    let session = HomeAssistantSession(
+      credentialStore: fixture.store,
+      authenticationClient: HomeAssistantAuthenticationClient(
+        loader: fixture.authenticationLoader,
+        now: { [now = fixture.now] in now }
+      ),
+      loader: apiLoader,
+      now: { [now = fixture.now] in now }
+    )
+    try await session.install(fixture.credentials())
+    let taskReference = ConnectionCheckTaskReference()
+    let check = Task {
+      try await session.checkConnection { _ in
+        taskReference.cancel()
+      }
+    }
+    taskReference.task = check
+    await fulfillment(of: [apiLoader.started], timeout: 1)
+
+    apiLoader.succeed(with: Data(#"{"message":"API running."}"#.utf8), statusCode: 200)
+
+    do {
+      _ = try await check.value
+      XCTFail("Expected connection check cancellation.")
+    } catch is CancellationError {
+    } catch {
+      XCTFail("Unexpected error: \(error)")
+    }
   }
 
   func testReadStartedDuringDisconnectCannotUseOldCredentials() async throws {
@@ -233,6 +266,20 @@ final class HomeAssistantSessionConcurrencyTests: XCTestCase {
     } catch {
       return false
     }
+  }
+}
+
+private final class ConnectionCheckTaskReference: @unchecked Sendable {
+  private let lock = NSLock()
+  private var storedTask: Task<Data, any Error>?
+
+  var task: Task<Data, any Error>? {
+    get { lock.withLock { storedTask } }
+    set { lock.withLock { storedTask = newValue } }
+  }
+
+  func cancel() {
+    task?.cancel()
   }
 }
 
