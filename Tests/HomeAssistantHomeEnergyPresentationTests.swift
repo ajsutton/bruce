@@ -97,9 +97,9 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
     XCTAssertEqual(exporting.value, "0.1 kW")
   }
 
-  func testPricePresentationShowsCurrentDollarRatePerKilowattHour() {
+  func testPricePresentationShowsCurrentCentsRatePerKilowattHour() {
     let general = HomeEnergyMetricPresentation.generalPrice(
-      dollarsPerKilowattHour: 0.341,
+      dollarsPerKilowattHour: 0.35,
       mode: .standard,
       locale: locale
     )
@@ -109,18 +109,18 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
       locale: locale
     )
     let feedInCredit = HomeEnergyMetricPresentation.feedInPrice(
-      dollarsPerKilowattHour: 0.127,
+      dollarsPerKilowattHour: 0.09,
       mode: .standard,
       locale: locale
     )
 
     XCTAssertEqual(general.title, "General price")
-    XCTAssertEqual(general.value, "$0.341/kWh")
+    XCTAssertEqual(general.value, "35¢/kWh")
     XCTAssertEqual(feedIn.title, "Export charge")
-    XCTAssertEqual(feedIn.value, "$0.051/kWh")
+    XCTAssertEqual(feedIn.value, "5.1¢/kWh")
     XCTAssertEqual(feedIn.color, .orange)
     XCTAssertEqual(feedInCredit.title, "Feed-in price")
-    XCTAssertEqual(feedInCredit.value, "$0.127/kWh")
+    XCTAssertEqual(feedInCredit.value, "9¢/kWh")
     XCTAssertEqual(feedInCredit.color, .green)
   }
 

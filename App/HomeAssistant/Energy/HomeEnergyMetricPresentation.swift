@@ -184,12 +184,12 @@ struct HomeEnergyMetricPresentation {
     locale: Locale
   ) -> String {
     guard let dollarsPerKilowattHour else { return copy.unavailable }
-    let currency = dollarsPerKilowattHour.formatted(
-      .currency(code: "AUD")
+    let cents = (dollarsPerKilowattHour * 100).formatted(
+      .number
         .locale(locale)
-        .precision(.fractionLength(3))
+        .precision(.fractionLength(0...1))
     )
-    return "\(currency)/kWh"
+    return "\(cents)¢/kWh"
   }
 
   private static func batteryIcon(_ value: Double?) -> String {
