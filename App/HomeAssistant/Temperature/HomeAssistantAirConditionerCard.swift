@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeAssistantAirConditionerCard: View {
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var isShowingModePicker = false
 
   let reading: HomeAssistantTemperatureReading
@@ -57,6 +58,15 @@ struct HomeAssistantAirConditionerCard: View {
     Group {
       if dynamicTypeSize.isAccessibilitySize {
         stackedLayout
+      } else if horizontalSizeClass == .compact {
+        #if os(iOS)
+          rowLayout(.condensed)
+        #else
+          ViewThatFits(in: .horizontal) {
+            rowLayout(.condensed)
+            stackedLayout
+          }
+        #endif
       } else {
         ViewThatFits(in: .horizontal) {
           rowLayout(.spacious)
@@ -89,12 +99,15 @@ struct HomeAssistantAirConditionerCard: View {
 
   private func rowLayout(_ density: AirConditionerCardDensity) -> some View {
     HStack(spacing: density.spacing) {
-      status(isCondensed: density == .condensed)
-        .frame(
-          minWidth: density.statusMinimumWidth,
-          maxWidth: density.statusMaximumWidth,
-          alignment: .leading
-        )
+      HStack(spacing: 0) {
+        status(isCondensed: density == .condensed)
+          .frame(
+            minWidth: density.statusMinimumWidth,
+            maxWidth: density.statusMaximumWidth,
+            alignment: .leading
+          )
+        Spacer(minLength: 0)
+      }
 
       cardDivider
 
@@ -104,8 +117,11 @@ struct HomeAssistantAirConditionerCard: View {
         foreground: style.primaryForeground,
         isCondensed: density == .condensed
       )
-      .frame(minWidth: density.temperatureMinimumWidth, alignment: .leading)
-      .fixedSize(horizontal: true, vertical: false)
+      .frame(
+        minWidth: density.temperatureMinimumWidth,
+        maxWidth: density.temperatureMaximumWidth,
+        alignment: .leading
+      )
 
       cardDivider
 
@@ -116,8 +132,12 @@ struct HomeAssistantAirConditionerCard: View {
         isCondensed: density == .condensed,
         fractionLength: targetValueFractionLength
       )
-      .frame(minWidth: density.temperatureMinimumWidth, alignment: .leading)
-      .fixedSize(horizontal: true, vertical: false)
+      .frame(
+        minWidth: density.temperatureMinimumWidth,
+        maxWidth: density.temperatureMaximumWidth,
+        alignment: .leading
+      )
+      .padding(.trailing, targetColumnTrailingClearance)
     }
     .frame(maxWidth: .infinity, minHeight: density.minimumHeight)
   }
@@ -251,6 +271,8 @@ extension HomeAssistantAirConditionerCard {
       Text(label)
         .font(isCondensed ? .caption : .subheadline)
         .foregroundStyle(style.secondaryForeground)
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
 
       HStack(alignment: .firstTextBaseline, spacing: 2) {
         if let value {
@@ -274,7 +296,7 @@ extension HomeAssistantAirConditionerCard {
       .foregroundStyle(foreground)
       .monospacedDigit()
       .lineLimit(1)
-      .minimumScaleFactor(0.8)
+      .minimumScaleFactor(0.5)
     }
   }
 
@@ -284,6 +306,14 @@ extension HomeAssistantAirConditionerCard {
 
   fileprivate var averageLabel: String {
     showsName ? "House avg." : "Average"
+  }
+
+  fileprivate var targetColumnTrailingClearance: CGFloat {
+    #if os(iOS)
+      16
+    #else
+      0
+    #endif
   }
 
   fileprivate var cardDivider: some View {

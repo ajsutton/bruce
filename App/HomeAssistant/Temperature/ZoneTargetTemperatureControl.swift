@@ -4,7 +4,6 @@ struct ZoneTargetTemperatureControl: View {
   let reading: HomeAssistantTemperatureReading
   let mode: BruceMode
   let isEnabled: Bool
-  let showsLabel: Bool
   let fractionLength: Int
   let setTargetValue: @Sendable (Double) -> Void
 
@@ -16,47 +15,93 @@ struct ZoneTargetTemperatureControl: View {
     reading.effectiveTargetValueStep
   }
 
+  @ViewBuilder
   var body: some View {
-    if showsLabel {
-      stepper
-    } else {
-      stepper
-        .labelsHidden()
-    }
-  }
+    #if os(iOS)
+      ZStack(alignment: .trailing) {
+        VStack(spacing: 0) {
+          adjustmentSymbol(
+            systemName: "chevron.up",
+            value: adjustedTarget(by: step)
+          )
+          adjustmentSymbol(
+            systemName: "chevron.down",
+            value: adjustedTarget(by: -step)
+          )
+        }
+        .accessibilityHidden(true)
 
-  private var stepper: some View {
-    Stepper(
-      value: targetBinding,
-      in: targetRange,
-      step: step
-    ) {
-      VStack(alignment: .trailing, spacing: 2) {
-        Text("Target")
-          .font(.caption)
-          .foregroundStyle(style.secondaryForeground)
-        targetValueLabel
-          .font(.title3)
-          .foregroundStyle(style.emphasizedForeground)
-          .monospacedDigit()
+        VStack(spacing: 0) {
+          adjustmentButton(
+            accessibilityLabel: "Increase \(reading.name) target",
+            value: adjustedTarget(by: step)
+          )
+          adjustmentButton(
+            accessibilityLabel: "Decrease \(reading.name) target",
+            value: adjustedTarget(by: -step)
+          )
+        }
       }
-    }
-    .disabled(!isEnabled)
-    .accessibilityLabel("\(reading.name) target")
-    .accessibilityValue(targetAccessibilityValue)
-    .tint(style.controlTint)
-    .foregroundStyle(style.primaryForeground)
+      .frame(width: 84, height: 88)
+    #else
+      Stepper(
+        value: targetBinding,
+        in: targetRange,
+        step: step
+      ) {}
+      .labelsHidden()
+      .disabled(!isEnabled)
+      .accessibilityLabel("\(reading.name) target")
+      .accessibilityValue(targetAccessibilityValue)
+      .tint(style.controlTint)
+      .foregroundStyle(style.primaryForeground)
+    #endif
   }
 
-  private var targetValueLabel: Text {
-    guard let value = reading.targetValue else {
-      return Text("—")
+  #if os(iOS)
+    private func adjustmentSymbol(
+      systemName: String,
+      value: Double?
+    ) -> some View {
+      Image(systemName: systemName)
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(style.controlTint)
+        .frame(width: 16, height: 44)
+        .opacity(isEnabled && value != nil ? 1 : 0.35)
     }
-    let formattedValue = value.formatted(
-      .number.precision(.fractionLength(fractionLength))
-    )
-    return Text(verbatim: "\(formattedValue)\(reading.unit ?? "")")
-  }
+
+    private func adjustmentButton(
+      accessibilityLabel: String,
+      value: Double?
+    ) -> some View {
+      Button {
+        guard let value else {
+          return
+        }
+        setTargetValue(value)
+      } label: {
+        Color.clear
+          .frame(width: 84, height: 44)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .disabled(!isEnabled || value == nil)
+      .accessibilityLabel(accessibilityLabel)
+      .accessibilityValue(targetAccessibilityValue)
+    }
+
+    private func adjustedTarget(by adjustment: Double) -> Double? {
+      guard let targetValue = reading.targetValue else {
+        return nil
+      }
+      let adjustedValue = targetValue + adjustment
+      guard targetRange.contains(adjustedValue) else {
+        return nil
+      }
+      return adjustedValue
+    }
+
+  #endif
 
   private var targetAccessibilityValue: Text {
     guard let value = reading.targetValue else {

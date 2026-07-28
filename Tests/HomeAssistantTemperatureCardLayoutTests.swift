@@ -45,6 +45,27 @@
       }
     }
 
+    func testTargetControlExpandsItsHitWidthAcrossTheTargetValue() {
+      let control = ZoneTargetTemperatureControl(
+        reading: room,
+        mode: .standard,
+        isEnabled: true,
+        fractionLength: 1,
+        setTargetValue: { _ in }
+      )
+
+      let host = UIHostingController(rootView: control)
+      let size = host.sizeThatFits(
+        in: CGSize(width: 1_000, height: 1_000)
+      )
+
+      XCTAssertEqual(
+        size.width,
+        expandedTargetControlWidth,
+        "Target control used \(size.width) points instead of the intended expanded hit width."
+      )
+    }
+
     private func renderedCardHeight(
       dynamicTypeSize: DynamicTypeSize,
       showsTargetControl: Bool
@@ -58,6 +79,7 @@
       )
       .environment(\.dynamicTypeSize, dynamicTypeSize)
       .environment(\.horizontalSizeClass, .compact)
+      .fixedSize(horizontal: false, vertical: true)
 
       let host = UIHostingController(rootView: card)
       return host.sizeThatFits(
@@ -100,6 +122,10 @@
 
     private var singleRowMaximumHeight: CGFloat {
       120
+    }
+
+    private var expandedTargetControlWidth: CGFloat {
+      84
     }
   }
 #endif

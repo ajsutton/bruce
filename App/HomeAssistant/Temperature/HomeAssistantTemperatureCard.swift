@@ -43,9 +43,17 @@ struct HomeAssistantTemperatureCard: View {
     TemperatureCardStyle(reading: reading, mode: mode)
   }
 
+  private var usesAdjustableCard: Bool {
+    #if os(iOS)
+      showsControl
+    #else
+      showsControl && showsTargetControl
+    #endif
+  }
+
   @ViewBuilder
   var body: some View {
-    if showsControl, showsTargetControl {
+    if usesAdjustableCard {
       adjustableCard
     } else if showsControl {
       Button {
@@ -110,21 +118,34 @@ struct HomeAssistantTemperatureCard: View {
 
   private func rowLayout(_ density: TemperatureRowDensity) -> some View {
     HStack(spacing: density.spacing) {
-      location(isCondensed: density == .condensed)
+      HStack(spacing: 0) {
+        location(isCondensed: density == .condensed)
+          .frame(
+            minWidth: density.locationMinimumWidth(
+              isCompact: horizontalSizeClass == .compact
+            ),
+            maxWidth: density.locationMaximumWidth(
+              isCompact: horizontalSizeClass == .compact
+            ),
+            alignment: .leading
+          )
+        Spacer(minLength: 0)
+      }
+      cardDivider
+      currentTemperature(isCondensed: density == .condensed)
         .frame(
-          minWidth: density.locationMinimumWidth(
-            isCompact: horizontalSizeClass == .compact
-          ),
-          maxWidth: density.locationMaximumWidth,
+          minWidth: density.temperatureMinimumWidth,
+          maxWidth: density.temperatureMaximumWidth,
           alignment: .leading
         )
       cardDivider
-      currentTemperature(isCondensed: density == .condensed)
-        .frame(minWidth: density.temperatureMinimumWidth, alignment: .leading)
-        .fixedSize(horizontal: true, vertical: false)
-      cardDivider
       targetTemperature(isCondensed: density == .condensed)
-        .frame(minWidth: density.temperatureMinimumWidth, alignment: .leading)
+        .frame(
+          minWidth: density.temperatureMinimumWidth,
+          maxWidth: density.temperatureMaximumWidth,
+          alignment: .leading
+        )
+        .padding(.trailing, showsControl ? targetControlClearance : 0)
     }
     .frame(maxWidth: .infinity, minHeight: density.minimumHeight)
   }
@@ -146,9 +167,9 @@ struct HomeAssistantTemperatureCard: View {
   }
 
   private func location(isCondensed: Bool) -> some View {
-    let iconSize: CGFloat = isCondensed ? 40 : 52
+    let iconSize: CGFloat = isCondensed ? 36 : 52
 
-    return HStack(spacing: isCondensed ? 6 : 12) {
+    return HStack(spacing: isCondensed ? 4 : 12) {
       Group {
         if isControlling {
           ProgressView()
@@ -170,6 +191,7 @@ struct HomeAssistantTemperatureCard: View {
           .font(isCondensed ? .subheadline.weight(.semibold) : .headline)
           .foregroundStyle(style.primaryForeground)
           .lineLimit(isCondensed ? condensedNameLineLimit : nil)
+          .minimumScaleFactor(isCondensed ? 0.75 : 1)
 
         Text(powerStateLabel)
           .font(.caption)
@@ -196,7 +218,6 @@ struct HomeAssistantTemperatureCard: View {
       isCondensed: isCondensed,
       fractionLength: targetValueFractionLength
     )
-    .padding(.trailing, showsTargetControl ? targetControlClearance : 0)
   }
 
   private func temperature(
@@ -210,6 +231,8 @@ struct HomeAssistantTemperatureCard: View {
       Text(label)
         .font(.subheadline)
         .foregroundStyle(style.secondaryForeground)
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
 
       HStack(alignment: .firstTextBaseline, spacing: 2) {
         if let value {
@@ -232,6 +255,8 @@ struct HomeAssistantTemperatureCard: View {
       )
       .foregroundStyle(foreground)
       .monospacedDigit()
+      .lineLimit(1)
+      .minimumScaleFactor(0.5)
     }
   }
 
@@ -255,7 +280,9 @@ extension HomeAssistantTemperatureCard {
     } else {
       #if os(iOS)
         if horizontalSizeClass == .compact {
-          iOSAdjustableCard
+          powerCard(usesBottomTargetControlAlignment: false) {
+            rowLayout(.condensed)
+          }
         } else {
           ViewThatFits(in: .horizontal) {
             powerCard(usesBottomTargetControlAlignment: false) {
@@ -296,45 +323,6 @@ extension HomeAssistantTemperatureCard {
     }
   }
 
-  #if os(iOS)
-    fileprivate var iOSAdjustableCard: some View {
-      cardSurface {
-        HStack(spacing: 8) {
-          Button {
-            guard !isTargetControlling else {
-              return
-            }
-            setPower(reading.powerState == .off)
-          } label: {
-            HomeAssistantZoneSummary(
-              reading: reading,
-              mode: mode,
-              isControlling: isControlling
-            )
-          }
-          .buttonStyle(.plain)
-          .disabled(!isControlEnabled || isControlling)
-          .accessibilityLabel(powerAccessibilityLabel)
-          .accessibilityValue(powerAccessibilityValue)
-          .allowsHitTesting(!isTargetControlling)
-          .focusable(!isTargetControlling)
-          .accessibilityRespondsToUserInteraction(!isTargetControlling)
-          .frame(maxWidth: .infinity, alignment: .leading)
-
-          ZoneTargetTemperatureControl(
-            reading: reading,
-            mode: mode,
-            isEnabled: isControlEnabled,
-            showsLabel: true,
-            fractionLength: targetValueFractionLength,
-            setTargetValue: setTargetValue
-          )
-          .layoutPriority(1)
-        }
-      }
-    }
-  #endif
-
   fileprivate func powerCard<Content: View>(
     usesBottomTargetControlAlignment: Bool,
     @ViewBuilder content: () -> Content
@@ -357,36 +345,41 @@ extension HomeAssistantTemperatureCard {
     .focusable(!isTargetControlling)
     .accessibilityRespondsToUserInteraction(!isTargetControlling)
     .overlay(alignment: targetControlAlignment) {
-      ZoneTargetTemperatureControl(
-        reading: reading,
-        mode: mode,
-        isEnabled: isControlEnabled,
-        showsLabel: false,
-        fractionLength: targetValueFractionLength,
-        setTargetValue: setTargetValue
-      )
-      .padding(
-        targetControlInsets(
-          usesBottomTargetControlAlignment: usesBottomTargetControlAlignment
+      if showsTargetControl {
+        ZoneTargetTemperatureControl(
+          reading: reading,
+          mode: mode,
+          isEnabled: isControlEnabled,
+          fractionLength: targetValueFractionLength,
+          setTargetValue: setTargetValue
         )
-      )
+        .padding(
+          targetControlInsets(
+            usesBottomTargetControlAlignment: usesBottomTargetControlAlignment
+          )
+        )
+      }
     }
   }
 
   fileprivate func targetControlInsets(
     usesBottomTargetControlAlignment: Bool
   ) -> EdgeInsets {
-    EdgeInsets(
-      top: usesBottomTargetControlAlignment ? 0 : 16,
-      leading: 0,
-      bottom: 16,
-      trailing: 16
-    )
+    #if os(iOS)
+      EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 8)
+    #else
+      EdgeInsets(
+        top: usesBottomTargetControlAlignment ? 0 : 16,
+        leading: 0,
+        bottom: 16,
+        trailing: 16
+      )
+    #endif
   }
 
   fileprivate var targetControlClearance: CGFloat {
     #if os(iOS)
-      104
+      16
     #else
       36
     #endif

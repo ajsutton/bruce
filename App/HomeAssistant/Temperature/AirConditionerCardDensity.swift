@@ -5,19 +5,23 @@ enum AirConditionerCardDensity {
   case condensed
 
   var spacing: CGFloat {
-    self == .spacious ? 12 : 6
+    self == .spacious ? 12 : 3
   }
 
   var statusMinimumWidth: CGFloat {
-    self == .spacious ? 180 : 144
+    self == .spacious ? 180 : 132
   }
 
   var statusMaximumWidth: CGFloat {
-    self == .spacious ? .infinity : 144
+    self == .spacious ? .infinity : 132
   }
 
   var temperatureMinimumWidth: CGFloat {
     self == .spacious ? 96 : 68
+  }
+
+  var temperatureMaximumWidth: CGFloat {
+    self == .spacious ? .infinity : 68
   }
 
   var minimumHeight: CGFloat {
