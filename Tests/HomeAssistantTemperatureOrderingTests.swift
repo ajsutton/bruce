@@ -164,12 +164,12 @@ private final class TemperatureContextStateSource:
   }
 
   func yield(_ update: HomeAssistantStateUpdate) {
-    let continuation = lock.withLock { continuation }
+    let continuation = lock.withLock { self.continuation }
     continuation?.yield(update)
   }
 
   func finish() {
-    let continuation = lock.withLock { continuation }
+    let continuation = lock.withLock { self.continuation }
     continuation?.finish()
   }
 }

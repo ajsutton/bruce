@@ -338,12 +338,12 @@ final class StreamingEVChargingClient:
   }
 
   func yield(_ update: HomeAssistantEVChargingUpdate) {
-    let continuation = lock.withLock { continuation }
+    let continuation = lock.withLock { self.continuation }
     continuation?.yield(update)
   }
 
   func finishUpdates() {
-    let continuation = lock.withLock { continuation }
+    let continuation = lock.withLock { self.continuation }
     continuation?.finish()
   }
 

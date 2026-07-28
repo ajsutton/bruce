@@ -300,7 +300,7 @@ private final class RefreshingTemperatureLoader:
   }
 
   func yield(_ update: HomeAssistantTemperatureUpdate) {
-    lock.withLock { continuation }?.yield(update)
+    lock.withLock { self.continuation }?.yield(update)
   }
 }
 
@@ -328,6 +328,6 @@ private final class RefreshingEnergyLoader:
   }
 
   func yield(_ update: HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>) {
-    lock.withLock { continuation }?.yield(update)
+    lock.withLock { self.continuation }?.yield(update)
   }
 }

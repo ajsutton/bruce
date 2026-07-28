@@ -228,7 +228,7 @@ private final class StreamingHomeEnergyLoader:
   }
 
   func yield(_ update: HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>) {
-    let continuation = lock.withLock { continuation }
+    let continuation = lock.withLock { self.continuation }
     continuation?.yield(update)
   }
 }

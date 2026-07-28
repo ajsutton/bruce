@@ -82,7 +82,7 @@ private final class ControlledHomeEnergyDelayToken: @unchecked Sendable {
   func finish() {
     let continuation = lock.withLock {
       shouldFinish = true
-      let continuation = continuation
+      let continuation = self.continuation
       self.continuation = nil
       return continuation
     }
@@ -92,7 +92,7 @@ private final class ControlledHomeEnergyDelayToken: @unchecked Sendable {
   private func cancel() {
     let continuation = lock.withLock {
       isCancelled = true
-      let continuation = continuation
+      let continuation = self.continuation
       self.continuation = nil
       return continuation
     }
