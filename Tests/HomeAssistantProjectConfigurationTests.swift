@@ -51,6 +51,14 @@ final class HomeAssistantProjectConfigurationTests: XCTestCase {
       )
       XCTAssertEqual(transportSecurity["NSAllowsLocalNetworking"] as? Bool, true)
       XCTAssertNil(transportSecurity["NSAllowsArbitraryLoads"])
+      if filename == "Info-iOS.plist" {
+        XCTAssertEqual(
+          transportSecurity["NSAllowsArbitraryLoadsInWebContent"] as? Bool,
+          true
+        )
+      } else {
+        XCTAssertNil(transportSecurity["NSAllowsArbitraryLoadsInWebContent"])
+      }
     }
   }
 
