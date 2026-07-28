@@ -4,6 +4,7 @@ struct HomeAssistantEVChargingCard: View {
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @ObservedObject var store: HomeAssistantEVChargingStore
+  @FocusState private var isPickerFocused: Bool
   let mode: BruceMode
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
@@ -13,8 +14,17 @@ struct HomeAssistantEVChargingCard: View {
       header
 
       chargingModePicker
-        .disabled(!store.canSelectMode)
+        .disabled(!store.isLive)
+        .allowsHitTesting(store.canSelectMode)
+        .accessibilityRespondsToUserInteraction(store.canSelectMode)
+        .focusable(store.canSelectMode)
+        .focused($isPickerFocused)
         .accessibilityValue(accessibilityValue)
+        .onChange(of: store.canSelectMode) { _, canSelectMode in
+          if !canSelectMode {
+            isPickerFocused = false
+          }
+        }
 
       if let problem = store.problem {
         problemView(problem)
@@ -125,10 +135,14 @@ struct HomeAssistantEVChargingCard: View {
 
   @ViewBuilder
   private var progress: some View {
-    if store.isLoading || store.isChanging {
-      ProgressView()
-        .accessibilityLabel(progressLabel)
+    ZStack {
+      if store.showsProgress {
+        ProgressView()
+          .controlSize(.small)
+          .accessibilityLabel(progressLabel)
+      }
     }
+    .frame(width: 16, height: 16)
   }
 
   private var selection: Binding<HomeAssistantEVChargingMode?> {
@@ -144,24 +158,13 @@ struct HomeAssistantEVChargingCard: View {
   }
 
   private var status: String {
-    if store.isChanging {
-      return changingStatus
+    if store.isLoading && store.mode == nil {
+      return "Checking mode"
     }
-    if store.isLoading {
-      return qualifiedStatus(prefix: "Checking mode — last known")
-    }
-    if !store.isLive {
+    if !store.isLive && !store.isLoading {
       return qualifiedStatus(prefix: "Last known")
     }
     return store.mode?.description(for: mode) ?? "Mode unavailable"
-  }
-
-  private var changingStatus: String {
-    let target = store.pendingMode?.title ?? "mode"
-    guard let confirmedMode = store.mode else {
-      return "Changing to \(target)"
-    }
-    return "Changing to \(target) — last known: \(confirmedMode.neutralDescription)"
   }
 
   private func qualifiedStatus(prefix: String) -> String {
@@ -182,9 +185,10 @@ struct HomeAssistantEVChargingCard: View {
 
   private var accessibilityValue: String {
     if store.isChanging {
-      let target = store.pendingMode?.title ?? "requested mode"
-      let confirmed = store.mode?.title ?? "unavailable"
-      return "Changing to \(target). Last known mode: \(confirmed)"
+      return "\(store.mode?.title ?? "Requested mode"). Updating"
+    }
+    if store.isLoading, let currentMode = store.mode {
+      return "\(currentMode.title). Checking current mode"
     }
     guard store.isLive else {
       return store.mode.map { "Last known: \($0.title)" } ?? "Unavailable"
@@ -236,6 +240,6 @@ struct HomeAssistantEVChargingCard: View {
 
 extension HomeAssistantEVChargingStore.Problem {
   fileprivate var refreshButtonTitle: String {
-    self == .updateFailed ? "Check Current Mode" : "Refresh"
+    self == .updateFailed || self == .updateTimedOut ? "Check Current Mode" : "Refresh"
   }
 }

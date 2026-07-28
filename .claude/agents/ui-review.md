@@ -24,6 +24,9 @@ Check:
 - Loading, live, pending, stale, unavailable, error, and success states are honest.
 - Safety-sensitive actions use appropriate confirmation and authentication.
 - Controls provide immediate feedback and have adequate touch targets.
+- Trace each interaction through immediate, pending, success, and failure states. Flag selection,
+  text, progress indicators, or layout that flickers during normal successful changes, including
+  spinners shown before a short-operation grace period has elapsed.
 - User-facing language is concise and understandable without Home Assistant terminology.
 - Dynamic Type, VoiceOver, keyboard navigation, dark mode, contrast, and Reduce Motion work.
 - Views remain thin.

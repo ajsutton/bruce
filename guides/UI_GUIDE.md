@@ -56,6 +56,13 @@ Brand expression, palette, language and the Bruce/Full Bruce presentation modes 
 - Prefer integrating write controls with the current-status display they change. Use a separate
   control when the integrated affordance would be unclear, hard to discover, or awkward to use.
 - Provide immediate acknowledgement for every command.
+- Use optimistic updates for routine, reversible controls when failure can be rolled back clearly.
+  Keep the selected state, descriptive text, and surrounding layout stable while confirmation is in
+  flight; roll back and show an error only when the server rejects the command or a reasonable
+  confirmation timeout expires.
+- Do not flash progress indicators for operations that usually finish quickly. Delay them by a
+  short grace period, keep them visually compact, and reserve their layout space so appearing or
+  disappearing does not move nearby content.
 - Avoid optimistic updates for safety-sensitive actions unless the pending state is explicit.
 - Confirm remote or safety-sensitive operations; do not confirm routine reversible actions.
 
@@ -72,5 +79,7 @@ Brand expression, palette, language and the Bruce/Full Bruce presentation modes 
 - Is this the smallest UI that solves the use case?
 - Does it use native platform navigation and controls?
 - Are loading, stale, unavailable, error, and success states represented?
+- Do routine state changes remain visually stable without selection, text, spinner, or layout
+  flicker?
 - Are dangerous actions appropriately protected?
 - Does it work with Dynamic Type, VoiceOver, keyboard navigation, dark mode, and Reduce Motion?

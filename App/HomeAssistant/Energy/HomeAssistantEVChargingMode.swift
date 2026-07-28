@@ -8,7 +8,7 @@ enum HomeAssistantEVChargingMode: String, CaseIterable, Hashable, Sendable {
     case .off:
       "Off"
     case .smart:
-      "Battery"
+      "Smart"
     case .charging:
       "On"
     }
@@ -26,7 +26,7 @@ enum HomeAssistantEVChargingMode: String, CaseIterable, Hashable, Sendable {
     case .off:
       "Off"
     case .smart:
-      "Charges when the home battery has enough power"
+      "Charges when the home has energy to spare"
     case .charging:
       "Charges regardless of home battery level"
     }
@@ -37,7 +37,7 @@ enum HomeAssistantEVChargingMode: String, CaseIterable, Hashable, Sendable {
     case .off:
       "Off. Charger’s parked up."
     case .smart:
-      "Charges when the home battery’s got enough in the tank"
+      "Charges when the house has juice to spare"
     case .charging:
       "Charges regardless of the home battery. Give it the berries."
     }

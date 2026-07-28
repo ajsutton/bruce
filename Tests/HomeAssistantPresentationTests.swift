@@ -56,6 +56,14 @@ final class HomeAssistantPresentationTests: XCTestCase {
     XCTAssertFalse(presentation.shouldRefresh(when: .active))
   }
 
+  func testSmartChargingLabelDoesNotImplyTheBatteryIsThePowerSource() {
+    XCTAssertEqual(HomeAssistantEVChargingMode.smart.title, "Smart")
+    XCTAssertEqual(
+      HomeAssistantEVChargingMode.smart.neutralDescription,
+      "Charges when the home has energy to spare"
+    )
+  }
+
   private func makePresentation(
     step: HomeAssistantSetupStore.Step,
     state: HomeAssistantSetupStore.ConnectionCheckState = .idle

@@ -17,10 +17,10 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     XCTAssertNil(store.problem)
   }
 
-  func testSelectingModePublishesOnlyTheConfirmedMode() async {
+  func testSuccessfulModeChangeKeepsTheOptimisticMode() async {
     let client = RecordingEVChargingClient(
       loadResults: [],
-      setResults: [.success(.smart)]
+      setResults: [.success(.charging)]
     )
     let store = HomeAssistantEVChargingStore(client: client, mode: .off)
 
@@ -28,10 +28,29 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     let requestedModes = await client.requestedModes
 
     XCTAssertEqual(requestedModes, [.charging])
-    XCTAssertEqual(store.mode, .smart)
+    XCTAssertEqual(store.mode, .charging)
     XCTAssertTrue(store.isLive)
     XCTAssertFalse(store.isChanging)
+    XCTAssertFalse(store.showsProgress)
     XCTAssertNil(store.problem)
+  }
+
+  func testSelectingModePublishesOptimisticModeBeforeConfirmation() async {
+    let client = ControlledEVChargingClient(setRequestCount: 1)
+    let store = HomeAssistantEVChargingStore(client: client, mode: .off)
+    let change = Task {
+      await store.selectMode(.charging)
+    }
+    await fulfillment(of: [client.setStarted(at: 0)], timeout: 1)
+
+    XCTAssertEqual(store.mode, .charging)
+    XCTAssertTrue(store.isChanging)
+    XCTAssertTrue(store.isLive)
+    XCTAssertFalse(store.canSelectMode)
+
+    client.succeedSet(0, with: .charging)
+    await change.value
+    XCTAssertTrue(store.canSelectMode)
   }
 
   func testFailedModeChangeKeepsTheConfirmedMode() async {
@@ -46,6 +65,21 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     XCTAssertEqual(store.mode, .smart)
     XCTAssertFalse(store.isChanging)
     XCTAssertFalse(store.isLive)
+    XCTAssertFalse(store.showsProgress)
+    XCTAssertEqual(store.problem, .updateFailed)
+  }
+
+  func testMismatchedConfirmationPublishesConfirmedModeAndError() async {
+    let client = RecordingEVChargingClient(
+      loadResults: [],
+      setResults: [.success(.smart)]
+    )
+    let store = HomeAssistantEVChargingStore(client: client, mode: .off)
+
+    await store.selectMode(.charging)
+
+    XCTAssertEqual(store.mode, .smart)
+    XCTAssertTrue(store.isLive)
     XCTAssertEqual(store.problem, .updateFailed)
   }
 
@@ -153,7 +187,7 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     XCTAssertFalse(store.isChanging)
   }
 
-  func testActiveCancellationDoesNotPublishLateModeChange() async {
+  func testUnavailableConnectionRollsBackOptimisticModeAndRejectsLateSuccess() async {
     let client = ControlledEVChargingClient(setRequestCount: 1)
     let store = HomeAssistantEVChargingStore(client: client, mode: .off)
     let change = Task {
@@ -161,19 +195,75 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     }
     await fulfillment(of: [client.setStarted(at: 0)], timeout: 1)
 
-    XCTAssertEqual(store.pendingMode, .charging)
-    XCTAssertTrue(store.isChanging)
-
-    change.cancel()
-    client.succeedSet(0, with: .charging)
+    store.markConnectionUnavailable()
     await change.value
 
     XCTAssertEqual(store.mode, .off)
-    XCTAssertNil(store.pendingMode)
+    XCTAssertFalse(store.isChanging)
+    XCTAssertFalse(store.isLive)
+    XCTAssertEqual(store.problem, .connectionNeedsManagement)
+
+    let lateModePublished = expectation(description: "Late mode change was not published")
+    lateModePublished.isInverted = true
+    let subscription = store.$mode.dropFirst().sink { _ in
+      lateModePublished.fulfill()
+    }
+    client.succeedSet(0, with: .charging)
+    await fulfillment(of: [client.setFinished(at: 0)], timeout: 1)
+    await fulfillment(of: [lateModePublished], timeout: 0.1)
+
+    XCTAssertEqual(store.mode, .off)
+    XCTAssertEqual(store.problem, .connectionNeedsManagement)
+    withExtendedLifetime(subscription) {}
+  }
+
+  func testActiveCancellationReconcilesARequestThatFinishesLate() async {
+    let client = ControlledEVChargingClient(loadRequestCount: 2, setRequestCount: 1)
+    let store = HomeAssistantEVChargingStore(client: client, mode: .off)
+    let change = Task {
+      await store.selectMode(.charging)
+    }
+    await fulfillment(of: [client.setStarted(at: 0)], timeout: 1)
+
+    XCTAssertEqual(store.mode, .charging)
+    XCTAssertTrue(store.isChanging)
+
+    change.cancel()
+    await change.value
+
+    XCTAssertEqual(store.mode, .off)
     XCTAssertNil(store.problem)
     XCTAssertFalse(store.isChanging)
     XCTAssertFalse(store.isLive)
+
+    let refresh = Task {
+      await store.load()
+    }
+    await fulfillment(of: [client.loadStarted(at: 0)], timeout: 1)
+    client.succeedLoad(0, with: .off)
+    await refresh.value
+
+    XCTAssertEqual(store.mode, .off)
+    XCTAssertTrue(store.isLive)
+
+    client.succeedSet(0, with: .charging)
+    await fulfillment(of: [client.loadStarted(at: 1)], timeout: 1)
+    let reconciled = expectation(description: "Cancelled mode change reconciled")
+    let subscription = store.$mode.dropFirst().sink { mode in
+      if mode == .charging {
+        reconciled.fulfill()
+      }
+    }
+    client.succeedLoad(1, with: .charging)
+    await fulfillment(of: [client.setFinished(at: 0)], timeout: 1)
+    await fulfillment(of: [reconciled], timeout: 1)
+
+    XCTAssertEqual(store.mode, .charging)
+    XCTAssertTrue(store.isLive)
+    XCTAssertNil(store.problem)
+    withExtendedLifetime(subscription) {}
   }
+
 }
 
 private enum EVChargingTestError: Error, Sendable {
@@ -217,12 +307,13 @@ private struct AuthenticationRequiredEVChargingClient: HomeAssistantEVCharging {
   }
 }
 
-private final class ControlledEVChargingClient:
+final class ControlledEVChargingClient:
   HomeAssistantEVCharging, @unchecked Sendable
 {
   private let lock = NSLock()
   private let loadStartedExpectations: [XCTestExpectation]
   private let setStartedExpectations: [XCTestExpectation]
+  private let setFinishedExpectations: [XCTestExpectation]
   private var nextLoadRequest = 0
   private var nextSetRequest = 0
   private var loadContinuations:
@@ -237,6 +328,9 @@ private final class ControlledEVChargingClient:
     setStartedExpectations = (0..<setRequestCount).map {
       XCTestExpectation(description: "EV charging change \($0) started")
     }
+    setFinishedExpectations = (0..<setRequestCount).map {
+      XCTestExpectation(description: "EV charging change \($0) finished")
+    }
   }
 
   func loadStarted(at index: Int) -> XCTestExpectation {
@@ -245,6 +339,10 @@ private final class ControlledEVChargingClient:
 
   func setStarted(at index: Int) -> XCTestExpectation {
     setStartedExpectations[index]
+  }
+
+  func setFinished(at index: Int) -> XCTestExpectation {
+    setFinishedExpectations[index]
   }
 
   func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {
@@ -262,12 +360,17 @@ private final class ControlledEVChargingClient:
   func setEVChargingMode(
     _ mode: HomeAssistantEVChargingMode
   ) async throws -> HomeAssistantEVChargingMode {
-    try await withCheckedThrowingContinuation { continuation in
-      let request = lock.withLock {
-        let request = nextSetRequest
-        nextSetRequest += 1
+    let request = lock.withLock {
+      let request = nextSetRequest
+      nextSetRequest += 1
+      return request
+    }
+    defer {
+      setFinishedExpectations[request].fulfill()
+    }
+    return try await withCheckedThrowingContinuation { continuation in
+      lock.withLock {
         setContinuations[request] = continuation
-        return request
       }
       setStartedExpectations[request].fulfill()
     }
