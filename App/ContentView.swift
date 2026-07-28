@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
+  @EnvironmentObject private var homeAssistantCoordinator: HomeAssistantObservationCoordinator
   #if os(macOS)
     @Environment(\.openSettings) private var openSettings
   #else
@@ -17,7 +18,6 @@ struct ContentView: View {
   #else
     @State private var showsConnectionManagement = false
   #endif
-  @State private var homeRefreshRequest = 0
 
   private var mode: BruceMode {
     modeController.mode
@@ -34,23 +34,16 @@ struct ContentView: View {
         await modeController.restore()
         await setupStore.restoreSavedConnection()
       }
-      .task(id: refreshRequest) {
-        await temperatureStore.synchronize(with: presentation.connection)
-      }
-      .task(id: refreshRequest) {
-        await synchronizeChargingStore()
-      }
-      .task(id: refreshRequest) {
-        await homeEnergyStore.synchronize(with: presentation.connection)
+      .task(id: presentation.connection) {
+        await homeAssistantCoordinator.synchronize(with: presentation.connection)
       }
       .onChange(of: scenePhase) { _, newScenePhase in
-        guard newScenePhase == .active else {
-          return
-        }
-        modeController.requestLocalPreferenceRefresh()
-        if presentation.shouldRefresh(when: newScenePhase) {
-          homeRefreshRequest += 1
-        }
+        HomeAssistantRefreshCoordinator.sceneDidChange(
+          to: newScenePhase,
+          presentation: presentation,
+          refreshLocalPreferences: modeController.requestLocalPreferenceRefresh,
+          requestHomeRefresh: requestHomeRefresh
+        )
       }
       .alert(
         copy.iconChangeFailedTitle,
@@ -126,13 +119,6 @@ struct ContentView: View {
     )
   }
 
-  private var refreshRequest: HomeAssistantRefreshRequest {
-    HomeAssistantRefreshRequest(
-      connection: presentation.connection,
-      refreshRequest: homeRefreshRequest
-    )
-  }
-
   private func manageConnection() {
     #if os(macOS)
       settingsNavigation.showHomeAssistant()
@@ -146,62 +132,59 @@ struct ContentView: View {
     guard presentation.canRefresh else {
       return
     }
-    homeRefreshRequest += 1
-  }
-
-  private func synchronizeChargingStore() async {
-    switch presentation.connection {
-    case .connected:
-      await chargingStore.load()
-    case .disconnected:
-      chargingStore.reset()
-    case .connecting:
-      chargingStore.markConnectionInProgress()
-    case .unavailable:
-      chargingStore.markConnectionUnavailable()
+    Task {
+      await homeAssistantCoordinator.refresh()
     }
   }
 }
 
 #Preview("Bruce") {
+  previewContentView()
+}
+
+@MainActor
+private func previewContentView() -> some View {
+  let temperatureStore = HomeAssistantTemperatureStore(
+    loader: PreviewContentTemperatureLoader()
+  )
+  let chargingStore = HomeAssistantEVChargingStore(
+    client: PreviewContentEVChargingClient(),
+    mode: .smart
+  )
+  let homeEnergyStore = HomeAssistantHomeEnergyStore(
+    loader: PreviewContentHomeEnergyLoader()
+  )
+  let coordinator = HomeAssistantObservationCoordinator(
+    temperatureStore: temperatureStore,
+    chargingStore: chargingStore,
+    homeEnergyStore: homeEnergyStore
+  )
   #if os(macOS)
-    ContentView(
+    return ContentView(
       modeController: BruceModeController(
         store: PreviewBruceModeStore(),
         iconApplier: PreviewAppIconApplier()
       ),
       setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery()),
-      temperatureStore: HomeAssistantTemperatureStore(
-        loader: PreviewContentTemperatureLoader()
-      ),
-      chargingStore: HomeAssistantEVChargingStore(
-        client: PreviewContentEVChargingClient(),
-        mode: .smart
-      ),
-      homeEnergyStore: HomeAssistantHomeEnergyStore(
-        loader: PreviewContentHomeEnergyLoader()
-      ),
+      temperatureStore: temperatureStore,
+      chargingStore: chargingStore,
+      homeEnergyStore: homeEnergyStore,
       settingsNavigation: BruceSettingsNavigation()
     )
+    .environmentObject(coordinator)
   #else
-    ContentView(
+    return ContentView(
       modeController: BruceModeController(
         store: PreviewBruceModeStore(),
         iconApplier: PreviewAppIconApplier()
       ),
       setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery()),
-      temperatureStore: HomeAssistantTemperatureStore(
-        loader: PreviewContentTemperatureLoader()
-      ),
-      chargingStore: HomeAssistantEVChargingStore(
-        client: PreviewContentEVChargingClient(),
-        mode: .smart
-      ),
-      homeEnergyStore: HomeAssistantHomeEnergyStore(
-        loader: PreviewContentHomeEnergyLoader()
-      )
+      temperatureStore: temperatureStore,
+      chargingStore: chargingStore,
+      homeEnergyStore: homeEnergyStore
     )
     .environmentObject(BruceSceneDelegate())
+    .environmentObject(coordinator)
   #endif
 }
 
@@ -251,9 +234,4 @@ private struct PreviewContentTemperatureLoader: HomeAssistantTemperatureLoading 
       continuation.finish()
     }
   }
-}
-
-private struct HomeAssistantRefreshRequest: Equatable {
-  let connection: HomeAssistantConnectionState
-  let refreshRequest: Int
 }

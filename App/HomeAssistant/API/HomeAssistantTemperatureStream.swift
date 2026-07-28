@@ -1,17 +1,32 @@
 import Foundation
-import OSLog
 
 struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
-  private static let logger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "net.symphonious.bruce",
-    category: "HomeAssistantTemperatureSubscription"
-  )
+  let providesContinuousTemperatureUpdates = true
 
-  private let session: HomeAssistantSession
+  private let states: any HomeAssistantStateLoading
   private let apiClient: HomeAssistantAPIClient
-  private let connector: any HomeAssistantWebSocketConnecting
-  private let retryDelays: [Duration]
+  private let contextRetryDelays: [Duration]
   private let sleep: @Sendable (Duration) async throws -> Void
+
+  init(
+    states: any HomeAssistantStateLoading,
+    apiClient: HomeAssistantAPIClient,
+    contextRetryDelays: [Duration] = [
+      .seconds(1),
+      .seconds(2),
+      .seconds(5),
+      .seconds(10),
+      .seconds(30),
+    ],
+    sleep: @escaping @Sendable (Duration) async throws -> Void = {
+      try await Task.sleep(for: $0)
+    }
+  ) {
+    self.states = states
+    self.apiClient = apiClient
+    self.contextRetryDelays = contextRetryDelays
+    self.sleep = sleep
+  }
 
   init(
     session: HomeAssistantSession,
@@ -28,10 +43,16 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
       try await Task.sleep(for: $0)
     }
   ) {
-    self.session = session
-    self.apiClient = apiClient ?? HomeAssistantAPIClient(session: session)
-    self.connector = connector
-    self.retryDelays = retryDelays
+    let apiClient = apiClient ?? HomeAssistantAPIClient(session: session)
+    states = HomeAssistantStateStream(
+      session: session,
+      apiClient: apiClient,
+      connector: connector,
+      retryDelays: retryDelays,
+      sleep: sleep
+    )
+    self.apiClient = apiClient
+    contextRetryDelays = retryDelays
     self.sleep = sleep
   }
 
@@ -40,7 +61,7 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
   > {
     AsyncThrowingStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
       let task = Task {
-        await run(continuation)
+        await produceUpdates(continuation: continuation)
       }
       continuation.onTermination = { _ in
         task.cancel()
@@ -48,249 +69,222 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
     }
   }
 
-  private func run(
-    _ continuation: AsyncThrowingStream<
+  private func produceUpdates(
+    continuation: AsyncThrowingStream<
       HomeAssistantTemperatureUpdate, any Error
     >.Continuation
   ) async {
-    var retryIndex = 0
-    var routeIndex = 0
-    var latestReadings: [HomeAssistantTemperatureReading] = []
-    while !Task.isCancelled {
-      var publishedSnapshot = false
-      var routeCount = 0
-      do {
-        let accesses = try await session.authenticatedWebSocketAccesses()
-        guard !accesses.isEmpty else {
-          throw HomeAssistantAPIError.invalidServerURL
-        }
-        routeCount = accesses.count
-        let access = accesses[routeIndex % accesses.count]
-        try await subscribe(using: access) { readings in
-          publishedSnapshot = true
-          latestReadings = readings
-          continuation.yield(.live(readings))
-        }
-      } catch is CancellationError {
-        continuation.finish()
-        return
-      } catch {
-        guard Self.shouldReconnect(after: error), !retryDelays.isEmpty else {
-          continuation.finish(throwing: error)
-          return
-        }
-        if publishedSnapshot {
-          retryIndex = 0
-        }
-        if routeCount > 0 {
-          routeIndex = (routeIndex + 1) % routeCount
-        }
-        let delay = retryDelays[min(retryIndex, retryDelays.count - 1)]
-        retryIndex = min(retryIndex + 1, retryDelays.count - 1)
-        Self.logger.error(
-          "Home Assistant temperature subscription disconnected: \(String(describing: error), privacy: .private)"
-        )
-        continuation.yield(.reconnecting(latestReadings))
-        do {
-          try await sleep(delay)
-        } catch {
-          continuation.finish()
-          return
-        }
-      }
-    }
-    continuation.finish()
-  }
-
-  private func subscribe(
-    using access: HomeAssistantWebSocketAccess,
-    publish: ([HomeAssistantTemperatureReading]) -> Void
-  ) async throws {
-    let connection = connector.connect(to: access.url)
-    try await withTaskCancellationHandler {
-      defer {
-        connection.cancel()
-      }
-      try await authenticate(connection, accessToken: access.accessToken)
-      try await subscribeToStateChanges(over: connection)
-      try await session.rememberSuccessfulWebSocketAccess(access)
-      let snapshot = try await apiClient.loadTemperatureSnapshot()
-      var readingsByID = Dictionary(
-        uniqueKeysWithValues: snapshot.readings.map { ($0.id, $0) }
-      )
-      publish(Self.sorted(readingsByID.values))
-
-      while !Task.isCancelled {
-        let event = try decode(
-          HomeAssistantStateChangedMessage.self,
-          from: try await connection.receive()
-        )
-        guard event.id == 1, event.type == "event",
-          event.event.eventType == "state_changed"
-        else {
-          throw HomeAssistantAPIError.invalidResponse
-        }
-        let entityID = event.event.data.entityID
-        guard entityID.hasPrefix("climate.") else {
-          continue
-        }
-        if let reading = event.event.data.newState?.temperatureReading(
-          unit: snapshot.unit,
-          metadata: snapshot.climateMetadata[entityID]
-        ) {
-          readingsByID[entityID] = reading
-        } else {
-          readingsByID.removeValue(forKey: entityID)
-        }
-        publish(Self.sorted(readingsByID.values))
-      }
-      throw CancellationError()
-    } onCancel: {
-      connection.cancel()
-    }
-  }
-
-  private func authenticate(
-    _ connection: any HomeAssistantWebSocketConnection,
-    accessToken: String
-  ) async throws {
-    let required = try decode(
-      HomeAssistantSubscriptionMessageKind.self,
-      from: try await connection.receive()
+    let producer = HomeAssistantTemperatureUpdateProducer(
+      continuation: continuation,
+      loadContext: loadTemperatureContextWithRetry
     )
-    guard required.type == "auth_required" else {
-      throw HomeAssistantAPIError.invalidResponse
-    }
-    try await send(
-      HomeAssistantSubscriptionAuthentication(type: "auth", accessToken: accessToken),
-      over: connection
-    )
-    let authentication = try decode(
-      HomeAssistantSubscriptionMessageKind.self,
-      from: try await connection.receive()
-    )
-    guard authentication.type == "auth_ok" else {
-      if authentication.type == "auth_invalid" {
-        throw HomeAssistantAPIError.unauthorized
-      }
-      throw HomeAssistantAPIError.invalidResponse
-    }
-  }
-
-  private func subscribeToStateChanges(
-    over connection: any HomeAssistantWebSocketConnection
-  ) async throws {
-    try await send(
-      HomeAssistantStateChangedSubscription(
-        id: 1,
-        type: "subscribe_events",
-        eventType: "state_changed"
-      ),
-      over: connection
-    )
-    let response = try decode(
-      HomeAssistantSubscriptionResult.self,
-      from: try await connection.receive()
-    )
-    guard response.id == 1, response.type == "result", response.success else {
-      throw HomeAssistantAPIError.invalidResponse
-    }
-  }
-
-  private func send<Message: Encodable>(
-    _ message: Message,
-    over connection: any HomeAssistantWebSocketConnection
-  ) async throws {
-    try await connection.send(JSONEncoder().encode(message))
-  }
-
-  private func decode<Message: Decodable>(
-    _ type: Message.Type,
-    from data: Data
-  ) throws -> Message {
     do {
-      return try JSONDecoder().decode(type, from: data)
+      for try await stateUpdate in await states.stateUpdates() {
+        try Task.checkCancellation()
+        await producer.receive(stateUpdate)
+      }
+      await producer.finish()
+    } catch is CancellationError {
+      await producer.finish()
     } catch {
-      throw HomeAssistantAPIError.invalidResponse
+      await producer.finish(throwing: error)
     }
   }
 
-  private static func sorted(
-    _ readings: Dictionary<String, HomeAssistantTemperatureReading>.Values
-  ) -> [HomeAssistantTemperatureReading] {
-    readings.sorted {
-      $0.name.localizedStandardCompare($1.name) == .orderedAscending
+  private func loadTemperatureContextWithRetry() async throws
+    -> HomeAssistantTemperatureContext
+  {
+    var retryIndex = 0
+    while true {
+      do {
+        return try await apiClient.loadTemperatureContext()
+      } catch {
+        guard Self.shouldRetryContextLoad(after: error),
+          !contextRetryDelays.isEmpty
+        else {
+          throw error
+        }
+        let delay = contextRetryDelays[
+          min(retryIndex, contextRetryDelays.count - 1)
+        ]
+        retryIndex = min(retryIndex + 1, contextRetryDelays.count - 1)
+        try await sleep(delay)
+      }
     }
   }
 
-  private static func shouldReconnect(after error: any Error) -> Bool {
+  fileprivate static func temperatureUpdate(
+    from update: HomeAssistantStateUpdate,
+    context: HomeAssistantTemperatureContext
+  ) -> HomeAssistantTemperatureUpdate {
+    let readings = HomeAssistantAPIClient.temperatureReadings(
+      from: update.states,
+      context: context
+    )
+    switch update.phase {
+    case .live:
+      return .live(readings)
+    case .refreshing:
+      return .refreshing(readings)
+    case .reconnecting:
+      return .reconnecting(readings)
+    }
+  }
+
+  private static func shouldRetryContextLoad(after error: any Error) -> Bool {
+    if HomeAssistantRequestRouter.isConnectivityFailure(error) {
+      return true
+    }
     guard let apiError = error as? HomeAssistantAPIError else {
-      return true
-    }
-    switch apiError {
-    case .server:
-      return true
-    case .noCredentials, .invalidServerURL, .unauthorized, .reauthenticationRequired,
-      .incompatibleServer, .invalidResponse, .staleOperation:
       return false
     }
+    if case .server = apiError {
+      return true
+    }
+    return false
   }
 }
 
-private struct HomeAssistantSubscriptionMessageKind: Decodable {
-  let type: String
-}
+private actor HomeAssistantTemperatureUpdateProducer {
+  typealias StateUpdate = HomeAssistantStateUpdate
+  typealias Continuation = AsyncThrowingStream<
+    HomeAssistantTemperatureUpdate, any Error
+  >.Continuation
 
-private struct HomeAssistantSubscriptionAuthentication: Encodable {
-  let type: String
-  let accessToken: String
+  private let continuation: Continuation
+  private let loadContext: @Sendable () async throws -> HomeAssistantTemperatureContext
+  private var context: HomeAssistantTemperatureContext?
+  private var contextSourceGeneration: UUID?
+  private var contextTask: Task<Void, Never>?
+  private var contextTaskGeneration = UUID()
+  private var loadingSourceGeneration: UUID?
+  private var latestStateUpdate: StateUpdate?
+  private var lastPublishedUpdate: HomeAssistantTemperatureUpdate?
+  private var cachedReadings: [HomeAssistantTemperatureReading] = []
+  private var isFinished = false
 
-  enum CodingKeys: String, CodingKey {
-    case type
-    case accessToken = "access_token"
+  init(
+    continuation: Continuation,
+    loadContext: @escaping @Sendable () async throws -> HomeAssistantTemperatureContext
+  ) {
+    self.continuation = continuation
+    self.loadContext = loadContext
   }
-}
 
-private struct HomeAssistantStateChangedSubscription: Encodable {
-  let id: Int
-  let type: String
-  let eventType: String
-
-  enum CodingKeys: String, CodingKey {
-    case id
-    case type
-    case eventType = "event_type"
+  func receive(_ update: StateUpdate) {
+    guard !isFinished else { return }
+    latestStateUpdate = update
+    switch update.phase {
+    case .live:
+      if contextSourceGeneration != update.generation {
+        refreshContext(for: update.generation)
+      }
+    case .refreshing, .reconnecting:
+      cancelContextRefresh()
+    }
+    publish(update)
   }
-}
 
-private struct HomeAssistantSubscriptionResult: Decodable {
-  let id: Int
-  let type: String
-  let success: Bool
-}
-
-private struct HomeAssistantStateChangedMessage: Decodable {
-  let id: Int
-  let type: String
-  let event: HomeAssistantStateChangedEvent
-}
-
-private struct HomeAssistantStateChangedEvent: Decodable {
-  let eventType: String
-  let data: HomeAssistantStateChangedData
-
-  enum CodingKeys: String, CodingKey {
-    case eventType = "event_type"
-    case data
+  func finish(throwing error: (any Error)? = nil) {
+    guard !isFinished else { return }
+    isFinished = true
+    contextTask?.cancel()
+    contextTask = nil
+    if let error {
+      continuation.finish(throwing: error)
+    } else {
+      continuation.finish()
+    }
   }
-}
 
-private struct HomeAssistantStateChangedData: Decodable {
-  let entityID: String
-  let newState: HomeAssistantState?
+  private func refreshContext(for sourceGeneration: UUID) {
+    if contextTask != nil, loadingSourceGeneration == sourceGeneration {
+      return
+    }
+    cancelContextRefresh()
+    let taskGeneration = UUID()
+    contextTaskGeneration = taskGeneration
+    loadingSourceGeneration = sourceGeneration
+    contextTask = Task { [loadContext] in
+      do {
+        let context = try await loadContext()
+        install(
+          context,
+          taskGeneration: taskGeneration,
+          sourceGeneration: sourceGeneration
+        )
+      } catch is CancellationError {
+      } catch {
+        finishContextRefresh(with: error, taskGeneration: taskGeneration)
+      }
+    }
+  }
 
-  enum CodingKeys: String, CodingKey {
-    case entityID = "entity_id"
-    case newState = "new_state"
+  private func install(
+    _ context: HomeAssistantTemperatureContext,
+    taskGeneration: UUID,
+    sourceGeneration: UUID
+  ) {
+    guard contextTaskGeneration == taskGeneration,
+      latestStateUpdate?.generation == sourceGeneration,
+      !isFinished
+    else { return }
+    self.context = context
+    contextSourceGeneration = sourceGeneration
+    contextTask = nil
+    loadingSourceGeneration = nil
+    if let latestStateUpdate {
+      publish(latestStateUpdate)
+    }
+  }
+
+  private func finishContextRefresh(
+    with error: any Error,
+    taskGeneration: UUID
+  ) {
+    guard contextTaskGeneration == taskGeneration, !isFinished else { return }
+    contextTask = nil
+    loadingSourceGeneration = nil
+    finish(throwing: error)
+  }
+
+  private func cancelContextRefresh() {
+    contextTask?.cancel()
+    contextTask = nil
+    loadingSourceGeneration = nil
+    contextTaskGeneration = UUID()
+  }
+
+  private func publish(_ stateUpdate: StateUpdate) {
+    guard
+      let context,
+      contextSourceGeneration == stateUpdate.generation
+    else {
+      switch stateUpdate.phase {
+      case .refreshing:
+        yield(.refreshing(cachedReadings))
+      case .reconnecting:
+        yield(.reconnecting(cachedReadings))
+      case .live:
+        break
+      }
+      return
+    }
+    yield(
+      HomeAssistantTemperatureStream.temperatureUpdate(
+        from: stateUpdate,
+        context: context
+      ))
+  }
+
+  private func yield(_ update: HomeAssistantTemperatureUpdate) {
+    guard update != lastPublishedUpdate else { return }
+    switch update {
+    case .live(let readings), .refreshing(let readings),
+      .reconnecting(let readings):
+      cachedReadings = readings
+    }
+    lastPublishedUpdate = update
+    continuation.yield(update)
   }
 }

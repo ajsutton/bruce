@@ -55,6 +55,11 @@ final class BruceCopyTests: XCTestCase {
     )
   }
 
+  func testStaleDataLabelsUseTheSelectedVoice() {
+    XCTAssertEqual(HomeEnergyCopy(mode: .standard).lastKnown, "Last known")
+    XCTAssertEqual(TemperatureCopy(mode: .full).lastKnown, "Last word Bruce got")
+  }
+
   func testClimateErrorsAndAccessibilityCopyUseFullBruceVoice() {
     let standard = TemperatureCopy(mode: .standard)
     let full = TemperatureCopy(mode: .full)

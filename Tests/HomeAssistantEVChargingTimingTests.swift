@@ -130,6 +130,11 @@ final class HomeAssistantEVChargingTimingTests: XCTestCase {
     }
     client.succeedSet(0, with: .charging)
     await fulfillment(of: [client.loadStarted(at: 0)], timeout: 1)
+
+    XCTAssertEqual(store.mode, .off)
+    XCTAssertTrue(store.isLoading)
+    XCTAssertFalse(store.isLive)
+
     client.succeedLoad(0, with: .off)
     await fulfillment(of: [reconciled], timeout: 1)
 
@@ -167,7 +172,7 @@ final class HomeAssistantEVChargingTimingTests: XCTestCase {
     XCTAssertEqual(store.mode, .charging)
   }
 
-  func testCancellationAfterMutationReconcilesServerMode() async {
+  func testCancellationReconciliationAcceptsDefaultSnapshotWithoutOrderingTimestamp() async {
     let store = HomeAssistantEVChargingStore(
       client: ConfirmationCancelledEVChargingClient(),
       mode: .off
@@ -272,6 +277,7 @@ final class HomeAssistantEVChargingTimingTests: XCTestCase {
     XCTAssertFalse(store.showsProgress)
     XCTAssertEqual(store.problem, .updateTimedOut)
   }
+
 }
 
 private actor ConfirmationCancelledEVChargingClient: HomeAssistantEVCharging {

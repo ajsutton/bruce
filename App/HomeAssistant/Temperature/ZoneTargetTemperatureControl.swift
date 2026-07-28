@@ -4,6 +4,7 @@ struct ZoneTargetTemperatureControl: View {
   let reading: HomeAssistantTemperatureReading
   let mode: BruceMode
   let isEnabled: Bool
+  let isLastKnown: Bool
   let fractionLength: Int
   let setTargetValue: @Sendable (Double) -> Void
 
@@ -107,14 +108,15 @@ struct ZoneTargetTemperatureControl: View {
 
   #endif
 
-  private var targetAccessibilityValue: Text {
+  private var targetAccessibilityValue: String {
     guard let value = reading.targetValue else {
-      return Text(copy.unavailable)
+      return copy.unavailable
     }
     let formattedValue = value.formatted(
       .number.precision(.fractionLength(fractionLength))
     )
-    return Text(verbatim: "\(formattedValue)\(reading.unit ?? "")")
+    let presentedValue = "\(formattedValue)\(reading.unit ?? "")"
+    return isLastKnown ? copy.lastKnown(presentedValue) : presentedValue
   }
 
   private var targetBinding: Binding<Double> {

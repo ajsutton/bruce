@@ -4,11 +4,16 @@ extension HomeAssistantHomeEnergyStore {
   enum Problem: Equatable {
     case connectionNeedsManagement
     case connectionUnavailable
+    case reconnecting
     case signInRequired
     case invalidResponse
 
     var needsConnectionManagement: Bool {
       self == .connectionNeedsManagement || self == .signInRequired
+    }
+
+    var offersRecoveryAction: Bool {
+      self != .reconnecting
     }
   }
 

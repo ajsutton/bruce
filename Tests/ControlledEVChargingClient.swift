@@ -83,13 +83,18 @@ final class ControlledEVChargingClient:
   func succeedLoad(
     _ request: Int,
     with mode: HomeAssistantEVChargingMode,
-    activity: HomeAssistantEVChargingActivity = .unavailable
+    activity: HomeAssistantEVChargingActivity = .unavailable,
+    modeLastUpdated: Date = Date(timeIntervalSince1970: 100)
   ) {
     let continuation = lock.withLock {
       loadContinuations.removeValue(forKey: request)
     }
     continuation?.resume(
-      returning: HomeAssistantEVChargingSnapshot(mode: mode, activity: activity)
+      returning: HomeAssistantEVChargingSnapshot(
+        mode: mode,
+        activity: activity,
+        modeLastUpdated: modeLastUpdated
+      )
     )
   }
 

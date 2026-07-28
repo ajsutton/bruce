@@ -1,14 +1,5 @@
-import Foundation
-
 extension HomeAssistantHomeEnergySnapshot {
-  init(homeAssistantStates data: Data) throws {
-    let states: [HomeAssistantState]
-    do {
-      states = try JSONDecoder().decode([HomeAssistantState].self, from: data)
-    } catch {
-      throw HomeAssistantAPIError.invalidResponse
-    }
-
+  init(states: [HomeAssistantState]) {
     func value(_ entityID: String) -> Double? {
       guard
         let state = states.first(where: { $0.entityID == entityID })?.state,

@@ -19,11 +19,15 @@ struct HomeAssistantHomeEnergyCard: View {
           .font(.headline)
           .foregroundStyle(primaryForeground)
         Spacer()
-        Text(statusText)
-          .font(.caption.weight(.medium))
-          .foregroundStyle(secondaryForeground)
-          .opacity(showsStatus ? 1 : 0)
-          .accessibilityHidden(!showsStatus)
+        ZStack(alignment: .trailing) {
+          Text(copy.updatingLastKnownStatus)
+            .hidden()
+          Text(statusText)
+            .opacity(showsStatus ? 1 : 0)
+            .accessibilityHidden(!showsStatus)
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(secondaryForeground)
       }
 
       if let problem = store.problem {
@@ -74,11 +78,13 @@ struct HomeAssistantHomeEnergyCard: View {
       }
       .frame(maxWidth: .infinity, alignment: .leading)
 
-      Button(
-        problem.needsConnectionManagement ? copy.manage : copy.refresh,
-        action: problem.needsConnectionManagement ? manageConnection : requestRefresh
-      )
-      .frame(minHeight: 44)
+      if problem.offersRecoveryAction {
+        Button(
+          problem.needsConnectionManagement ? copy.manage : copy.refresh,
+          action: problem.needsConnectionManagement ? manageConnection : requestRefresh
+        )
+        .frame(minHeight: 44)
+      }
     }
     .accessibilityElement(children: .contain)
   }
@@ -142,7 +148,7 @@ struct HomeAssistantHomeEnergyCard: View {
   }
 
   private var statusText: String {
-    if store.showsProgress {
+    if store.showsProgress || store.isRefreshing {
       return store.snapshot.hasReadings
         ? copy.updatingLastKnownStatus
         : copy.updating
@@ -151,13 +157,13 @@ struct HomeAssistantHomeEnergyCard: View {
   }
 
   private var showsStatus: Bool {
-    store.showsProgress || !store.isLive
+    store.showsProgress || store.isRefreshing || !store.isLive
   }
 
   private func accessibilityValue(
     for presentation: HomeEnergyMetricPresentation
   ) -> String {
-    if store.showsProgress {
+    if store.showsProgress || store.isRefreshing {
       return presentation.value == copy.unavailable
         ? "\(copy.updating). \(copy.unavailable)"
         : copy.updating(lastKnown: presentation.value)
@@ -174,7 +180,7 @@ struct HomeAssistantHomeEnergyCard: View {
   }
 
   private func metricColor(_ color: Color) -> Color {
-    store.isLive ? color : .secondary
+    store.isLive || store.isRefreshing ? color : .secondary
   }
 
   private var primaryForeground: AnyShapeStyle {

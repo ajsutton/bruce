@@ -45,9 +45,6 @@ struct EnergyPanelView: View {
       #endif
     }
     .preferredColorScheme(mode.isFullBruce ? .dark : nil)
-    .task {
-      await homeEnergyStore.monitor()
-    }
   }
 }
 

@@ -4,6 +4,7 @@ extension HomeAssistantEVChargingStore {
   enum Problem: Equatable {
     case connectionNeedsManagement
     case connectionUnavailable
+    case reconnecting
     case signInRequired
     case invalidResponse
     case updateFailed
@@ -11,6 +12,10 @@ extension HomeAssistantEVChargingStore {
 
     var needsConnectionManagement: Bool {
       self == .connectionNeedsManagement || self == .signInRequired
+    }
+
+    var offersRecoveryAction: Bool {
+      self != .reconnecting
     }
   }
 

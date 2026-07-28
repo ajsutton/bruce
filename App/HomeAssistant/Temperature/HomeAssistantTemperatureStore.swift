@@ -6,10 +6,10 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   @Published private(set) var lastChecked: Date?
   @Published private(set) var isLoading = false
   @Published private(set) var isLive = false
+  @Published private(set) var isRefreshing = false
   @Published private(set) var problem: Problem?
   @Published private(set) var controllingEntityIDs: Set<String> = []
   @Published private(set) var controlProblem: ControlProblem?
-
   private let loader: any HomeAssistantTemperatureLoading
   private let controller: (any HomeAssistantClimateControlling)?
   private let now: @Sendable () -> Date
@@ -24,7 +24,6 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   private var pendingControls: [String: PendingClimateControl] = [:]
   private var confirmationTasks: [String: Task<Void, Never>] = [:]
   private var targetControlTasks: [String: Task<Void, Never>] = [:]
-
   init(
     loader: any HomeAssistantTemperatureLoading,
     controller: (any HomeAssistantClimateControlling)? = nil,
@@ -42,17 +41,13 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     self.sleep = sleep
     self.onAuthenticationRequired = onAuthenticationRequired
   }
-
   func canControl(_ reading: HomeAssistantTemperatureReading) -> Bool {
     controller != nil && isLive && reading.powerState != .unavailable
   }
-
   var supportsControl: Bool { controller != nil }
-
   func isAdjustingTarget(entityID: String) -> Bool {
     pendingControls[entityID]?.intent.isTargetValue == true
   }
-
   func setPower(
     for reading: HomeAssistantTemperatureReading,
     isOn: Bool
@@ -62,7 +57,6 @@ final class HomeAssistantTemperatureStore: ObservableObject {
       try await controller.setPower(entityID: reading.id, isOn: isOn)
     }
   }
-
   func setMode(
     _ mode: HomeAssistantTemperatureReading.ClimateMode,
     for reading: HomeAssistantTemperatureReading
@@ -110,7 +104,6 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     controlProblem = nil
     presentedControlProblemSequence = nil
   }
-
   func synchronize(with connection: HomeAssistantConnectionState) async {
     switch connection {
     case .connected:
@@ -119,15 +112,21 @@ final class HomeAssistantTemperatureStore: ObservableObject {
       reset()
     case .connecting, .unavailable:
       invalidateLoad()
+      invalidateControls()
+      publishReadings()
     }
   }
 
   func load() async {
     let generation = UUID()
     loadGeneration = generation
-    isLoading = true
-    isLive = false
-    problem = nil
+    let preservesRefreshPresentation = isRefreshing && problem == nil
+    isLoading = !preservesRefreshPresentation
+    if !preservesRefreshPresentation {
+      isLive = false
+      isRefreshing = false
+      problem = nil
+    }
 
     do {
       for try await update in loader.temperatureUpdates() {
@@ -137,24 +136,21 @@ final class HomeAssistantTemperatureStore: ObservableObject {
       }
       try Task.checkCancellation()
       if loadGeneration == generation {
-        isLoading = false
-        isLive = false
+        (isLoading, isLive, isRefreshing) = (false, false, false)
+        problem = completionProblem
       }
     } catch is CancellationError {
       guard loadGeneration == generation else { return }
-      isLoading = false
-      isLive = false
+      (isLoading, isLive, isRefreshing) = (false, false, false)
     } catch {
       guard loadGeneration == generation else { return }
       guard !Task.isCancelled, !Self.isCancellation(error) else {
-        isLoading = false
-        isLive = false
+        (isLoading, isLive, isRefreshing) = (false, false, false)
         return
       }
       let loadProblem = Self.problem(for: error)
       problem = loadProblem
-      isLoading = false
-      isLive = false
+      (isLoading, isLive, isRefreshing) = (false, false, false)
       if loadProblem == .signInRequired {
         onAuthenticationRequired()
       }
@@ -167,14 +163,16 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     serverReadings = []
     readings = []
     lastChecked = nil
-    isLive = false
+    (isLive, isRefreshing) = (false, false)
     problem = nil
   }
 
   private func invalidateLoad() {
     loadGeneration = UUID()
-    isLoading = false
-    isLive = false
+    (isLoading, isLive, isRefreshing) = (false, false, false)
+  }
+  private var completionProblem: Problem? {
+    loader.providesContinuousTemperatureUpdates ? .connectionUnavailable : nil
   }
 
   private func invalidateControls() {
@@ -188,6 +186,27 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     targetControlTasks = [:]
     controlProblem = nil
     presentedControlProblemSequence = nil
+  }
+
+  private func apply(_ update: HomeAssistantTemperatureUpdate) {
+    let loadedReadings = update.readings
+    if update.isLive || !loadedReadings.isEmpty || serverReadings.isEmpty {
+      serverReadings = loadedReadings
+    }
+    switch update {
+    case .live:
+      finishConfirmedControls()
+      lastChecked = now()
+      (isLoading, isLive, isRefreshing, problem) = (false, true, false, nil)
+    case .refreshing:
+      publishReadings()
+      (isLoading, isLive, isRefreshing, problem) = (false, false, true, nil)
+    case .reconnecting:
+      publishReadings()
+      (isLoading, isLive, isRefreshing, problem) = (
+        false, false, false, .reconnecting
+      )
+    }
   }
 }
 
@@ -295,27 +314,10 @@ extension HomeAssistantTemperatureStore {
     }
   }
 
-  private func apply(_ update: HomeAssistantTemperatureUpdate) {
-    switch update {
-    case .live(let loadedReadings):
-      serverReadings = loadedReadings
-      finishConfirmedControls()
-      lastChecked = now()
-      isLoading = false
-      isLive = true
-      problem = nil
-    case .reconnecting(let loadedReadings):
-      serverReadings = loadedReadings
-      publishReadings()
-      isLoading = false
-      isLive = false
-      problem = .reconnecting
-    }
-  }
 }
 
 extension HomeAssistantTemperatureStore {
-  fileprivate func finishConfirmedControls() {
+  private func finishConfirmedControls() {
     let confirmedEntityIDs: [String] = pendingControls.compactMap { element -> String? in
       let (entityID, control) = element
       guard control.isAccepted,
@@ -390,7 +392,7 @@ extension HomeAssistantTemperatureStore {
     controlProblem = ControlProblem(name: name)
   }
 
-  fileprivate func publishReadings() {
+  private func publishReadings() {
     readings = serverReadings.map { reading in
       pendingControls[reading.id]?.intent.applying(to: reading) ?? reading
     }

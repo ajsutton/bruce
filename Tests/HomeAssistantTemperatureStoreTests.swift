@@ -265,6 +265,8 @@ private final class QueueTemperatureLoader:
 final class ControlledTemperatureLoader:
   HomeAssistantTemperatureLoading, @unchecked Sendable
 {
+  let providesContinuousTemperatureUpdates: Bool
+
   private let lock = NSLock()
   private let startedExpectations: [XCTestExpectation]
   private var continuations:
@@ -273,7 +275,8 @@ final class ControlledTemperatureLoader:
     >.Continuation] = [:]
   private var nextRequestID = 0
 
-  init(requestCount: Int) {
+  init(requestCount: Int, providesContinuousUpdates: Bool = false) {
+    providesContinuousTemperatureUpdates = providesContinuousUpdates
     startedExpectations = (0..<requestCount).map {
       XCTestExpectation(description: "Temperature request \($0) started")
     }

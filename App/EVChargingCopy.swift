@@ -37,6 +37,10 @@ struct EVChargingCopy {
     "\(lastKnown): \(value)"
   }
 
+  func updating(lastKnown value: String) -> String {
+    text(.updatingLastKnown).replacingOccurrences(of: "%@", with: value)
+  }
+
   func charging(powerWatts: Double?, locale: Locale) -> String {
     guard let powerWatts else {
       return text(.charging)
@@ -75,6 +79,7 @@ struct EVChargingCopy {
     switch problem {
     case .connectionNeedsManagement: text(.connectionNeedsManagement)
     case .connectionUnavailable: text(.connectionUnavailable)
+    case .reconnecting: text(.reconnecting)
     case .signInRequired: text(.signInRequired)
     case .invalidResponse: text(.invalidResponse)
     case .updateFailed: text(.updateFailed)
@@ -92,14 +97,14 @@ extension EVChargingCopy {
     case carCharger, chargingMode, manage, refresh, checkCurrentMode
     case chargerStatus, checkingChargerStatus, chargerStatusUnavailable
     case checkingMode, modeUnavailable, changingChargingMode, checkingChargingMode
-    case requestedMode, updating, checkingCurrentMode, lastKnown, unavailable
+    case requestedMode, updating, updatingLastKnown, checkingCurrentMode, lastKnown, unavailable
     case notPluggedIn, connectedReady, waitingForVehicle, charging, chargingWithPower
     case chargeComplete, chargingPaused, chargingSwitchedOff, pausedForPrice, pausedForBattery
     case chargingModeOff, chargingModeSmart, chargingModeOn
     case chargingModeOffAccessibility, chargingModeSmartAccessibility
     case chargingModeOnAccessibility
     case chargingModeOffDescription, chargingModeSmartDescription, chargingModeOnDescription
-    case connectionNeedsManagement, connectionUnavailable, signInRequired
+    case connectionNeedsManagement, connectionUnavailable, reconnecting, signInRequired
     case invalidResponse, updateFailed, updateTimedOut
 
     var entry: BruceCopy.Entry {
@@ -122,6 +127,7 @@ extension EVChargingCopy {
         .localized("evCharging.checkingChargingMode")
       case .requestedMode: .localized("evCharging.requestedMode")
       case .updating: .localized("evCharging.updating")
+      case .updatingLastKnown: .localized("evCharging.updatingLastKnown")
       case .checkingCurrentMode: .localized("evCharging.checkingCurrentMode")
       case .lastKnown: .localized("evCharging.lastKnown")
       case .unavailable: .localized("evCharging.unavailable")
@@ -161,6 +167,8 @@ extension EVChargingCopy {
         .localized("evCharging.connectionNeedsManagement")
       case .connectionUnavailable:
         .localized("evCharging.connectionUnavailable")
+      case .reconnecting:
+        .localized("evCharging.reconnecting")
       case .signInRequired:
         .localized("evCharging.signInRequired")
       case .invalidResponse:

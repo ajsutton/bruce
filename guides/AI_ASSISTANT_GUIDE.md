@@ -15,6 +15,8 @@ Use at least `code-review` after modifying production Swift. Add:
 
 - `ui-review` for SwiftUI, user-facing strings, layout, interaction, or accessibility.
 - `concurrency-review` for async code, tasks, actors, networking, or `Sendable`.
+- `data-access-review` for remote-data clients, streams, live updates, freshness, stale values,
+  optimistic writes, or data-backed presentation.
 - `ui-test-review` for UI tests, screen drivers, seeds, or accessibility identifiers.
 - `appstore-review` before release tagging.
 

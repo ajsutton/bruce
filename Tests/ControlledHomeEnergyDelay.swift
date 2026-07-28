@@ -4,6 +4,7 @@ import XCTest
 final class ControlledHomeEnergyDelay: @unchecked Sendable {
   private let lock = NSLock()
   private let startedExpectations: [XCTestExpectation]
+  private let completedExpectations: [XCTestExpectation]
   private var nextDelay = 0
   private var tokens: [Int: ControlledHomeEnergyDelayToken] = [:]
 
@@ -11,10 +12,17 @@ final class ControlledHomeEnergyDelay: @unchecked Sendable {
     startedExpectations = (0..<delayCount).map {
       XCTestExpectation(description: "Home energy delay \($0) started")
     }
+    completedExpectations = (0..<delayCount).map {
+      XCTestExpectation(description: "Home energy delay \($0) completed")
+    }
   }
 
   func started(at index: Int) -> XCTestExpectation {
     startedExpectations[index]
+  }
+
+  func completed(at index: Int) -> XCTestExpectation {
+    completedExpectations[index]
   }
 
   func sleep(_ duration: Duration) async throws {
@@ -26,6 +34,7 @@ final class ControlledHomeEnergyDelay: @unchecked Sendable {
       return (index, token)
     }
     startedExpectations[index].fulfill()
+    defer { completedExpectations[index].fulfill() }
     try await token.wait()
   }
 

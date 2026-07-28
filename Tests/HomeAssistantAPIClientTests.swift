@@ -3,6 +3,38 @@ import XCTest
 @testable import Bruce
 
 final class HomeAssistantAPIClientTests: XCTestCase {
+  func testStatesRejectMalformedOrderingTimestamp() async throws {
+    let fixture = SessionFixture()
+    let session = fixture.makeSession(
+      apiResponses: [
+        .success(
+          Data(
+            #"""
+            [{
+              "entity_id": "climate.bedroom",
+              "state": "cool",
+              "attributes": {},
+              "last_updated": "not-a-timestamp"
+            }]
+            """#.utf8
+          ),
+          statusCode: 200
+        )
+      ]
+    )
+    try await session.install(fixture.credentials())
+
+    do {
+      _ = try await HomeAssistantAPIClient(session: session).loadHomeAssistantStates()
+      XCTFail("Expected malformed ordering timestamp to be rejected.")
+    } catch HomeAssistantAPIError.invalidResponse {
+    } catch {
+      XCTFail("Unexpected state decoding error: \(error)")
+    }
+  }
+}
+
+extension HomeAssistantAPIClientTests {
   func testConnectionCheckAcceptsHomeAssistantStatus() async throws {
     let fixture = SessionFixture()
     let session = fixture.makeSession(
@@ -224,7 +256,6 @@ final class HomeAssistantAPIClientTests: XCTestCase {
     let session = fixture.makeSession(
       apiResponses: [
         .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
-        .success(temperatureStatesData, statusCode: 200),
         .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
         .success(temperatureStatesData, statusCode: 200),
       ]

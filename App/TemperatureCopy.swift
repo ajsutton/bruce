@@ -18,6 +18,8 @@ struct TemperatureCopy {
   var lastChecked: String { text(.lastChecked) }
   var checkingConnection: String { text(.checkingConnection) }
   var updating: String { text(.updating) }
+  var lastKnown: String { text(.lastKnown) }
+  var lastKnownUpdating: String { text(.lastKnownUpdating) }
   var updatingTemperatures: String { text(.updatingTemperatures) }
   var current: String { text(.current) }
   var target: String { text(.target) }
@@ -63,6 +65,10 @@ struct TemperatureCopy {
 
   func updating(name: String) -> String {
     text(.updatingName).replacingOccurrences(of: "%@", with: name)
+  }
+
+  func lastKnown(_ value: String) -> String {
+    "\(lastKnown). \(value)"
   }
 
   func turnOff(name: String) -> String {
@@ -115,7 +121,8 @@ extension TemperatureCopy {
   fileprivate enum Key {
     case navigationTitle, controlFailedTitle, dismiss, temperaturesUnavailable
     case noCurrentTemperatures, noCurrentTemperaturesDescription, manage, tryAgain
-    case removingConnection, live, lastChecked, checkingConnection, updating
+    case removingConnection, live, lastChecked, checkingConnection, updating, lastKnown
+    case lastKnownUpdating
     case updatingTemperatures, current, target, average, houseAverage, mode
     case powerOn, powerOff, unavailable, inProgress, automatic, cooling, drying, fanOnly, heating
     case automaticAccessibility, coolingAccessibility, dryingAccessibility
@@ -147,6 +154,8 @@ extension TemperatureCopy {
       case .checkingConnection:
         .localized("temperature.checkingConnection")
       case .updating: .localized("temperature.updating")
+      case .lastKnown: .localized("temperature.lastKnown")
+      case .lastKnownUpdating: .localized("temperature.lastKnownUpdating")
       case .updatingTemperatures:
         .localized("temperature.updatingTemperatures")
       case .current: .localized("temperature.current")

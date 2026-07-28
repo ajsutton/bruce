@@ -13,6 +13,7 @@ struct HomeAssistantAirConditionerCard: View {
   let showsControls: Bool
   let isControlEnabled: Bool
   let isControlling: Bool
+  let isLastKnown: Bool
   let targetValueFractionLength: Int
   let setPower: (Bool) -> Void
   let setMode: (HomeAssistantTemperatureReading.ClimateMode) -> Void
@@ -25,6 +26,7 @@ struct HomeAssistantAirConditionerCard: View {
     showsControls: Bool = false,
     isControlEnabled: Bool = false,
     isControlling: Bool = false,
+    isLastKnown: Bool = false,
     targetValueFractionLength: Int = 1,
     setPower: @escaping (Bool) -> Void = { _ in },
     setMode: @escaping (HomeAssistantTemperatureReading.ClimateMode) -> Void = { _ in }
@@ -36,6 +38,7 @@ struct HomeAssistantAirConditionerCard: View {
     self.showsControls = showsControls
     self.isControlEnabled = isControlEnabled
     self.isControlling = isControlling
+    self.isLastKnown = isLastKnown
     self.targetValueFractionLength = targetValueFractionLength
     self.setPower = setPower
     self.setMode = setMode
@@ -97,6 +100,7 @@ struct HomeAssistantAirConditionerCard: View {
       y: 5
     )
     .accessibilityElement(children: .contain)
+    .accessibilityValue(isLastKnown ? copy.lastKnown : "")
     .onChange(of: isControlEnabled, dismissModePickerWhenDisabled)
     .onChange(of: isControlling, dismissModePickerWhenUpdating)
   }
@@ -207,6 +211,7 @@ struct HomeAssistantAirConditionerCard: View {
       .accessibilityLabel(
         modePresentation.powerAccessibilityLabel(isControlling: isControlling)
       )
+      .accessibilityValue(isLastKnown ? copy.lastKnown : "")
     } else {
       Image(systemName: modePresentation.symbol)
         .font(.system(size: isCondensed ? 20 : 28, weight: .semibold))
@@ -249,7 +254,7 @@ struct HomeAssistantAirConditionerCard: View {
         isControlling ? copy.updating(name: reading.name) : copy.mode(name: reading.name)
       )
       .accessibilityValue(
-        isControlling ? copy.inProgress : modePresentation.accessibilityLabel
+        modeControlAccessibilityValue
       )
     } else {
       modeText(isCondensed: isCondensed)
@@ -267,6 +272,11 @@ struct HomeAssistantAirConditionerCard: View {
 }
 
 extension HomeAssistantAirConditionerCard {
+  fileprivate var modeControlAccessibilityValue: String {
+    let value = isControlling ? copy.inProgress : modePresentation.accessibilityLabel
+    return isLastKnown ? copy.lastKnown(value) : value
+  }
+
   fileprivate func temperature(
     label: String,
     value: Double?,
@@ -305,6 +315,23 @@ extension HomeAssistantAirConditionerCard {
       .lineLimit(1)
       .minimumScaleFactor(0.5)
     }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(label)
+    .accessibilityValue(
+      temperatureAccessibilityValue(value, fractionLength: fractionLength)
+    )
+  }
+
+  fileprivate func temperatureAccessibilityValue(
+    _ value: Double?,
+    fractionLength: Int
+  ) -> String {
+    guard let value else { return copy.unavailable }
+    let formattedValue = value.formatted(
+      .number.precision(.fractionLength(fractionLength))
+    )
+    let presentedValue = "\(formattedValue)\(reading.unit ?? "")"
+    return isLastKnown ? copy.lastKnown(presentedValue) : presentedValue
   }
 
   fileprivate func modeFont(isCondensed: Bool) -> Font {

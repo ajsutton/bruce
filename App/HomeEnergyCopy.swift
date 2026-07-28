@@ -61,6 +61,7 @@ struct HomeEnergyCopy {
     switch problem {
     case .connectionNeedsManagement: text(.connectionNeedsManagement)
     case .connectionUnavailable: text(.connectionUnavailable)
+    case .reconnecting: text(.reconnecting)
     case .signInRequired: text(.signInRequired)
     case .invalidResponse: text(.invalidResponse)
     }
@@ -86,7 +87,8 @@ extension HomeEnergyCopy {
     case generalPriceAccessibility, generalPriceUnavailableAccessibility
     case feedInPriceAccessibility, feedInChargeAccessibility
     case feedInPriceUnavailableAccessibility
-    case connectionNeedsManagement, connectionUnavailable, signInRequired, invalidResponse
+    case connectionNeedsManagement, connectionUnavailable, reconnecting, signInRequired
+    case invalidResponse
 
     var entry: BruceCopy.Entry {
       switch self {
@@ -154,6 +156,8 @@ extension HomeEnergyCopy {
         .localized("homeEnergy.connectionNeedsManagement")
       case .connectionUnavailable:
         .localized("homeEnergy.connectionUnavailable")
+      case .reconnecting:
+        .localized("homeEnergy.reconnecting")
       case .signInRequired:
         .localized("homeEnergy.signInRequired")
       case .invalidResponse:

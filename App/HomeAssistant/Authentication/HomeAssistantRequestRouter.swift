@@ -28,6 +28,7 @@ enum HomeAssistantRequestRouter {
       throw HomeAssistantAPIError.invalidServerURL
     }
     var request = URLRequest(url: baseURL.appending(path: path))
+    request.cachePolicy = .reloadIgnoringLocalCacheData
     request.httpMethod = method
     request.httpBody = body
     request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

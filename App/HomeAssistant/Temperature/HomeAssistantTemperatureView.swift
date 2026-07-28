@@ -82,72 +82,88 @@ struct HomeAssistantTemperatureView: View {
   @ViewBuilder
   private var temperatureContent: some View {
     if store.readings.isEmpty && !showsActivity {
-      emptyState
-    } else {
-      ScrollView {
-        LazyVStack(spacing: 14) {
-          ForEach(summary.airConditioners) { reading in
-            HomeAssistantAirConditionerCard(
-              reading: reading,
-              averageValue: summary.averageRoomTemperature,
-              mode: mode,
-              showsName: summary.airConditioners.count > 1,
-              showsControls: store.supportsControl,
-              isControlEnabled: store.canControl(reading),
-              isControlling: store.isControlling(entityID: reading.id),
-              targetValueFractionLength: summary.targetValueFractionLength,
-              setPower: { isOn in
-                Task {
-                  await store.setPower(for: reading, isOn: isOn)
-                }
-              },
-              setMode: { climateMode in
-                Task {
-                  await store.setMode(climateMode, for: reading)
-                }
-              }
-            )
-            .padding(.bottom, 4)
-          }
-
-          ForEach(summary.rooms) { reading in
-            HomeAssistantTemperatureCard(
-              reading: reading,
-              mode: mode,
-              showsControl: reading.kind == .zone && store.supportsControl,
-              isControlEnabled: store.canControl(reading),
-              isControlling: store.isControllingClimateState(entityID: reading.id),
-              isTargetControlling: store.isAdjustingTarget(entityID: reading.id),
-              showsTargetControl: reading.kind == .zone
-                && reading.targetValue != nil
-                && store.supportsControl,
-              targetValueFractionLength: summary.targetValueFractionLength,
-              setPower: { isOn in
-                Task {
-                  await store.setPower(for: reading, isOn: isOn)
-                }
-              },
-              setTargetValue: { value in
-                MainActor.assumeIsolated {
-                  store.setTargetValue(value, for: reading)
-                }
-              }
-            )
-          }
-
+      VStack(spacing: 0) {
+        emptyState
+        if store.isRefreshing {
           updateStatus
-            .padding(.horizontal, 4)
-            .padding(.top, 2)
+            .padding(.horizontal)
+            .padding(.bottom)
         }
-        .padding()
-        .frame(maxWidth: 720)
-        .frame(maxWidth: .infinity)
+      }
+    } else {
+      VStack(spacing: 0) {
+        updateStatus
+          .padding(.horizontal)
+          .padding(.top, 8)
+
+        ScrollView {
+          LazyVStack(spacing: 14) {
+            ForEach(summary.airConditioners) { reading in
+              HomeAssistantAirConditionerCard(
+                reading: reading,
+                averageValue: summary.averageRoomTemperature,
+                mode: mode,
+                showsName: summary.airConditioners.count > 1,
+                showsControls: store.supportsControl,
+                isControlEnabled: store.canControl(reading),
+                isControlling: store.isControlling(entityID: reading.id),
+                isLastKnown: isDisplayingLastKnown,
+                targetValueFractionLength: summary.targetValueFractionLength,
+                setPower: { isOn in
+                  Task {
+                    await store.setPower(for: reading, isOn: isOn)
+                  }
+                },
+                setMode: { climateMode in
+                  Task {
+                    await store.setMode(climateMode, for: reading)
+                  }
+                }
+              )
+              .padding(.bottom, 4)
+            }
+
+            ForEach(summary.rooms) { reading in
+              HomeAssistantTemperatureCard(
+                reading: reading,
+                mode: mode,
+                showsControl: reading.kind == .zone && store.supportsControl,
+                isControlEnabled: store.canControl(reading),
+                isControlling: store.isControllingClimateState(entityID: reading.id),
+                isTargetControlling: store.isAdjustingTarget(entityID: reading.id),
+                isLastKnown: isDisplayingLastKnown,
+                showsTargetControl: reading.kind == .zone
+                  && reading.targetValue != nil
+                  && store.supportsControl,
+                targetValueFractionLength: summary.targetValueFractionLength,
+                setPower: { isOn in
+                  Task {
+                    await store.setPower(for: reading, isOn: isOn)
+                  }
+                },
+                setTargetValue: { value in
+                  MainActor.assumeIsolated {
+                    store.setTargetValue(value, for: reading)
+                  }
+                }
+              )
+            }
+
+          }
+          .padding()
+          .frame(maxWidth: 720)
+          .frame(maxWidth: .infinity)
+        }
       }
     }
   }
 
   private var showsActivity: Bool {
     isRemovingConnection || isConnecting || store.isLoading || isAwaitingFirstLoad
+  }
+
+  private var isDisplayingLastKnown: Bool {
+    !store.isLive && !store.readings.isEmpty
   }
 
   private var emptyState: some View {
@@ -192,22 +208,20 @@ struct HomeAssistantTemperatureView: View {
 
   private var updateStatus: some View {
     HStack(spacing: 8) {
-      if showsActivity {
-        ProgressView()
-          .controlSize(.small)
-          .accessibilityLabel(progressAccessibilityLabel)
+      ZStack {
+        if showsActivity {
+          ProgressView()
+            .controlSize(.small)
+            .accessibilityLabel(progressAccessibilityLabel)
+        }
       }
-      if isRemovingConnection {
-        Text(copy.removingConnection)
-      } else if store.isLive {
-        Text(copy.live)
-      } else if let lastChecked = store.lastChecked {
-        Text(copy.lastChecked)
-        relativeDateText(lastChecked)
-      } else if isConnecting {
-        Text(copy.checkingConnection)
-      } else if store.isLoading {
-        Text(copy.updating)
+      .frame(width: 16, height: 16)
+
+      ZStack(alignment: .leading) {
+        Text(copy.lastKnownUpdating)
+          .hidden()
+          .accessibilityHidden(true)
+        updateStatusText
       }
       Spacer()
     }
@@ -216,23 +230,39 @@ struct HomeAssistantTemperatureView: View {
     .accessibilityElement(children: .combine)
   }
 
+  @ViewBuilder
+  private var updateStatusText: some View {
+    if isRemovingConnection {
+      Text(copy.removingConnection)
+    } else if store.isRefreshing {
+      Text(store.readings.isEmpty ? copy.updating : copy.lastKnownUpdating)
+    } else if store.isLive {
+      Text(copy.live)
+    } else if let lastChecked = store.lastChecked {
+      HStack(spacing: 4) {
+        Text(copy.lastChecked)
+        Text(
+          .currentDate,
+          format: Date.AnchoredRelativeFormatStyle(
+            anchor: lastChecked,
+            presentation: .named,
+            unitsStyle: .wide
+          )
+        )
+      }
+    } else if isConnecting {
+      Text(copy.checkingConnection)
+    } else if store.isLoading {
+      Text(copy.updating)
+    }
+  }
+
   private var progressAccessibilityLabel: String {
     if isRemovingConnection {
       return copy.removingConnection
     }
     return isConnecting ? copy.checkingConnection : copy.updatingTemperatures
   }
-}
-
-private func relativeDateText(_ date: Date) -> Text {
-  Text(
-    .currentDate,
-    format: Date.AnchoredRelativeFormatStyle(
-      anchor: date,
-      presentation: .named,
-      unitsStyle: .wide
-    )
-  )
 }
 
 private struct TemperatureNavigationStyle: ViewModifier {

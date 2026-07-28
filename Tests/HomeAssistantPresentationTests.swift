@@ -15,6 +15,22 @@ final class HomeAssistantPresentationTests: XCTestCase {
     XCTAssertFalse(presentation.shouldRefresh(when: .background))
   }
 
+  func testSceneActivationRefreshesLocalAndLiveHomeData() {
+    let presentation = makePresentation(step: .connected(credentials), state: .succeeded)
+    var refreshedLocalPreferences = false
+    var requestedHomeRefresh = false
+
+    HomeAssistantRefreshCoordinator.sceneDidChange(
+      to: .active,
+      presentation: presentation,
+      refreshLocalPreferences: { refreshedLocalPreferences = true },
+      requestHomeRefresh: { requestedHomeRefresh = true }
+    )
+
+    XCTAssertTrue(refreshedLocalPreferences)
+    XCTAssertTrue(requestedHomeRefresh)
+  }
+
   func testRestoringShowsPanelLoadingState() {
     let presentation = makePresentation(step: .restoring)
 

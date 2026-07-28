@@ -11,61 +11,19 @@ struct BruceApp: App {
   @StateObject private var temperatureStore: HomeAssistantTemperatureStore
   @StateObject private var chargingStore: HomeAssistantEVChargingStore
   @StateObject private var homeEnergyStore: HomeAssistantHomeEnergyStore
+  @StateObject private var observationCoordinator: HomeAssistantObservationCoordinator
   #if os(macOS)
     @StateObject private var settingsNavigation = BruceSettingsNavigation()
   #endif
 
   init() {
     HomeAssistantMaterialDesignIcon.prepare()
-    let bundleIdentifier = Bundle.main.bundleIdentifier ?? "net.symphonious.bruce"
-    let credentialService = "\(bundleIdentifier).home-assistant"
-    let legacyCredentialService = Self.legacyCredentialService(for: bundleIdentifier)
-    let loader = URLSessionHomeAssistantHTTPDataLoader()
-    let authenticationClient = HomeAssistantAuthenticationClient(loader: loader)
-    let webAuthenticationPresenter = HomeAssistantWebAuthenticationPresenter()
-    let session = HomeAssistantSession(
-      credentialStore: KeychainHomeAssistantCredentialStore(
-        service: credentialService,
-        legacyService: legacyCredentialService
-      ),
-      authenticationClient: authenticationClient,
-      loader: loader
-    )
-    let connection = HomeAssistantConnectionCoordinator(
-      authenticationClient: authenticationClient,
-      browser: webAuthenticationPresenter,
-      session: session
-    )
-    let setupStore = HomeAssistantSetupStore(
-      discovery: HomeAssistantDiscoveryClient(browser: NetworkHomeAssistantDiscovery()),
-      connection: connection,
-      webAuthenticationPresenter: webAuthenticationPresenter
-    )
-    let apiClient = HomeAssistantAPIClient(session: session)
-    _setupStore = StateObject(wrappedValue: setupStore)
-    _chargingStore = StateObject(
-      wrappedValue: HomeAssistantEVChargingStore(
-        client: apiClient,
-        onAuthenticationRequired: {
-          setupStore.requireReauthentication()
-        }
-      )
-    )
-    _homeEnergyStore = StateObject(
-      wrappedValue: Self.homeEnergyStore(loader: apiClient, setupStore: setupStore)
-    )
-    _temperatureStore = StateObject(
-      wrappedValue: HomeAssistantTemperatureStore(
-        loader: HomeAssistantTemperatureStream(
-          session: session,
-          apiClient: apiClient
-        ),
-        controller: apiClient,
-        onAuthenticationRequired: {
-          setupStore.requireReauthentication()
-        }
-      )
-    )
+    let dependencies = BruceHomeAssistantDependencies()
+    _setupStore = StateObject(wrappedValue: dependencies.setupStore)
+    _chargingStore = StateObject(wrappedValue: dependencies.chargingStore)
+    _homeEnergyStore = StateObject(wrappedValue: dependencies.homeEnergyStore)
+    _temperatureStore = StateObject(wrappedValue: dependencies.temperatureStore)
+    _observationCoordinator = StateObject(wrappedValue: dependencies.observationCoordinator)
   }
 
   var body: some Scene {
@@ -80,6 +38,7 @@ struct BruceApp: App {
           settingsNavigation: settingsNavigation
         )
         .tint(modeController.mode.accentColor)
+        .environmentObject(observationCoordinator)
       #else
         ContentView(
           modeController: modeController,
@@ -89,6 +48,7 @@ struct BruceApp: App {
           homeEnergyStore: homeEnergyStore
         )
         .tint(modeController.mode.accentColor)
+        .environmentObject(observationCoordinator)
       #endif
     }
 
@@ -104,21 +64,4 @@ struct BruceApp: App {
     #endif
   }
 
-  private static func legacyCredentialService(for bundleIdentifier: String) -> String? {
-    bundleIdentifier == "net.symphonious.bruce.debug"
-      ? "net.symphonious.bruce.home-assistant"
-      : nil
-  }
-
-  private static func homeEnergyStore(
-    loader: any HomeAssistantHomeEnergyLoading,
-    setupStore: HomeAssistantSetupStore
-  ) -> HomeAssistantHomeEnergyStore {
-    HomeAssistantHomeEnergyStore(
-      loader: loader,
-      onAuthenticationRequired: {
-        setupStore.requireReauthentication()
-      }
-    )
-  }
 }

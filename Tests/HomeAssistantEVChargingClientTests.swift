@@ -57,6 +57,10 @@ final class HomeAssistantEVChargingClientTests: XCTestCase {
     XCTAssertEqual(snapshot.mode, .smart)
     XCTAssertEqual(snapshot.activity, .charging(powerWatts: 7_024))
     XCTAssertEqual(fixture.apiLoader.requests.first?.url?.path, "/api/states")
+    XCTAssertEqual(
+      fixture.apiLoader.requests.first?.cachePolicy,
+      .reloadIgnoringLocalCacheData
+    )
   }
 
   func testLoadingChargingSnapshotDoesNotTreatBoostModeAsActiveCharging() async throws {
@@ -79,6 +83,28 @@ final class HomeAssistantEVChargingClientTests: XCTestCase {
       .loadEVChargingSnapshot()
 
     XCTAssertEqual(snapshot.activity, .notPluggedIn)
+  }
+
+  func testLoadingChargingSnapshotRejectsMissingModeTimestamp() async throws {
+    let fixture = SessionFixture()
+    let missingTimestamp = chargingSnapshot(
+      power: "0",
+      plugStatus: "EV Connected",
+      chargerStatus: "Ready",
+      modeLastUpdated: nil
+    )
+    let session = fixture.makeSession(
+      apiResponses: [.success(missingTimestamp, statusCode: 200)]
+    )
+    try await session.install(fixture.credentials())
+
+    do {
+      _ = try await HomeAssistantAPIClient(session: session).loadEVChargingSnapshot()
+      XCTFail("Expected a charging mode without an ordering timestamp to be rejected.")
+    } catch HomeAssistantAPIError.invalidResponse {
+    } catch {
+      XCTFail("Unexpected missing-timestamp error: \(error)")
+    }
   }
 
   func testLoadingChargingSnapshotExplainsSmartBatteryPause() async throws {
@@ -183,15 +209,20 @@ final class HomeAssistantEVChargingClientTests: XCTestCase {
     power: String,
     plugStatus: String,
     chargerStatus: String,
-    batteryAllowsCharging: String = "on"
+    batteryAllowsCharging: String = "on",
+    modeLastUpdated: String? = "2026-07-28T01:02:03Z"
   ) -> Data {
-    Data(
+    let orderingTimestamp =
+      modeLastUpdated.map {
+        ",\n          \"last_updated\": \"\($0)\""
+      } ?? ""
+    return Data(
       """
       [
         {
           "entity_id": "input_select.ev_charging_mode",
           "state": "Smart Charging",
-          "attributes": {}
+          "attributes": {}\(orderingTimestamp)
         },
         {
           "entity_id": "sensor.home_myenergi_home_power_charging",

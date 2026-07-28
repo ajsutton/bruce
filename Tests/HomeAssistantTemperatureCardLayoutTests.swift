@@ -50,6 +50,7 @@
         reading: room,
         mode: .standard,
         isEnabled: true,
+        isLastKnown: false,
         fractionLength: 1,
         setTargetValue: { _ in }
       )

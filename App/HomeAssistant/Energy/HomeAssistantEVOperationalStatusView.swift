@@ -4,6 +4,7 @@ struct HomeAssistantEVOperationalStatusView: View {
   let activity: HomeAssistantEVChargingActivity
   let isLive: Bool
   let isLoading: Bool
+  var isRefreshing = false
   let mode: BruceMode
 
   private var copy: EVChargingCopy {
@@ -45,6 +46,9 @@ struct HomeAssistantEVOperationalStatusView: View {
     if isLoading, !isLive {
       return copy.checkingChargerStatus
     }
+    if isRefreshing, activity != .unavailable {
+      return presentation.text
+    }
     if isLive {
       return presentation.text
     }
@@ -57,6 +61,9 @@ struct HomeAssistantEVOperationalStatusView: View {
   private var accessibilityValue: String {
     if isLoading, !isLive {
       return copy.checkingChargerStatus
+    }
+    if isRefreshing, activity != .unavailable {
+      return copy.updating(lastKnown: presentation.accessibilityText)
     }
     if isLive {
       return presentation.accessibilityText
@@ -71,11 +78,14 @@ struct HomeAssistantEVOperationalStatusView: View {
     if isLoading, !isLive {
       return "arrow.clockwise"
     }
+    if isRefreshing, activity != .unavailable {
+      return presentation.statusIcon
+    }
     return isLive ? presentation.statusIcon : "questionmark.circle"
   }
 
   private var statusColor: Color {
-    isLive ? presentation.color : .secondary
+    isLive || isRefreshing ? presentation.color : .secondary
   }
 
   private var foreground: AnyShapeStyle {

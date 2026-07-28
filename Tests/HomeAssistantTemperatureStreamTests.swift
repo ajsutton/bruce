@@ -15,14 +15,6 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
         .success(#"{"type":"auth_required"}"#),
         .success(#"{"type":"auth_ok"}"#),
         .success(#"{"id":1,"type":"result","success":true,"result":null}"#),
-        .success(
-          stateChangedEvent(
-            entityID: "climate.bedroom",
-            value: 24,
-            state: "auto",
-            target: 22
-          )
-        ),
       ]
     )
     let client = makeClient(
@@ -31,12 +23,22 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
       icons: ["climate.bedroom": "mdi:bed"],
       kinds: ["climate.bedroom": .airConditioner]
     )
-    var updates = client.temperatureUpdates().makeAsyncIterator()
+    let probe = AsyncThrowingStreamTestProbe(client.temperatureUpdates())
 
-    let initial = try snapshot(from: try await updates.next())
-    let live = try snapshot(from: try await updates.next())
+    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    let initial = try snapshot(from: probe.value(at: 0))
+    connection.succeed(
+      with: stateChangedEvent(
+        entityID: "climate.bedroom",
+        value: 24,
+        state: "auto",
+        target: 22
+      )
+    )
+    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    let live = try snapshot(from: probe.value(at: 1))
     connection.cancel()
-    let finished = try await updates.next()
+    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
 
     XCTAssertEqual(initial.map(\.value), [21])
     XCTAssertEqual(initial.map(\.targetValue), [22])
@@ -49,7 +51,7 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
     XCTAssertEqual(live.map(\.kind), [.airConditioner])
     XCTAssertEqual(live.map(\.operatingMode), [.automatic])
     XCTAssertEqual(live.first?.icon, "mdi:bed")
-    XCTAssertNil(finished)
+    XCTAssertThrowsError(try probe.value(at: 2))
     XCTAssertEqual(connection.sentMessageTypes, ["auth", "subscribe_events"])
   }
 
@@ -64,14 +66,17 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
         .success(#"{"type":"auth_required"}"#),
         .success(#"{"type":"auth_ok"}"#),
         .success(#"{"id":1,"type":"result","success":true,"result":null}"#),
-        .success(stateChangedEvent(entityID: "climate.bedroom", value: nil)),
       ]
     )
     let client = makeClient(session: session, connections: [connection])
-    var updates = client.temperatureUpdates().makeAsyncIterator()
+    let probe = AsyncThrowingStreamTestProbe(client.temperatureUpdates())
 
-    _ = try await updates.next()
-    let live = try snapshot(from: try await updates.next())
+    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    connection.succeed(
+      with: stateChangedEvent(entityID: "climate.bedroom", value: nil)
+    )
+    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    let live = try snapshot(from: probe.value(at: 1))
     connection.cancel()
 
     XCTAssertTrue(live.isEmpty)
@@ -120,9 +125,10 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
     let client = makeClient(session: session, connections: [connection])
     let stream = client.temperatureUpdates()
     await fulfillment(of: [connection.blockedReceiveStarted], timeout: 1)
-    var updates = stream.makeAsyncIterator()
+    let probe = AsyncThrowingStreamTestProbe(stream)
 
-    let newest = try snapshot(from: try await updates.next())
+    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    let newest = try snapshot(from: probe.value(at: 0))
     connection.cancel()
 
     XCTAssertEqual(newest.map(\.value), [23])
@@ -139,10 +145,11 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
       ]
     )
     let client = makeClient(session: session, connections: [connection])
-    var updates = client.temperatureUpdates().makeAsyncIterator()
+    let probe = AsyncThrowingStreamTestProbe(client.temperatureUpdates())
+    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
 
     do {
-      _ = try await updates.next()
+      _ = try probe.value(at: 0)
       XCTFail("Expected WebSocket authentication to be rejected.")
     } catch HomeAssistantAPIError.unauthorized {
     } catch {

@@ -77,26 +77,39 @@ final class TemperatureSubscriptionConnection:
   }
 
   func receive() async throws -> Data {
-    if let message = lock.withLock({ messages.isEmpty ? nil : messages.removeFirst() }) {
-      switch message {
-      case .success(let text):
-        return Data(text.utf8)
-      case .failure(let error):
-        throw error
-      }
-    }
-
-    return try await withCheckedThrowingContinuation { continuation in
+    try await withCheckedThrowingContinuation { continuation in
       let state = lock.withLock {
+        if !messages.isEmpty {
+          return (
+            message: Optional(messages.removeFirst()),
+            shouldCancel: false,
+            shouldReportBlocked: false
+          )
+        }
         guard !cancellationRequested else {
-          return (shouldCancel: true, shouldReportBlocked: false)
+          return (
+            message: Optional<Message>.none,
+            shouldCancel: true,
+            shouldReportBlocked: false
+          )
         }
         self.continuation = continuation
         let shouldReportBlocked = !reportedBlockedReceive
         reportedBlockedReceive = true
-        return (shouldCancel: false, shouldReportBlocked: shouldReportBlocked)
+        return (
+          message: Optional<Message>.none,
+          shouldCancel: false,
+          shouldReportBlocked: shouldReportBlocked
+        )
       }
-      if state.shouldCancel {
+      if let message = state.message {
+        switch message {
+        case .success(let text):
+          continuation.resume(returning: Data(text.utf8))
+        case .failure(let error):
+          continuation.resume(throwing: error)
+        }
+      } else if state.shouldCancel {
         continuation.resume(throwing: CancellationError())
       } else if state.shouldReportBlocked {
         blockedReceiveStarted.fulfill()
@@ -121,6 +134,18 @@ final class TemperatureSubscriptionConnection:
       return continuation
     }
     continuation?.resume(throwing: error)
+  }
+
+  func succeed(with message: String) {
+    let continuation = lock.withLock {
+      guard let continuation = self.continuation else {
+        messages.append(.success(message))
+        return Optional<CheckedContinuation<Data, any Error>>.none
+      }
+      self.continuation = nil
+      return continuation
+    }
+    continuation?.resume(returning: Data(message.utf8))
   }
 }
 
@@ -206,19 +231,23 @@ func snapshot(
   switch try XCTUnwrap(update) {
   case .live(let readings):
     return readings
-  case .reconnecting:
+  case .refreshing, .reconnecting:
     throw HomeAssistantAPIError.invalidResponse
   }
 }
 
-func temperatureResponses(values: [Double]) -> [QueueHomeAssistantLoader.Result] {
-  values.flatMap { value in
+func temperatureResponses(
+  values: [Double],
+  units: [String]? = nil
+) -> [QueueHomeAssistantLoader.Result] {
+  let units = units ?? Array(repeating: "°C", count: values.count)
+  return zip(values, units).flatMap { value, unit in
     [
+      .success(temperatureStates(value: value), statusCode: 200),
       .success(
-        Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8),
+        Data(#"{"unit_system":{"temperature":"\#(unit)"}}"#.utf8),
         statusCode: 200
       ),
-      .success(temperatureStates(value: value), statusCode: 200),
     ]
   }
 }
@@ -266,9 +295,35 @@ func stateChangedEvent(
               "friendly_name": "Bedroom"
             },
             "last_updated": "2026-07-27T01:03:04Z"
-          }
+          },
+          "old_state": null
         }
       }
     }
     """#
+}
+
+func stateRemovedEvent(entityID: String, oldLastUpdated: String) -> String {
+  #"""
+  {
+    "id": 1,
+    "type": "event",
+    "event": {
+      "event_type": "state_changed",
+      "data": {
+        "entity_id": "\#(entityID)",
+        "new_state": null,
+        "old_state": {
+          "entity_id": "\#(entityID)",
+          "state": "cool",
+          "attributes": {
+            "current_temperature": 20,
+            "friendly_name": "Bedroom"
+          },
+          "last_updated": "\#(oldLastUpdated)"
+        }
+      }
+    }
+  }
+  """#
 }

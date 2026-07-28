@@ -1,34 +1,35 @@
-import Foundation
-
 extension HomeAssistantEVChargingSnapshot {
-  init(homeAssistantStates data: Data) throws {
-    let states: [HomeAssistantState]
-    do {
-      states = try JSONDecoder().decode([HomeAssistantState].self, from: data)
-    } catch {
-      throw HomeAssistantAPIError.invalidResponse
+  init(states: [HomeAssistantState]) throws {
+    func homeAssistantState(_ entityID: String) -> HomeAssistantState? {
+      states.first { $0.entityID == entityID }
     }
 
     func state(_ entityID: String) -> String? {
-      states.first { $0.entityID == entityID }?.state
+      homeAssistantState(entityID)?.state
     }
 
     guard
-      let modeState = state("input_select.ev_charging_mode"),
-      let mode = HomeAssistantEVChargingMode(rawValue: modeState)
+      let modeEntity = homeAssistantState("input_select.ev_charging_mode"),
+      let mode = HomeAssistantEVChargingMode(rawValue: modeEntity.state),
+      let modeLastUpdated = modeEntity.lastUpdated
     else {
       throw HomeAssistantAPIError.invalidResponse
     }
 
-    self.mode = mode
-    let sourceState = EVChargingSourceState(
-      powerWatts: state("sensor.home_myenergi_home_power_charging").flatMap(Double.init),
-      plugState: state("sensor.zappi_myenergi_zappi_26482259_plug_status"),
-      chargerState: state("sensor.zappi_myenergi_zappi_26482259_status"),
-      batteryAllowsCharging: state("input_boolean.ev_smart_battery_allows_charging"),
-      priceAllowsCharging: state("input_boolean.ev_price_allows_charging")
+    self.init(
+      mode: mode,
+      activity: Self.activity(
+        mode: mode,
+        sourceState: EVChargingSourceState(
+          powerWatts: state("sensor.home_myenergi_home_power_charging").flatMap(Double.init),
+          plugState: state("sensor.zappi_myenergi_zappi_26482259_plug_status"),
+          chargerState: state("sensor.zappi_myenergi_zappi_26482259_status"),
+          batteryAllowsCharging: state("input_boolean.ev_smart_battery_allows_charging"),
+          priceAllowsCharging: state("input_boolean.ev_price_allows_charging")
+        )
+      ),
+      modeLastUpdated: modeLastUpdated
     )
-    activity = Self.activity(mode: mode, sourceState: sourceState)
   }
 
   private static func activity(

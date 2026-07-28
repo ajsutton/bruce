@@ -49,7 +49,7 @@ final class HomeAssistantHomeEnergyTimingTests: XCTestCase {
     )
 
     progressDelay.finish(0)
-    await Task.yield()
+    await fulfillment(of: [progressDelay.completed(at: 0)], timeout: 1)
     XCTAssertFalse(store.showsProgress)
 
     let progressShown = expectation(description: "Latest progress shown")
@@ -102,67 +102,62 @@ final class HomeAssistantHomeEnergyTimingTests: XCTestCase {
     withExtendedLifetime(subscription) {}
   }
 
-  func testMonitorRefreshesImmediatelyAndManualLoadWins() async {
-    let loader = ControlledHomeEnergyLoader(requestCount: 3)
-    let refreshDelay = ControlledHomeEnergyDelay(delayCount: 1)
-    let store = HomeAssistantHomeEnergyStore(
-      loader: loader,
-      refreshSleep: refreshDelay.sleep
-    )
+  func testConnectedStreamPublishesLaterValuesWithoutProgressFlicker() async {
+    let loader = StreamingHomeEnergyLoader()
+    let store = HomeAssistantHomeEnergyStore(loader: loader)
     let connection = Task {
       await store.synchronize(with: .connected(credentials))
     }
-    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
-    loader.succeed(0, with: snapshot(solarPower: 2.1))
-    await connection.value
-
-    let monitor = Task { await store.monitor() }
-    await fulfillment(of: [loader.started(at: 1)], timeout: 1)
-    let manualLoad = Task { await store.load() }
-    await fulfillment(of: [loader.started(at: 2)], timeout: 1)
-
-    loader.succeed(2, with: snapshot(solarPower: 9.1))
-    await manualLoad.value
-    loader.succeed(1, with: snapshot(solarPower: 3.2))
-    await fulfillment(of: [refreshDelay.started(at: 0)], timeout: 1)
-
-    XCTAssertEqual(store.snapshot.pvPowerKilowatts, 9.1)
-    monitor.cancel()
-    await monitor.value
-  }
-
-  func testMonitorDoesNotLoadWhileDisconnectedOrAlreadyLoading() async {
-    let disconnectedLoader = ControlledHomeEnergyLoader(requestCount: 1)
-    disconnectedLoader.started(at: 0).isInverted = true
-    let disconnectedDelay = ControlledHomeEnergyDelay(delayCount: 1)
-    let disconnectedStore = HomeAssistantHomeEnergyStore(
-      loader: disconnectedLoader,
-      refreshSleep: disconnectedDelay.sleep
-    )
-    let disconnectedMonitor = Task { await disconnectedStore.monitor() }
-    await fulfillment(of: [disconnectedDelay.started(at: 0)], timeout: 1)
-    await fulfillment(of: [disconnectedLoader.started(at: 0)], timeout: 0.1)
-    disconnectedMonitor.cancel()
-    await disconnectedMonitor.value
-
-    let loadingLoader = ControlledHomeEnergyLoader(requestCount: 2)
-    loadingLoader.started(at: 1).isInverted = true
-    let loadingDelay = ControlledHomeEnergyDelay(delayCount: 1)
-    let loadingStore = HomeAssistantHomeEnergyStore(
-      loader: loadingLoader,
-      refreshSleep: loadingDelay.sleep
-    )
-    let load = Task {
-      await loadingStore.synchronize(with: .connected(credentials))
+    await fulfillment(of: [loader.started], timeout: 1)
+    let initialSnapshotPublished = expectation(description: "Initial energy snapshot published")
+    let initialSubscription = store.$snapshot.dropFirst().sink { snapshot in
+      if snapshot.pvPowerKilowatts == 2.1 {
+        initialSnapshotPublished.fulfill()
+      }
     }
-    await fulfillment(of: [loadingLoader.started(at: 0)], timeout: 1)
-    let loadingMonitor = Task { await loadingStore.monitor() }
-    await fulfillment(of: [loadingDelay.started(at: 0)], timeout: 1)
-    await fulfillment(of: [loadingLoader.started(at: 1)], timeout: 0.1)
-    loadingMonitor.cancel()
-    await loadingMonitor.value
-    loadingLoader.succeed(0, with: snapshot(solarPower: 8.4))
-    await load.value
+    loader.yield(.live(snapshot(solarPower: 2.1)))
+    await fulfillment(of: [initialSnapshotPublished], timeout: 1)
+    XCTAssertFalse(store.showsProgress)
+
+    let updatedSnapshotPublished = expectation(description: "Updated energy snapshot published")
+    let updateSubscription = store.$snapshot.dropFirst()
+      .filter { $0.pvPowerKilowatts == 9.1 }
+      .prefix(1)
+      .sink { _ in
+        updatedSnapshotPublished.fulfill()
+      }
+    loader.yield(.live(snapshot(solarPower: 9.1)))
+    await fulfillment(of: [updatedSnapshotPublished], timeout: 1)
+
+    let reconnectingPublished = expectation(description: "Energy values marked stale")
+    let reconnectingSubscription = store.$problem.compactMap(\.self).sink { problem in
+      if problem == .reconnecting {
+        reconnectingPublished.fulfill()
+      }
+    }
+    loader.yield(.reconnecting(snapshot(solarPower: 9.1)))
+    await fulfillment(of: [reconnectingPublished], timeout: 1)
+
+    assertStale(store)
+
+    let recovered = expectation(description: "Energy values live after reconnect")
+    let recoverySubscription = store.$isLive.dropFirst().filter { $0 }.sink { _ in
+      recovered.fulfill()
+    }
+    loader.yield(.live(snapshot(solarPower: 10.2)))
+    await fulfillment(of: [recovered], timeout: 1)
+
+    assertRecovered(store)
+    connection.cancel()
+    await connection.value
+    withExtendedLifetime(
+      (
+        initialSubscription,
+        updateSubscription,
+        reconnectingSubscription,
+        recoverySubscription
+      )
+    ) {}
   }
 
   private func snapshot(solarPower: Double) -> HomeAssistantHomeEnergySnapshot {
@@ -174,6 +169,19 @@ final class HomeAssistantHomeEnergyTimingTests: XCTestCase {
       generalPriceDollarsPerKilowattHour: 0.341,
       feedInPriceDollarsPerKilowattHour: 0.127
     )
+  }
+
+  private func assertRecovered(_ store: HomeAssistantHomeEnergyStore) {
+    XCTAssertEqual(store.snapshot.pvPowerKilowatts, 10.2)
+    XCTAssertTrue(store.isLive)
+    XCTAssertNil(store.problem)
+    XCTAssertFalse(store.showsProgress)
+  }
+
+  private func assertStale(_ store: HomeAssistantHomeEnergyStore) {
+    XCTAssertEqual(store.snapshot.pvPowerKilowatts, 9.1)
+    XCTAssertFalse(store.isLive)
+    XCTAssertFalse(store.showsProgress)
   }
 
   private var credentials: HomeAssistantCredentials {
@@ -190,5 +198,37 @@ final class HomeAssistantHomeEnergyTimingTests: XCTestCase {
       accessTokenExpiresAt: Date(timeIntervalSince1970: 30_000),
       clientID: HomeAssistantOAuthConfiguration.release.clientID
     )
+  }
+}
+
+private final class StreamingHomeEnergyLoader:
+  HomeAssistantHomeEnergyLoading, @unchecked Sendable
+{
+  let started = XCTestExpectation(description: "Home energy stream started")
+
+  private let lock = NSLock()
+  private var continuation:
+    AsyncThrowingStream<
+      HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
+    >.Continuation?
+
+  func homeEnergyUpdates() -> AsyncThrowingStream<
+    HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
+  > {
+    AsyncThrowingStream { continuation in
+      lock.withLock {
+        self.continuation = continuation
+      }
+      started.fulfill()
+    }
+  }
+
+  func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
+    .unavailable
+  }
+
+  func yield(_ update: HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>) {
+    let continuation = lock.withLock { continuation }
+    continuation?.yield(update)
   }
 }

@@ -17,6 +17,8 @@ struct HomeAssistantEVChargingCard: View {
     VStack(alignment: .leading, spacing: 16) {
       header
 
+      freshnessStatus
+
       chargingModePicker
         .disabled(!store.isLive)
         .allowsHitTesting(store.canSelectMode)
@@ -34,6 +36,7 @@ struct HomeAssistantEVChargingCard: View {
         activity: store.activity,
         isLive: store.isActivityLive,
         isLoading: store.isLoading,
+        isRefreshing: store.isRefreshing,
         mode: mode
       )
 
@@ -69,12 +72,14 @@ struct HomeAssistantEVChargingCard: View {
       .font(.footnote)
       .frame(maxWidth: .infinity, alignment: .leading)
 
-      if problem.needsConnectionManagement {
-        Button(copy.manage, action: manageConnection)
-          .frame(minHeight: 44)
-      } else {
-        Button(problem.refreshButtonTitle(copy: copy), action: requestRefresh)
-          .frame(minHeight: 44)
+      if problem.offersRecoveryAction {
+        if problem.needsConnectionManagement {
+          Button(copy.manage, action: manageConnection)
+            .frame(minHeight: 44)
+        } else {
+          Button(problem.refreshButtonTitle(copy: copy), action: requestRefresh)
+            .frame(minHeight: 44)
+        }
       }
     }
     .accessibilityElement(children: .contain)
@@ -153,6 +158,11 @@ struct HomeAssistantEVChargingCard: View {
         ProgressView()
           .controlSize(.small)
           .accessibilityLabel(progressLabel)
+      } else if store.isRefreshing {
+        Image(systemName: "arrow.clockwise")
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(secondaryForeground)
+          .accessibilityLabel(copy.updating)
       }
     }
     .frame(width: 16, height: 16)
@@ -174,7 +184,10 @@ struct HomeAssistantEVChargingCard: View {
     if store.isLoading && store.mode == nil {
       return copy.checkingMode
     }
-    if !store.isLive && !store.isLoading {
+    if store.isRefreshing {
+      return store.mode.map(copy.chargingModeDescription) ?? copy.updating
+    }
+    if !store.isLive {
       return store.mode.map {
         copy.lastKnown(copy.chargingModeDescription($0))
       } ?? copy.modeUnavailable
@@ -186,9 +199,33 @@ struct HomeAssistantEVChargingCard: View {
     store.isChanging ? copy.changingChargingMode : copy.checkingChargingMode
   }
 
+  private var freshnessStatus: some View {
+    ZStack(alignment: .leading) {
+      Text(refreshFreshnessLabel)
+        .hidden()
+      if store.isRefreshing {
+        Text(refreshFreshnessLabel)
+      }
+    }
+    .font(.caption)
+    .foregroundStyle(secondaryForeground)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .accessibilityHidden(true)
+  }
+
+  private var refreshFreshnessLabel: String {
+    guard store.mode != nil else { return copy.updating }
+    return "\(copy.lastKnown) · \(copy.updating)"
+  }
+
   private var accessibilityValue: String {
     if store.isChanging {
       return "\(store.mode.map(copy.chargingModeTitle) ?? copy.requestedMode). \(copy.updating)"
+    }
+    if store.isRefreshing {
+      return store.mode.map {
+        copy.updating(lastKnown: copy.chargingModeTitle($0))
+      } ?? copy.updating
     }
     if store.isLoading, let currentMode = store.mode {
       return "\(copy.chargingModeTitle(currentMode)). \(copy.checkingCurrentMode)"
@@ -198,7 +235,9 @@ struct HomeAssistantEVChargingCard: View {
     }
     return store.mode.map(copy.chargingModeTitle) ?? copy.unavailable
   }
+}
 
+extension HomeAssistantEVChargingCard {
   private var primaryForeground: AnyShapeStyle {
     mode.isFullBruce ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary)
   }
@@ -210,7 +249,7 @@ struct HomeAssistantEVChargingCard: View {
   }
 
   private var iconForeground: Color {
-    if store.isActivityLive, store.activity.isCharging {
+    if presentsOperationalActivity, store.activity.isCharging {
       return .white
     }
     if mode.isFullBruce {
@@ -220,7 +259,7 @@ struct HomeAssistantEVChargingCard: View {
   }
 
   private var iconBackground: Color {
-    if store.isActivityLive, store.activity.isCharging {
+    if presentsOperationalActivity, store.activity.isCharging {
       return operationalIconPresentation.color
     }
     if mode.isFullBruce {
@@ -233,9 +272,13 @@ struct HomeAssistantEVChargingCard: View {
 
   private var operationalIconPresentation: HomeAssistantEVActivityPresentation {
     HomeAssistantEVActivityPresentation(
-      activity: store.isActivityLive ? store.activity : .unavailable,
+      activity: presentsOperationalActivity ? store.activity : .unavailable,
       mode: mode
     )
+  }
+
+  private var presentsOperationalActivity: Bool {
+    store.isActivityLive || (store.isRefreshing && store.activity != .unavailable)
   }
 
   private var cardBackground: AnyShapeStyle {

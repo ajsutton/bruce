@@ -190,6 +190,47 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
     loader.finishRequest(0)
     await fixture.load.value
   }
+}
+
+extension OptimisticClimateControlStoreTests {
+  func testConnectingInvalidatesPendingControlAndRejectsLateSuccess() async {
+    await assertConnectionTransitionInvalidatesPendingControl(.connecting)
+  }
+
+  func testUnavailableInvalidatesPendingControlAndRejectsLateSuccess() async {
+    await assertConnectionTransitionInvalidatesPendingControl(.unavailable)
+  }
+
+  private func assertConnectionTransitionInvalidatesPendingControl(
+    _ connection: HomeAssistantConnectionState
+  ) async {
+    let loader = ControlledTemperatureLoader(requestCount: 1)
+    let controller = BlockingClimateController()
+    let fixture = await loadedStore(loader: loader, controller: controller)
+    let command = Task {
+      await fixture.store.setPower(for: fixture.reading, isOn: false)
+    }
+    await fulfillment(of: [controller.started], timeout: 1)
+    XCTAssertEqual(fixture.store.readings.first?.powerState, .off)
+
+    await fixture.store.synchronize(with: connection)
+    XCTAssertEqual(
+      fixture.store.readings.first?.powerState,
+      fixture.reading.powerState
+    )
+    XCTAssertFalse(fixture.store.isControlling(entityID: fixture.reading.id))
+    XCTAssertNil(fixture.store.controlProblem)
+
+    controller.succeed()
+    await command.value
+    XCTAssertEqual(
+      fixture.store.readings.first?.powerState,
+      fixture.reading.powerState
+    )
+    XCTAssertNil(fixture.store.controlProblem)
+    loader.finishRequest(0)
+    await fixture.load.value
+  }
 
   private func loadedStore(
     loader: ControlledTemperatureLoader,

@@ -641,6 +641,22 @@
         }
       }
     },
+    "evCharging.reconnecting": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting to Home Assistant. Charger values may be out of date."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce is hooking Home Assistant back up. These charger values may be old news."
+          }
+        }
+      }
+    },
     "evCharging.invalidResponse": {
       "localizations": {
         "en": {
@@ -861,6 +877,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Getting the latest"
+          }
+        }
+      }
+    },
+    "evCharging.updatingLastKnown": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updating. Last known: %@"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Getting the latest. Last word Bruce got: %@"
           }
         }
       }
@@ -3185,6 +3217,22 @@
         }
       }
     },
+    "homeEnergy.reconnecting": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting to Home Assistant. Power readings may be out of date."
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bruce is hooking Home Assistant back up. These power numbers may be old news."
+          }
+        }
+      }
+    },
     "homeEnergy.grid": {
       "localizations": {
         "en": {
@@ -3981,6 +4029,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Last squiz"
+          }
+        }
+      }
+    },
+    "temperature.lastKnown": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last known"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last word Bruce got"
+          }
+        }
+      }
+    },
+    "temperature.lastKnownUpdating": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last known · Updating"
+          }
+        },
+        "en-AU": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last word Bruce got · Getting the latest"
           }
         }
       }

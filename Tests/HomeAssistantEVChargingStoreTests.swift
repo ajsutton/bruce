@@ -17,6 +17,25 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     XCTAssertNil(store.problem)
   }
 
+  func testCachedModeStaysStaleWhileLoadIsPending() async {
+    let client = ControlledEVChargingClient(loadRequestCount: 1)
+    let store = HomeAssistantEVChargingStore(client: client, mode: .smart)
+    let load = Task {
+      await store.load()
+    }
+    await fulfillment(of: [client.loadStarted(at: 0)], timeout: 1)
+
+    XCTAssertEqual(store.mode, .smart)
+    XCTAssertTrue(store.isLoading)
+    XCTAssertFalse(store.isLive)
+
+    client.succeedLoad(0, with: .charging)
+    await load.value
+
+    XCTAssertEqual(store.mode, .charging)
+    XCTAssertTrue(store.isLive)
+  }
+
   func testSuccessfulModeChangeKeepsTheOptimisticMode() async {
     let client = RecordingEVChargingClient(
       loadResults: [],
@@ -83,13 +102,13 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     XCTAssertEqual(store.problem, .updateFailed)
   }
 
-  func testUnavailableConnectionKeepsModeButDisablesChanges() {
+  func testUnavailableConnectionKeepsModeButDisablesChanges() async {
     let store = HomeAssistantEVChargingStore(
       client: RecordingEVChargingClient(loadResults: []),
       mode: .smart
     )
 
-    store.markConnectionUnavailable()
+    await store.synchronize(with: .unavailable)
 
     XCTAssertEqual(store.mode, .smart)
     XCTAssertFalse(store.isActivityLive)
@@ -109,7 +128,7 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
 
     await store.load()
     await fulfillment(of: [recoveryRequested], timeout: 1)
-    store.markConnectionUnavailable()
+    await store.synchronize(with: .unavailable)
 
     XCTAssertEqual(store.problem, .signInRequired)
     XCTAssertFalse(store.isLive)
@@ -123,7 +142,7 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     }
     await fulfillment(of: [client.loadStarted(at: 0)], timeout: 1)
 
-    store.markConnectionUnavailable()
+    await store.synchronize(with: .unavailable)
     client.succeedLoad(0, with: .charging, activity: .charging(powerWatts: 7_024))
     await load.value
 
@@ -185,7 +204,7 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     }
     await fulfillment(of: [client.setStarted(at: 0)], timeout: 1)
 
-    store.reset()
+    await store.synchronize(with: .disconnected)
     client.succeedSet(0, with: .charging)
     await change.value
 
@@ -202,7 +221,7 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     }
     await fulfillment(of: [client.setStarted(at: 0)], timeout: 1)
 
-    store.markConnectionUnavailable()
+    await store.synchronize(with: .unavailable)
     await change.value
 
     XCTAssertEqual(store.mode, .off)

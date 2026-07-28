@@ -7,27 +7,21 @@ final class HomeAssistantEVChargingStore: ObservableObject {
   @Published private(set) var isActivityLive: Bool
   @Published private(set) var isLoading = false
   @Published private(set) var isLive = false
+  @Published private(set) var isRefreshing = false
   @Published private(set) var isChanging = false
   @Published private(set) var showsProgress = false
   @Published private(set) var problem: Problem?
-
   private let client: any HomeAssistantEVCharging
   private let onAuthenticationRequired: @MainActor @Sendable () -> Void
-  private let progressDelay: Duration
-  private let updateTimeout: Duration
-  private let progressSleep: @Sendable (Duration) async -> Void
-  private let timeoutSleep: @Sendable (Duration) async -> Void
+  private let progressDelay, updateTimeout: Duration
+  private let progressSleep, timeoutSleep: @Sendable (Duration) async -> Void
+  private let liveSubscription: HomeAssistantEVChargingLiveSubscription
+  private let tasks = HomeAssistantEVChargingTasks()
   private var operationGeneration = UUID()
-  private var progressTask: Task<Void, Never>?
-  private var updateTimeoutTask: Task<Void, Never>?
-  private var modeChangeTask: Task<Void, Never>?
-  private var lateReconciliationTask: Task<Void, Never>?
-  private var modeChangeWaiter: CheckedContinuation<Void, Never>?
   private var rollbackMode: HomeAssistantEVChargingMode?
+  private var lateReconciliationSubscriptionRevision = 0
   private var lateModeChangesToReconcile: Set<UUID> = []
-  private var canReconcileLateModeChanges = false
-  private var needsLateModeChangeReconciliation = false
-
+  private var canReconcileLateModeChanges = false, needsLateModeChangeReconciliation = false
   init(
     client: any HomeAssistantEVCharging,
     mode: HomeAssistantEVChargingMode? = nil,
@@ -37,9 +31,7 @@ final class HomeAssistantEVChargingStore: ObservableObject {
     progressSleep: @escaping @Sendable (Duration) async -> Void = {
       try? await Task.sleep(for: $0)
     },
-    timeoutSleep: @escaping @Sendable (Duration) async -> Void = {
-      try? await Task.sleep(for: $0)
-    },
+    timeoutSleep: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) },
     onAuthenticationRequired: @escaping @MainActor @Sendable () -> Void = {}
   ) {
     self.client = client
@@ -52,43 +44,29 @@ final class HomeAssistantEVChargingStore: ObservableObject {
     self.progressSleep = progressSleep
     self.timeoutSleep = timeoutSleep
     self.onAuthenticationRequired = onAuthenticationRequired
+    liveSubscription = HomeAssistantEVChargingLiveSubscription(
+      client: client,
+      progressDelay: progressDelay,
+      sleep: progressSleep
+    )
     canReconcileLateModeChanges = mode != nil
   }
-
-  deinit {
-    progressTask?.cancel()
-    updateTimeoutTask?.cancel()
-    modeChangeTask?.cancel()
-    lateReconciliationTask?.cancel()
-  }
-
-  var canSelectMode: Bool {
-    isLive && !isLoading && !isChanging
-  }
-
   func load() async {
-    await load(preservingProblem: false)
-  }
-
-  private func load(preservingProblem: Bool) async {
     guard !isChanging else { return }
     let generation = UUID()
     operationGeneration = generation
     canReconcileLateModeChanges = true
-    isLoading = true
-    isLive = mode != nil
-    isActivityLive = false
-    if !preservingProblem {
-      problem = nil
-    }
+    (isLoading, isLive, isActivityLive, isRefreshing, problem) = (
+      true, false, false, false, nil
+    )
     scheduleProgress(for: generation)
-
     do {
       let snapshot = try await client.loadEVChargingSnapshot()
       try Task.checkCancellation()
       guard operationGeneration == generation else { return }
       mode = snapshot.mode
       activity = snapshot.activity
+      problem = nil
       finishLoad(isLive: true, activityIsLive: snapshot.activity != .unavailable)
     } catch is CancellationError {
       guard operationGeneration == generation else { return }
@@ -100,105 +78,76 @@ final class HomeAssistantEVChargingStore: ObservableObject {
         return
       }
       let loadProblem = Self.problem(for: error, operation: .loading)
-      if !preservingProblem || loadProblem == .signInRequired {
-        problem = loadProblem
-      }
+      problem = loadProblem
       finishLoad(isLive: false)
       if loadProblem == .signInRequired {
         onAuthenticationRequired()
       }
     }
   }
-
   func selectMode(_ requestedMode: HomeAssistantEVChargingMode) async {
     guard canSelectMode, requestedMode != mode else { return }
     let previousMode = mode
     let generation = UUID()
     operationGeneration = generation
     rollbackMode = previousMode
+    liveSubscription.beginModeChange()
     canReconcileLateModeChanges = true
-    mode = requestedMode
-    isActivityLive = false
-    isChanging = true
-    problem = nil
-    scheduleProgress(for: generation)
-    scheduleUpdateTimeout(
-      for: generation,
-      previousMode: previousMode
+    (mode, isActivityLive, isChanging, problem) = (
+      requestedMode, false, true, nil
     )
-    startModeChangeRequest(requestedMode, generation: generation)
-    await waitForModeChange(generation: generation)
+    scheduleProgress(for: generation)
+    await tasks.changeMode(
+      client: client,
+      requestedMode: requestedMode,
+      timeout: updateTimeout,
+      sleep: timeoutSleep,
+      handlers: .init(
+        isActive: { [weak self] in
+          self?.operationGeneration == generation && self?.isChanging == true
+        },
+        receive: { [weak self] result in
+          self?.receiveModeChangeResult(
+            result, requestedMode: requestedMode, generation: generation
+          )
+        },
+        onTimeout: { [weak self] in
+          self?.timeOutModeChange(generation: generation, previousMode: previousMode)
+        },
+        onCancel: { [weak self] in
+          self?.cancelModeChange(generation: generation)
+        }
+      )
+    )
   }
-
-  func markConnectionInProgress() {
-    invalidateModeChange()
-    operationGeneration = UUID()
-    isLoading = true
-    isLive = false
-    isActivityLive = false
-    finishProgress()
-    problem = nil
-  }
-
-  func markConnectionUnavailable() {
-    invalidateModeChange()
-    operationGeneration = UUID()
-    finishLoad(isLive: false)
-    if problem != .signInRequired {
-      problem = .connectionNeedsManagement
+  func synchronize(with connection: HomeAssistantConnectionState) async {
+    switch connection {
+    case .connected: await observeUpdates()
+    case .disconnected:
+      invalidateConnection()
+      (mode, activity) = (nil, .unavailable)
+      (isActivityLive, isLoading, isLive, isRefreshing) = (false, false, false, false)
+      finishProgress()
+      problem = nil
+    case .connecting:
+      invalidateConnection()
+      (isLoading, isLive, isActivityLive, isRefreshing) = (true, false, false, false)
+      finishProgress()
+      problem = nil
+    case .unavailable:
+      invalidateConnection()
+      finishLoad(isLive: false)
+      if problem != .signInRequired { problem = .connectionNeedsManagement }
     }
   }
-
-  func reset() {
+  private func invalidateConnection() {
+    invalidateSubscription()
     invalidateModeChange()
     operationGeneration = UUID()
-    mode = nil
-    activity = .unavailable
-    isActivityLive = false
-    isLoading = false
-    isLive = false
-    finishProgress()
-    problem = nil
   }
 }
 
 extension HomeAssistantEVChargingStore {
-  private func startModeChangeRequest(
-    _ requestedMode: HomeAssistantEVChargingMode,
-    generation: UUID
-  ) {
-    modeChangeTask?.cancel()
-    modeChangeTask = Task { [weak self, client] in
-      let result: Result<HomeAssistantEVChargingMode, any Error>
-      do {
-        result = .success(try await client.setEVChargingMode(requestedMode))
-      } catch {
-        result = .failure(error)
-      }
-      self?.receiveModeChangeResult(
-        result,
-        requestedMode: requestedMode,
-        generation: generation
-      )
-    }
-  }
-
-  private func waitForModeChange(generation: UUID) async {
-    await withTaskCancellationHandler {
-      await withCheckedContinuation { continuation in
-        guard operationGeneration == generation, isChanging else {
-          continuation.resume()
-          return
-        }
-        modeChangeWaiter = continuation
-      }
-    } onCancel: {
-      Task { @MainActor [weak self] in
-        self?.cancelModeChange(generation: generation)
-      }
-    }
-  }
-
   private func receiveModeChangeResult(
     _ result: Result<HomeAssistantEVChargingMode, any Error>,
     requestedMode: HomeAssistantEVChargingMode,
@@ -209,7 +158,6 @@ extension HomeAssistantEVChargingStore {
       return
     }
     guard operationGeneration == generation, isChanging else { return }
-    modeChangeTask = nil
     switch result {
     case .success(let confirmedMode):
       completeModeChange(confirmedMode, requestedMode: requestedMode)
@@ -218,53 +166,37 @@ extension HomeAssistantEVChargingStore {
     }
     performDeferredLateModeChangeReconciliation()
   }
-
   private func scheduleProgress(for generation: UUID) {
     finishProgress()
-    progressTask = Task { [weak self, progressDelay, progressSleep] in
-      await progressSleep(progressDelay)
-      guard !Task.isCancelled else { return }
+    tasks.scheduleProgress(delay: progressDelay, sleep: progressSleep) { [weak self] in
       guard let self, self.operationGeneration == generation else { return }
       self.showsProgress = true
     }
   }
-
-  private func finishProgress() {
-    progressTask?.cancel()
-    progressTask = nil
-    showsProgress = false
-  }
-
-  private func finishLoad(isLive: Bool, activityIsLive: Bool = false) {
-    isLoading = false
-    self.isLive = isLive
-    isActivityLive = activityIsLive
-    finishProgress()
-  }
-
   private func completeModeChange(
     _ confirmedMode: HomeAssistantEVChargingMode,
     requestedMode: HomeAssistantEVChargingMode
   ) {
-    mode = confirmedMode
-    isActivityLive = false
-    isChanging = false
-    isLive = true
+    let confirmation = liveSubscription.confirmModeChange(
+      confirmedMode,
+      previousMode: rollbackMode,
+      activity: activity,
+      wasLive: isLive
+    )
+    (mode, isActivityLive) = (confirmation.mode, confirmation.isActivityLive)
+    (isChanging, isLive) = (false, confirmation.isLive)
     finishModeChange()
-    if confirmedMode != requestedMode {
+    if confirmation.mode != requestedMode {
       problem = .updateFailed
     }
   }
-
   private func cancelModeChange(generation: UUID) {
     guard operationGeneration == generation, isChanging else { return }
     lateModeChangesToReconcile.insert(generation)
     operationGeneration = UUID()
-    modeChangeTask?.cancel()
-    modeChangeTask = nil
+    tasks.cancelModeChange()
     rollBackModeChange()
   }
-
   private func failModeChange(_ error: any Error) {
     guard !Task.isCancelled, !Self.isCancellation(error) else {
       rollBackModeChange()
@@ -278,108 +210,90 @@ extension HomeAssistantEVChargingStore {
       onAuthenticationRequired()
     }
   }
-
   private func rollBackModeChange() {
     mode = rollbackMode
-    isActivityLive = false
-    isChanging = false
-    isLive = false
+    (isActivityLive, isChanging, isLive, isRefreshing) = (false, false, false, false)
     finishModeChange()
   }
-
   private func finishModeChange() {
     finishProgress()
-    finishUpdateTimeout()
+    tasks.finishTimeout()
     rollbackMode = nil
-    let waiter = modeChangeWaiter
-    modeChangeWaiter = nil
-    waiter?.resume()
+    tasks.finishModeChange()
   }
-
   private func invalidateModeChange() {
     if isChanging {
       mode = rollbackMode
     }
-    modeChangeTask?.cancel()
-    modeChangeTask = nil
+    tasks.cancelModeChange()
     isChanging = false
     finishModeChange()
     lateModeChangesToReconcile = []
+    liveSubscription.invalidate()
     canReconcileLateModeChanges = false
     needsLateModeChangeReconciliation = false
-    lateReconciliationTask?.cancel()
-    lateReconciliationTask = nil
+    tasks.finishReconciliation()
   }
-
-  private func scheduleUpdateTimeout(
-    for generation: UUID,
+  private func timeOutModeChange(
+    generation: UUID,
     previousMode: HomeAssistantEVChargingMode?
   ) {
-    finishUpdateTimeout()
-    updateTimeoutTask = Task { [weak self, updateTimeout, timeoutSleep] in
-      await timeoutSleep(updateTimeout)
-      guard !Task.isCancelled else { return }
-      guard let self, self.operationGeneration == generation, self.isChanging else { return }
-      self.lateModeChangesToReconcile.insert(generation)
-      self.operationGeneration = UUID()
-      self.modeChangeTask?.cancel()
-      self.modeChangeTask = nil
-      self.mode = previousMode
-      self.isChanging = false
-      self.isLive = false
-      self.isActivityLive = false
-      self.problem = .updateTimedOut
-      self.finishProgress()
-      self.updateTimeoutTask = nil
-      self.rollbackMode = nil
-      let waiter = self.modeChangeWaiter
-      self.modeChangeWaiter = nil
-      waiter?.resume()
-      self.performDeferredLateModeChangeReconciliation()
-    }
+    guard operationGeneration == generation, isChanging else { return }
+    lateModeChangesToReconcile.insert(generation)
+    operationGeneration = UUID()
+    tasks.cancelModeChange()
+    mode = previousMode
+    (isChanging, isLive, isActivityLive, isRefreshing) = (false, false, false, false)
+    problem = .updateTimedOut
+    finishProgress()
+    tasks.finishTimeout()
+    rollbackMode = nil
+    tasks.finishModeChange()
+    performDeferredLateModeChangeReconciliation()
   }
-
-  private func finishUpdateTimeout() {
-    updateTimeoutTask?.cancel()
-    updateTimeoutTask = nil
-  }
-
   private func reconcileLateModeChange() {
     guard canReconcileLateModeChanges else { return }
     guard !isChanging else {
       needsLateModeChangeReconciliation = true
       return
     }
-    lateReconciliationTask?.cancel()
+    tasks.finishReconciliation()
     let generation = UUID()
     operationGeneration = generation
-    isLoading = true
-    isLive = mode != nil
-    isActivityLive = false
+    lateReconciliationSubscriptionRevision = liveSubscription.revision
+    (isLoading, isLive, isActivityLive, isRefreshing) = (
+      true, false, false, false
+    )
     scheduleProgress(for: generation)
-    lateReconciliationTask = Task { [weak self, client] in
-      let result: Result<HomeAssistantEVChargingSnapshot, any Error>
-      do {
-        result = .success(try await client.loadEVChargingSnapshot())
-      } catch {
-        result = .failure(error)
-      }
-      guard !Task.isCancelled else { return }
+    tasks.loadReconciliation(client: client) { [weak self] result in
       self?.receiveLateReconciliationResult(result, generation: generation)
     }
   }
-
   private func receiveLateReconciliationResult(
     _ result: Result<HomeAssistantEVChargingSnapshot, any Error>,
     generation: UUID
   ) {
     guard operationGeneration == generation else { return }
-    lateReconciliationTask = nil
+    tasks.finishReconciliation()
+    guard liveSubscription.revision == lateReconciliationSubscriptionRevision else {
+      finishIgnoredReconciliation()
+      return
+    }
     switch result {
     case .success(let snapshot):
+      guard
+        snapshot.isAtLeastAsNew(
+          as: liveSubscription.latestLiveModeTimestamp
+        )
+      else {
+        finishIgnoredReconciliation()
+        return
+      }
+      liveSubscription.recordReconciledMode(timestamp: snapshot.modeLastUpdated)
       mode = snapshot.mode
       activity = snapshot.activity
-      finishLoad(isLive: true, activityIsLive: snapshot.activity != .unavailable)
+      let live = liveSubscription.loadedSnapshotIsLive
+      finishLoad(isLive: live, activityIsLive: live && snapshot.activity != .unavailable)
     case .failure(let error):
       finishLoad(isLive: false)
       let loadProblem = Self.problem(for: error, operation: .loading)
@@ -391,10 +305,95 @@ extension HomeAssistantEVChargingStore {
       }
     }
   }
-
+  private func finishIgnoredReconciliation() {
+    let live = liveSubscription.isLive
+    finishLoad(
+      isLive: live && mode != nil,
+      activityIsLive: live && activity != .unavailable
+    )
+  }
   private func performDeferredLateModeChangeReconciliation() {
     guard needsLateModeChangeReconciliation else { return }
     needsLateModeChangeReconciliation = false
     reconcileLateModeChange()
+  }
+}
+
+extension HomeAssistantEVChargingStore {
+  private func observeUpdates() async {
+    let generation = beginUpdateObservation()
+    for await event in liveSubscription.events() {
+      guard !Task.isCancelled, liveSubscription.isCurrent(generation) else { return }
+      receiveUpdateEvent(event)
+    }
+  }
+  private func beginUpdateObservation() -> UUID {
+    let preservesRefreshPresentation = isRefreshing && problem == nil
+    let generation = liveSubscription.begin(
+      preservingModeChangeSequence: isChanging
+    )
+    if preservesRefreshPresentation {
+      isLoading = false
+    } else {
+      (isLoading, isLive, isActivityLive, problem) = (true, false, false, nil)
+      isRefreshing = false
+    }
+    finishProgress()
+    return generation
+  }
+  private func receiveUpdateEvent(_ event: HomeAssistantEVChargingLiveSubscription.Event) {
+    switch event {
+    case .progress:
+      if liveSubscription.shouldShowProgress { showsProgress = true }
+    case .update(let update):
+      apply(
+        liveSubscription.presentation(
+          for: update,
+          current: .init(store: self),
+          isChanging: isChanging
+        ))
+    case .finished:
+      if liveSubscription.expectsContinuousUpdates {
+        finishSubscription(problem: .connectionUnavailable)
+      } else {
+        finishOneShotSubscription()
+      }
+    case .failed(let error):
+      finishSubscription(problem: Self.problem(for: error, operation: .loading))
+    }
+  }
+  private func invalidateSubscription() { liveSubscription.invalidate() }
+  private func finishLoad(isLive: Bool, activityIsLive: Bool = false) {
+    (isLoading, self.isLive, isActivityLive, isRefreshing) = (
+      false, isLive, activityIsLive, false
+    )
+    finishProgress()
+  }
+  private func finishProgress() {
+    tasks.finishProgress()
+    showsProgress = false
+  }
+  private func apply(
+    _ presentation: HomeAssistantEVChargingLiveSubscription.Presentation
+  ) {
+    (mode, activity) = (presentation.mode, presentation.activity)
+    (isLoading, isLive, isActivityLive) = (
+      false, presentation.isLive, presentation.isActivityLive
+    )
+    isRefreshing = presentation.isRefreshing
+    problem = presentation.problem
+    if presentation.finishesProgress { finishProgress() }
+  }
+  private func finishSubscription(problem: Problem) {
+    liveSubscription.finish()
+    (isLoading, isLive, isActivityLive, isRefreshing) = (false, false, false, false)
+    self.problem = problem
+    if problem == .signInRequired { onAuthenticationRequired() }
+    if !isChanging { finishProgress() }
+  }
+  private func finishOneShotSubscription() {
+    liveSubscription.finish()
+    (isLoading, isRefreshing) = (false, false)
+    finishProgress()
   }
 }

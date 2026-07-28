@@ -11,6 +11,11 @@ struct HomeAssistantTemperatureSnapshot: Sendable {
   let climateMetadata: [String: HomeAssistantClimateMetadata]
 }
 
+struct HomeAssistantTemperatureContext: Sendable {
+  let unit: String
+  let climateMetadata: [String: HomeAssistantClimateMetadata]
+}
+
 protocol HomeAssistantClimateControlling: Sendable {
   func setPower(entityID: String, isOn: Bool) async throws
   func setTargetValue(_ value: Double, entityID: String) async throws
@@ -99,13 +104,12 @@ struct HomeAssistantAPIClient:
   }
 
   func loadEVChargingSnapshot() async throws -> HomeAssistantEVChargingSnapshot {
-    let data = try await session.authenticatedGET(path: "api/states")
-    return try HomeAssistantEVChargingSnapshot(homeAssistantStates: data)
+    let states = try await loadHomeAssistantStates()
+    return try HomeAssistantEVChargingSnapshot(states: states)
   }
 
   func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
-    let data = try await session.authenticatedGET(path: "api/states")
-    return try HomeAssistantHomeEnergySnapshot(homeAssistantStates: data)
+    HomeAssistantHomeEnergySnapshot(states: try await loadHomeAssistantStates())
   }
 
   func setEVChargingMode(
@@ -129,20 +133,41 @@ struct HomeAssistantAPIClient:
   }
 
   func loadTemperatureSnapshot() async throws -> HomeAssistantTemperatureSnapshot {
+    let context = try await loadTemperatureContext()
+    let states = try await loadHomeAssistantStates()
+    return HomeAssistantTemperatureSnapshot(
+      readings: Self.temperatureReadings(
+        from: states,
+        context: context
+      ),
+      unit: context.unit,
+      climateMetadata: context.climateMetadata
+    )
+  }
+
+  func loadHomeAssistantStates() async throws -> [HomeAssistantState] {
+    let data = try await session.authenticatedGET(path: "api/states")
+    do {
+      let states = try JSONDecoder().decode([HomeAssistantState].self, from: data)
+      guard Set(states.map(\.entityID)).count == states.count else {
+        throw HomeAssistantAPIError.invalidResponse
+      }
+      return states
+    } catch let error as HomeAssistantAPIError {
+      throw error
+    } catch {
+      throw HomeAssistantAPIError.invalidResponse
+    }
+  }
+
+  func loadTemperatureContext() async throws -> HomeAssistantTemperatureContext {
     let configurationData = try await session.authenticatedGET(path: "api/config")
     try Task.checkCancellation()
     let unit = try Self.temperatureUnit(from: configurationData)
     try Task.checkCancellation()
-    let statesData = try await session.authenticatedGET(path: "api/states")
-    try Task.checkCancellation()
     let climateMetadata = try await loadClimateMetadata()
     try Task.checkCancellation()
-    return try HomeAssistantTemperatureSnapshot(
-      readings: Self.temperatures(
-        from: statesData,
-        unit: unit,
-        climateMetadata: climateMetadata
-      ),
+    return HomeAssistantTemperatureContext(
       unit: unit,
       climateMetadata: climateMetadata
     )
@@ -192,8 +217,24 @@ struct HomeAssistantAPIClient:
     } catch {
       throw HomeAssistantAPIError.invalidResponse
     }
-    return states.compactMap {
-      $0.temperatureReading(unit: unit, metadata: climateMetadata[$0.entityID])
+    return temperatureReadings(
+      from: states,
+      context: HomeAssistantTemperatureContext(
+        unit: unit,
+        climateMetadata: climateMetadata
+      )
+    )
+  }
+
+  static func temperatureReadings(
+    from states: [HomeAssistantState],
+    context: HomeAssistantTemperatureContext
+  ) -> [HomeAssistantTemperatureReading] {
+    states.compactMap {
+      $0.temperatureReading(
+        unit: context.unit,
+        metadata: context.climateMetadata[$0.entityID]
+      )
     }.sorted {
       $0.name.localizedStandardCompare($1.name) == .orderedAscending
     }
@@ -226,121 +267,6 @@ private struct HomeAssistantAPIConfiguration: Decodable {
 
 private struct HomeAssistantUnitSystem: Decodable {
   let temperature: String
-}
-
-struct HomeAssistantState: Decodable {
-  let entityID: String
-  let state: String
-  private let attributes: HomeAssistantStateAttributes
-
-  enum CodingKeys: String, CodingKey {
-    case entityID = "entity_id"
-    case state
-    case attributes
-  }
-
-  func temperatureReading(
-    unit: String,
-    metadata: HomeAssistantClimateMetadata?
-  ) -> HomeAssistantTemperatureReading? {
-    guard
-      entityID.hasPrefix("climate."),
-      let value = attributes.currentTemperature,
-      value.isFinite
-    else {
-      return nil
-    }
-    return HomeAssistantTemperatureReading(
-      id: entityID,
-      name: attributes.friendlyName ?? fallbackName,
-      value: value,
-      targetValue: finiteTargetTemperature,
-      unit: unit,
-      powerState: powerState,
-      kind: metadata?.kind ?? .other,
-      operatingMode: operatingMode,
-      availableModes: availableModes,
-      icon: attributes.icon ?? metadata?.icon,
-      minimumTargetValue: attributes.minimumTemperature,
-      maximumTargetValue: attributes.maximumTemperature,
-      targetValueStep: attributes.targetTemperatureStep ?? attributes.temperaturePrecision
-    )
-  }
-
-  private var fallbackName: String {
-    let objectID = entityID.split(separator: ".", maxSplits: 1).last.map(String.init) ?? entityID
-    return objectID.replacingOccurrences(of: "_", with: " ").localizedCapitalized
-  }
-
-  private var finiteTargetTemperature: Double? {
-    guard let targetTemperature = attributes.targetTemperature, targetTemperature.isFinite else {
-      return nil
-    }
-    return targetTemperature
-  }
-
-  private var powerState: HomeAssistantTemperatureReading.PowerState {
-    switch state {
-    case "off":
-      .off
-    case "unavailable", "unknown":
-      .unavailable
-    default:
-      .poweredOn
-    }
-  }
-
-  private var operatingMode: HomeAssistantTemperatureReading.OperatingMode {
-    switch state {
-    case "auto", "heat_cool":
-      .automatic
-    case "cool":
-      .cooling
-    case "dry":
-      .drying
-    case "fan_only":
-      .fanOnly
-    case "heat":
-      .heating
-    case "off":
-      .off
-    case "unavailable", "unknown":
-      .unavailable
-    default:
-      .active
-    }
-  }
-
-  private var availableModes: [HomeAssistantTemperatureReading.ClimateMode] {
-    attributes.hvacModes?.compactMap(
-      HomeAssistantTemperatureReading.ClimateMode.init(rawValue:)
-    ) ?? []
-  }
-
-}
-
-private struct HomeAssistantStateAttributes: Decodable {
-  let currentTemperature: Double?
-  let targetTemperature: Double?
-  let friendlyName: String?
-  let icon: String?
-  let hvacModes: [String]?
-  let minimumTemperature: Double?
-  let maximumTemperature: Double?
-  let targetTemperatureStep: Double?
-  let temperaturePrecision: Double?
-
-  enum CodingKeys: String, CodingKey {
-    case currentTemperature = "current_temperature"
-    case targetTemperature = "temperature"
-    case friendlyName = "friendly_name"
-    case icon
-    case hvacModes = "hvac_modes"
-    case minimumTemperature = "min_temp"
-    case maximumTemperature = "max_temp"
-    case targetTemperatureStep = "target_temp_step"
-    case temperaturePrecision = "precision"
-  }
 }
 
 private struct HomeAssistantClimateTarget: Encodable {

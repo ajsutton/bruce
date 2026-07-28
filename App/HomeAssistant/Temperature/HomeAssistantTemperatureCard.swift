@@ -10,6 +10,7 @@ struct HomeAssistantTemperatureCard: View {
   let isControlEnabled: Bool
   let isControlling: Bool
   let isTargetControlling: Bool
+  let isLastKnown: Bool
   let showsTargetControl: Bool
   let targetValueFractionLength: Int
   let setPower: (Bool) -> Void
@@ -22,6 +23,7 @@ struct HomeAssistantTemperatureCard: View {
     isControlEnabled: Bool = false,
     isControlling: Bool = false,
     isTargetControlling: Bool = false,
+    isLastKnown: Bool = false,
     showsTargetControl: Bool = false,
     targetValueFractionLength: Int = 1,
     setPower: @escaping (Bool) -> Void = { _ in },
@@ -33,6 +35,7 @@ struct HomeAssistantTemperatureCard: View {
     self.isControlEnabled = isControlEnabled
     self.isControlling = isControlling
     self.isTargetControlling = isTargetControlling
+    self.isLastKnown = isLastKnown
     self.showsTargetControl = showsTargetControl
     self.targetValueFractionLength = targetValueFractionLength
     self.setPower = setPower
@@ -71,7 +74,9 @@ struct HomeAssistantTemperatureCard: View {
       .accessibilityValue(powerAccessibilityValue)
     } else {
       card
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(reading.name)
+        .accessibilityValue(powerAccessibilityValue)
     }
   }
 
@@ -354,6 +359,7 @@ extension HomeAssistantTemperatureCard {
           reading: reading,
           mode: mode,
           isEnabled: isControlEnabled,
+          isLastKnown: isLastKnown,
           fractionLength: targetValueFractionLength,
           setTargetValue: setTargetValue
         )

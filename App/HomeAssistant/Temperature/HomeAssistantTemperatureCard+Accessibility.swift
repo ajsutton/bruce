@@ -41,12 +41,13 @@ extension HomeAssistantTemperatureCard {
           fractionLength: targetValueFractionLength
         )
       } ?? copy.unavailable
-    return copy.accessibilityValue(
+    let value = copy.accessibilityValue(
       isUpdating: isControlling,
       power: powerStateLabel,
       current: currentValue,
       target: targetValue
     )
+    return isLastKnown ? copy.lastKnown(value) : value
   }
 
   func temperatureAccessibilityValue(
