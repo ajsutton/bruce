@@ -88,9 +88,8 @@ struct ContentView: View {
         homeEnergyStore: homeEnergyStore,
         mode: mode,
         isConnecting: presentation.isConnecting,
-        connectionProblem: presentation.connectionProblem.map(
-          HomeAssistantInterfaceCopy(mode: mode).presentationProblem
-        ),
+        connectionProblem: presentation.connectionProblem,
+        serverStatus: homeAssistantCoordinator.serverStatus,
         manageConnection: manageConnection,
         requestHomeRefresh: requestHomeRefresh,
         isRemovingConnection: setupStore.isDisconnecting

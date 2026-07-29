@@ -75,4 +75,11 @@ final class ControlledStateSource:
     }
     continuation?.finish(throwing: error)
   }
+
+  func finish(subscription: Int? = nil) {
+    let continuation = lock.withLock {
+      continuations[subscription ?? storedSubscriptionCount]
+    }
+    continuation?.finish()
+  }
 }

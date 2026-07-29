@@ -12,11 +12,15 @@ import SwiftUI
   HomeAssistantTemperaturePreview.view(mode: .standard, readings: [])
 }
 
-#Preview("Full Bruce Problem") {
-  HomeAssistantTemperaturePreview.view(
+#Preview("Full Bruce Connection Problem") {
+  HomeAssistantConnectionBannerView(
+    banner: HomeAssistantConnectionBanner(problem: .signInRequired),
+    lastSuccessfulUpdate: .now,
     mode: .full,
-    connectionProblem: HomeAssistantInterfaceCopy(mode: .full).presentationProblem(.signInRequired)
+    manageConnection: {},
+    requestRefresh: {}
   )
+  .background(BruceMode.full.backgroundColor)
 }
 
 #Preview("Bruce AC") {
@@ -83,7 +87,6 @@ private enum HomeAssistantTemperaturePreview {
   @MainActor
   static func view(
     mode: BruceMode,
-    connectionProblem: String? = nil,
     readings: [HomeAssistantTemperatureReading] = previewTemperatureReadings
   ) -> some View {
     let store = HomeAssistantTemperatureStore(
@@ -94,10 +97,8 @@ private enum HomeAssistantTemperaturePreview {
       store: store,
       mode: mode,
       isConnecting: false,
-      connectionProblem: connectionProblem,
-      manageConnection: {},
-      requestRefresh: {},
-      isRemovingConnection: false
+      showsConnectionProblems: true,
+      requestRefresh: {}
     )
     .task {
       await store.load()

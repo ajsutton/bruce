@@ -55,6 +55,12 @@ Brand expression, palette, language and the Bruce/Full Bruce presentation modes 
 
 - Distinguish live, stale, unavailable, and in-progress state.
 - Do not display cached state as though it were live.
+- Present server-wide state once at the top of the window instead of repeating it in every panel
+  or card. This includes connection errors, reconnecting or refreshing state, and the time of the
+  last successful server update.
+- Keep panel- and device-specific failures beside the affected content or control. When cached
+  values remain visible, continue to identify them as last known in their visual and accessibility
+  presentation without duplicating the server-wide status message.
 - Prefer integrating write controls with the current-status display they change. Use a separate
   control when the integrated affordance would be unclear, hard to discover, or awkward to use.
 - Provide immediate acknowledgement for every command.

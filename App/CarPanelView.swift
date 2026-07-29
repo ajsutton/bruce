@@ -6,6 +6,7 @@ struct CarPanelView: View {
   @ObservedObject var chargingStore: HomeAssistantEVChargingStore
   @ObservedObject var garageDoorStore: HomeAssistantGarageDoorStore
   let mode: BruceMode
+  var showsConnectionProblems = true
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
 
@@ -21,6 +22,7 @@ struct CarPanelView: View {
             HomeAssistantEVChargingCard(
               store: chargingStore,
               mode: mode,
+              showsConnectionProblems: showsConnectionProblems,
               manageConnection: manageConnection,
               requestRefresh: requestRefresh
             )
@@ -61,11 +63,16 @@ struct CarPanelView: View {
             }
           }
 
-          if chargingStore.mode == nil, let problem = chargingStore.problem {
+          if chargingStore.mode == nil,
+            let problem = chargingStore.problem,
+            showsConnectionProblems || problem.isFeatureSpecific
+          {
             chargingProblemView(problem)
           }
 
-          if let problem = garageDoorStore.problem {
+          if let problem = garageDoorStore.problem,
+            showsConnectionProblems || problem.isFeatureSpecific
+          {
             garageProblemView(problem)
           }
 

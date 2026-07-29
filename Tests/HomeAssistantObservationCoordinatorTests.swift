@@ -74,7 +74,8 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
         loader: TestGarageDoorLoader()
       ),
       homeEnergyStore: homeEnergyStore,
-      refreshStateFeed: { await states.refresh() }
+      refreshStateFeed: { await states.refresh() },
+      serverUpdates: { await states.stateUpdates() }
     )
     return CoordinatorRefreshFixture(
       source: source,
@@ -83,6 +84,52 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
       temperatureStore: temperatureStore,
       coordinator: coordinator
     )
+  }
+
+  func testServerStatusRecoversAfterTerminalFeedFailure() async throws {
+    let fixture = makeRefreshFixture()
+    let firstSource = fixture.source.expectSubscriptionCount(1)
+    await fixture.coordinator.synchronize(with: .connected(credentials))
+    await fulfillment(of: [firstSource], timeout: 1)
+    fixture.source.yield(.live(try coordinatorStates(power: 0, solar: 8.4)))
+    await waitForValue(fixture.coordinator.$serverStatus.map(\.phase), matching: .live)
+
+    fixture.source.finish(throwing: URLError(.networkConnectionLost), subscription: 1)
+    await waitForValue(fixture.coordinator.$serverStatus.map(\.phase), matching: .unavailable)
+    let secondSource = fixture.source.expectSubscriptionCount(2)
+
+    await fixture.coordinator.refresh()
+    await fulfillment(of: [secondSource], timeout: 1)
+    fixture.source.yield(
+      .live(try coordinatorStates(power: 0, solar: 9.1)),
+      subscription: 2
+    )
+
+    await waitForValue(fixture.coordinator.$serverStatus.map(\.phase), matching: .live)
+    await fixture.coordinator.synchronize(with: .disconnected)
+  }
+
+  func testServerStatusRecoversAfterFeedCompletes() async throws {
+    let fixture = makeRefreshFixture()
+    let firstSource = fixture.source.expectSubscriptionCount(1)
+    await fixture.coordinator.synchronize(with: .connected(credentials))
+    await fulfillment(of: [firstSource], timeout: 1)
+    fixture.source.yield(.live(try coordinatorStates(power: 0, solar: 8.4)))
+    await waitForValue(fixture.coordinator.$serverStatus.map(\.phase), matching: .live)
+
+    fixture.source.finish(subscription: 1)
+    await waitForValue(fixture.coordinator.$serverStatus.map(\.phase), matching: .unavailable)
+    let secondSource = fixture.source.expectSubscriptionCount(2)
+
+    await fixture.coordinator.refresh()
+    await fulfillment(of: [secondSource], timeout: 1)
+    fixture.source.yield(
+      .live(try coordinatorStates(power: 0, solar: 9.1)),
+      subscription: 2
+    )
+
+    await waitForValue(fixture.coordinator.$serverStatus.map(\.phase), matching: .live)
+    await fixture.coordinator.synchronize(with: .disconnected)
   }
 
   func testCancellingNewestSceneCallerDoesNotStopAppLifetimeObservation() async {

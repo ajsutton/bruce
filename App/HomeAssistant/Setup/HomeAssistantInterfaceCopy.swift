@@ -102,6 +102,30 @@ struct HomeAssistantInterfaceCopy {
   var signInAgain: String {
     localized("homeAssistantInterface.signInAgain")
   }
+  var manageConnection: String {
+    localized("homeAssistantInterface.manageConnection")
+  }
+  var refreshConnection: String {
+    localized("homeAssistantInterface.refreshConnection")
+  }
+  var serverLive: String {
+    localized("homeAssistantInterface.serverStatus.live")
+  }
+  var serverUpdating: String {
+    localized("homeAssistantInterface.serverStatus.updating")
+  }
+  var serverConnecting: String {
+    localized("homeAssistantInterface.serverStatus.connecting")
+  }
+  var serverLastChecked: String {
+    localized("homeAssistantInterface.serverStatus.lastChecked")
+  }
+  var manageConnectionAccessibility: String {
+    localized("homeAssistantInterface.manageConnectionAccessibility")
+  }
+  var refreshConnectionAccessibility: String {
+    localized("homeAssistantInterface.refreshConnectionAccessibility")
+  }
   var continueWithHTTP: String {
     localized("homeAssistantInterface.continueWithHTTP")
   }
@@ -131,6 +155,23 @@ struct HomeAssistantInterfaceCopy {
       localized("homeAssistantInterface.presentationProblem.unavailable")
     case .needsAttention:
       localized("homeAssistantInterface.presentationProblem.needsAttention")
+    }
+  }
+
+  func connectionBannerProblem(
+    _ problem: HomeAssistantConnectionBanner.Problem
+  ) -> String {
+    switch problem {
+    case .presentation(let problem):
+      presentationProblem(problem)
+    case .signInRequired:
+      localized("homeAssistantInterface.presentationProblem.signInRequired")
+    case .needsAttention:
+      localized("homeAssistantInterface.presentationProblem.needsAttention")
+    case .unavailable:
+      localized("homeAssistantInterface.presentationProblem.unavailable")
+    case .reconnecting:
+      localized("homeAssistantInterface.presentationProblem.reconnecting")
     }
   }
 

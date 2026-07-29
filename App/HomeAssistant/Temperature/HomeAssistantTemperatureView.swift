@@ -5,25 +5,25 @@ struct HomeAssistantTemperatureView: View {
   @ObservedObject var store: HomeAssistantTemperatureStore
   let mode: BruceMode
   let isConnecting: Bool
-  let connectionProblem: String?
-  let manageConnection: () -> Void
+  let showsConnectionProblems: Bool
   let requestRefresh: () -> Void
-  let isRemovingConnection: Bool
 
   private var copy: TemperatureCopy {
     TemperatureCopy(mode: mode)
   }
 
   private var displayedProblem: String? {
-    connectionProblem ?? store.problem.map(copy.problem)
+    guard
+      let problem = store.problem,
+      showsConnectionProblems || problem.isFeatureSpecific
+    else {
+      return nil
+    }
+    return copy.problem(problem)
   }
 
   private var isAwaitingFirstLoad: Bool {
-    !isConnecting && connectionProblem == nil && store.lastChecked == nil && store.problem == nil
-  }
-
-  private var problemNeedsConnectionManagement: Bool {
-    connectionProblem != nil || store.problem == .signInRequired
+    !isConnecting && store.lastChecked == nil && store.problem == nil
   }
 
   private var summary: HomeAssistantTemperatureSummary {
@@ -36,12 +36,6 @@ struct HomeAssistantTemperatureView: View {
 
   private var primaryCardForeground: AnyShapeStyle {
     mode.isFullBruce ? AnyShapeStyle(mode.foregroundColor) : AnyShapeStyle(.primary)
-  }
-
-  private var secondaryCardForeground: AnyShapeStyle {
-    mode.isFullBruce
-      ? AnyShapeStyle(Color.white.opacity(0.78))
-      : AnyShapeStyle(.secondary)
   }
 
   private var problemForeground: AnyShapeStyle {
@@ -82,20 +76,17 @@ struct HomeAssistantTemperatureView: View {
   @ViewBuilder
   private var temperatureContent: some View {
     if store.readings.isEmpty && !showsActivity {
-      VStack(spacing: 0) {
-        emptyState
-        if store.isRefreshing {
-          updateStatus
-            .padding(.horizontal)
-            .padding(.bottom)
-        }
-      }
+      emptyState
     } else {
       VStack(spacing: 0) {
-        updateStatus
-          .padding(.horizontal)
-          .padding(.top, 8)
-
+        if isDisplayingLastKnown {
+          Text(copy.lastKnown)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(problemForeground)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal)
+            .padding(.top, 8)
+        }
         ScrollView {
           LazyVStack(spacing: 14) {
             ForEach(summary.airConditioners) { reading in
@@ -148,7 +139,6 @@ struct HomeAssistantTemperatureView: View {
                 }
               )
             }
-
           }
           .padding()
           .frame(maxWidth: 720)
@@ -159,7 +149,7 @@ struct HomeAssistantTemperatureView: View {
   }
 
   private var showsActivity: Bool {
-    isRemovingConnection || isConnecting || store.isLoading || isAwaitingFirstLoad
+    isConnecting || store.isLoading || isAwaitingFirstLoad
   }
 
   private var isDisplayingLastKnown: Bool {
@@ -193,75 +183,12 @@ struct HomeAssistantTemperatureView: View {
         .foregroundStyle(problemForeground)
         .frame(maxWidth: .infinity, alignment: .leading)
 
-      if problemNeedsConnectionManagement {
-        Button(copy.manage, action: manageConnection)
-          .frame(minWidth: 44, minHeight: 44)
-      } else {
-        Button(copy.tryAgain, action: requestRefresh)
-          .frame(minWidth: 44, minHeight: 44)
-      }
+      Button(copy.tryAgain, action: requestRefresh)
+        .frame(minWidth: 44, minHeight: 44)
     }
     .padding()
     .background(.red.opacity(0.1))
     .accessibilityElement(children: .contain)
-  }
-
-  private var updateStatus: some View {
-    HStack(spacing: 8) {
-      ZStack {
-        if showsActivity {
-          ProgressView()
-            .controlSize(.small)
-            .accessibilityLabel(progressAccessibilityLabel)
-        }
-      }
-      .frame(width: 16, height: 16)
-
-      ZStack(alignment: .leading) {
-        Text(copy.lastKnownUpdating)
-          .hidden()
-          .accessibilityHidden(true)
-        updateStatusText
-      }
-      Spacer()
-    }
-    .font(.caption)
-    .foregroundStyle(secondaryCardForeground)
-    .accessibilityElement(children: .combine)
-  }
-
-  @ViewBuilder
-  private var updateStatusText: some View {
-    if isRemovingConnection {
-      Text(copy.removingConnection)
-    } else if store.isRefreshing {
-      Text(store.readings.isEmpty ? copy.updating : copy.lastKnownUpdating)
-    } else if store.isLive {
-      Text(copy.live)
-    } else if let lastChecked = store.lastChecked {
-      HStack(spacing: 4) {
-        Text(copy.lastChecked)
-        Text(
-          .currentDate,
-          format: Date.AnchoredRelativeFormatStyle(
-            anchor: lastChecked,
-            presentation: .named,
-            unitsStyle: .wide
-          )
-        )
-      }
-    } else if isConnecting {
-      Text(copy.checkingConnection)
-    } else if store.isLoading {
-      Text(copy.updating)
-    }
-  }
-
-  private var progressAccessibilityLabel: String {
-    if isRemovingConnection {
-      return copy.removingConnection
-    }
-    return isConnecting ? copy.checkingConnection : copy.updatingTemperatures
   }
 }
 

@@ -5,6 +5,7 @@ struct HomeAssistantHomeEnergyCard: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @ObservedObject var store: HomeAssistantHomeEnergyStore
   let mode: BruceMode
+  var showsConnectionProblems = true
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
 
@@ -18,19 +19,17 @@ struct HomeAssistantHomeEnergyCard: View {
         Text(copy.energyNow)
           .font(.headline)
           .foregroundStyle(primaryForeground)
-        Spacer()
-        ZStack(alignment: .trailing) {
-          Text(copy.updatingLastKnownStatus)
-            .hidden()
-          Text(statusText)
-            .opacity(showsStatus ? 1 : 0)
-            .accessibilityHidden(!showsStatus)
+        if !store.isLive, store.snapshot.hasReadings {
+          Spacer()
+          Text(copy.lastKnown)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(secondaryForeground)
         }
-        .font(.caption.weight(.medium))
-        .foregroundStyle(secondaryForeground)
       }
 
-      if let problem = store.problem {
+      if let problem = store.problem,
+        showsConnectionProblems || problem.isFeatureSpecific
+      {
         problemView(problem)
       }
 
@@ -145,19 +144,6 @@ struct HomeAssistantHomeEnergyCard: View {
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(presentation.accessibilityLabel)
     .accessibilityValue(accessibilityValue(for: presentation))
-  }
-
-  private var statusText: String {
-    if store.showsProgress || store.isRefreshing {
-      return store.snapshot.hasReadings
-        ? copy.updatingLastKnownStatus
-        : copy.updating
-    }
-    return store.snapshot.hasReadings ? copy.lastKnown : copy.unavailable
-  }
-
-  private var showsStatus: Bool {
-    store.showsProgress || store.isRefreshing || !store.isLive
   }
 
   private func accessibilityValue(

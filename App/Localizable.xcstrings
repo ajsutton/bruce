@@ -2385,6 +2385,38 @@
         }
       }
     },
+    "homeAssistantInterface.manageConnection" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sort It Out"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.manageConnectionAccessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Home Assistant connection"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sort out the Home Assistant connection"
+          }
+        }
+      }
+    },
     "homeAssistantInterface.nameLabel" : {
       "localizations" : {
         "en" : {
@@ -2465,6 +2497,22 @@
         }
       }
     },
+    "homeAssistantInterface.presentationProblem.reconnecting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnecting to Home Assistant. Values may be out of date."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getting Home Assistant back on the line. These values may be old news."
+          }
+        }
+      }
+    },
     "homeAssistantInterface.presentationProblem.restoreFailed" : {
       "localizations" : {
         "en" : {
@@ -2486,13 +2534,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in to Home Assistant again to update temperatures."
+            "value" : "Sign in to Home Assistant again to update the house."
           }
         },
         "en-AU" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Give Home Assistant another sign-in so Bruce can fetch fresh temperatures."
+            "value" : "Give Home Assistant another sign-in so Bruce can get the house up to date."
           }
         }
       }
@@ -2502,13 +2550,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant can’t be reached. Temperatures may be out of date."
+            "value" : "Home Assistant can’t be reached. Values may be out of date."
           }
         },
         "en-AU" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant’s not answering. These temperatures may be old news."
+            "value" : "Home Assistant’s not answering. These values may be old news."
           }
         }
       }
@@ -2525,6 +2573,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ready to rip"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.refreshConnection" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Have Another Crack"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.refreshConnectionAccessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh Home Assistant connection"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Have another crack at the Home Assistant connection"
           }
         }
       }
@@ -2653,6 +2733,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "That’s the One"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.serverStatus.lastChecked" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last updated"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last word was"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.serverStatus.connecting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to Home Assistant"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getting Home Assistant on the line"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.serverStatus.live" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Assistant is live"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Assistant’s fresh as"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.serverStatus.updating" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating from Home Assistant"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getting the latest from Home Assistant"
           }
         }
       }

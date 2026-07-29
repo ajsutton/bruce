@@ -6,6 +6,7 @@ struct HomeAssistantEVChargingCard: View {
   @ObservedObject var store: HomeAssistantEVChargingStore
   @FocusState private var isPickerFocused: Bool
   let mode: BruceMode
+  var showsConnectionProblems = true
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
 
@@ -16,8 +17,6 @@ struct HomeAssistantEVChargingCard: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
       header
-
-      freshnessStatus
 
       chargingModePicker
         .disabled(!store.isLive)
@@ -40,7 +39,9 @@ struct HomeAssistantEVChargingCard: View {
         mode: mode
       )
 
-      if let problem = store.problem {
+      if let problem = store.problem,
+        showsConnectionProblems || problem.isFeatureSpecific
+      {
         problemView(problem)
       }
     }
@@ -158,11 +159,6 @@ struct HomeAssistantEVChargingCard: View {
         ProgressView()
           .controlSize(.small)
           .accessibilityLabel(progressLabel)
-      } else if store.isRefreshing {
-        Image(systemName: "arrow.clockwise")
-          .font(.caption.weight(.semibold))
-          .foregroundStyle(secondaryForeground)
-          .accessibilityLabel(copy.updating)
       }
     }
     .frame(width: 16, height: 16)
@@ -185,7 +181,7 @@ struct HomeAssistantEVChargingCard: View {
       return copy.checkingMode
     }
     if store.isRefreshing {
-      return store.mode.map(copy.chargingModeDescription) ?? copy.updating
+      return store.mode.map { copy.lastKnown(copy.chargingModeDescription($0)) } ?? copy.updating
     }
     if !store.isLive {
       return store.mode.map {
@@ -197,25 +193,6 @@ struct HomeAssistantEVChargingCard: View {
 
   private var progressLabel: String {
     store.isChanging ? copy.changingChargingMode : copy.checkingChargingMode
-  }
-
-  private var freshnessStatus: some View {
-    ZStack(alignment: .leading) {
-      Text(refreshFreshnessLabel)
-        .hidden()
-      if store.isRefreshing {
-        Text(refreshFreshnessLabel)
-      }
-    }
-    .font(.caption)
-    .foregroundStyle(secondaryForeground)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .accessibilityHidden(true)
-  }
-
-  private var refreshFreshnessLabel: String {
-    guard store.mode != nil else { return copy.updating }
-    return "\(copy.lastKnown) · \(copy.updating)"
   }
 
   private var accessibilityValue: String {

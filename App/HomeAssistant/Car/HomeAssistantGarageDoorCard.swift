@@ -108,7 +108,7 @@ struct HomeAssistantGarageDoorCard: View {
         .foregroundStyle(primaryForeground)
 
         if !isLive {
-          Text(isRefreshing ? copy.updating : copy.lastKnown)
+          Text(copy.lastKnown)
             .font(.caption.weight(.medium))
             .foregroundStyle(secondaryForeground)
         }

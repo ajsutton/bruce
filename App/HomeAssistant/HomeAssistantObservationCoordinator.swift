@@ -2,6 +2,8 @@ import Foundation
 
 @MainActor
 final class HomeAssistantObservationCoordinator: ObservableObject {
+  @Published private(set) var serverStatus = HomeAssistantServerStatus.idle
+
   private enum Feature: CaseIterable {
     case temperature
     case charging
@@ -15,7 +17,12 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   private let homeEnergyStore: HomeAssistantHomeEnergyStore
   private let refreshStateFeed: @Sendable () async -> Bool
   private let resetStateFeed: @Sendable () async -> Void
+  private let serverUpdates:
+    (@Sendable () async -> AsyncThrowingStream<HomeAssistantStateUpdate, any Error>)?
+  private let now: @Sendable () -> Date
   private var connection: HomeAssistantConnectionState?
+  private var serverStatusTask: Task<Void, Never>?
+  private var serverStatusGeneration = UUID()
   private var observationTasks: [Feature: Task<Void, Never>] = [:]
   private var observationGenerations: [Feature: UUID] = [:]
   private var activeFeatures: Set<Feature> = []
@@ -29,7 +36,10 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     garageDoorStore: HomeAssistantGarageDoorStore,
     homeEnergyStore: HomeAssistantHomeEnergyStore,
     refreshStateFeed: @escaping @Sendable () async -> Bool = { false },
-    resetStateFeed: @escaping @Sendable () async -> Void = {}
+    resetStateFeed: @escaping @Sendable () async -> Void = {},
+    serverUpdates:
+      (@Sendable () async -> AsyncThrowingStream<HomeAssistantStateUpdate, any Error>)? = nil,
+    now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.temperatureStore = temperatureStore
     self.chargingStore = chargingStore
@@ -37,10 +47,13 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     self.homeEnergyStore = homeEnergyStore
     self.refreshStateFeed = refreshStateFeed
     self.resetStateFeed = resetStateFeed
+    self.serverUpdates = serverUpdates
+    self.now = now
   }
 
   deinit {
     observationTasks.values.forEach { $0.cancel() }
+    serverStatusTask?.cancel()
   }
 
   func synchronize(with connection: HomeAssistantConnectionState) async {
@@ -50,6 +63,9 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     isTransitioning = true
     isRefreshing = false
     cancelObservations()
+    serverStatusGeneration = UUID()
+    serverStatusTask?.cancel()
+    serverStatusTask = nil
     await resetStateFeed()
     guard transitionGeneration == generation else { return }
     guard !Task.isCancelled else {
@@ -59,6 +75,8 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     }
     self.connection = connection
     isTransitioning = false
+    updateServerStatus(for: connection)
+    startServerStatusObservation(for: connection)
     Feature.allCases.forEach { startObservation($0, connection: connection) }
   }
 
@@ -75,6 +93,7 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
         startObservation(feature, connection: connection)
       }
     } else {
+      restartServerStatusObservation(for: connection)
       restartObservations(for: connection)
     }
   }
@@ -88,6 +107,83 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     observationTasks.values.forEach { $0.cancel() }
     observationTasks = [:]
     activeFeatures = []
+  }
+
+  private func updateServerStatus(for connection: HomeAssistantConnectionState) {
+    switch connection {
+    case .connecting, .connected:
+      serverStatus = HomeAssistantServerStatus(
+        phase: .updating,
+        lastSuccessfulUpdate: serverStatus.lastSuccessfulUpdate
+      )
+    case .unavailable:
+      serverStatus = HomeAssistantServerStatus(
+        phase: .unavailable,
+        lastSuccessfulUpdate: serverStatus.lastSuccessfulUpdate
+      )
+    case .disconnected:
+      serverStatus = .idle
+    }
+  }
+
+  private func startServerStatusObservation(for connection: HomeAssistantConnectionState) {
+    guard case .connected = connection, let serverUpdates else { return }
+    let generation = UUID()
+    serverStatusGeneration = generation
+    serverStatusTask = Task { [weak self, now] in
+      do {
+        guard
+          !Task.isCancelled,
+          self?.serverStatusGeneration == generation
+        else {
+          return
+        }
+        let updates = await serverUpdates()
+        guard
+          !Task.isCancelled,
+          self?.serverStatusGeneration == generation
+        else {
+          return
+        }
+        for try await update in updates {
+          guard
+            !Task.isCancelled,
+            let self,
+            serverStatusGeneration == generation
+          else { return }
+          serverStatus = serverStatus.receiving(update, at: now())
+        }
+        guard
+          !Task.isCancelled,
+          let self,
+          serverStatusGeneration == generation
+        else { return }
+        serverStatus = HomeAssistantServerStatus(
+          phase: .unavailable,
+          lastSuccessfulUpdate: serverStatus.lastSuccessfulUpdate
+        )
+        serverStatusTask = nil
+      } catch {
+        guard
+          !Task.isCancelled,
+          let self,
+          serverStatusGeneration == generation
+        else { return }
+        serverStatus = serverStatus.receiving(error: error)
+        serverStatusTask = nil
+      }
+    }
+  }
+
+  private func restartServerStatusObservation(for connection: HomeAssistantConnectionState) {
+    serverStatusGeneration = UUID()
+    serverStatusTask?.cancel()
+    serverStatusTask = nil
+    serverStatus = HomeAssistantServerStatus(
+      phase: .updating,
+      lastSuccessfulUpdate: serverStatus.lastSuccessfulUpdate
+    )
+    startServerStatusObservation(for: connection)
   }
 
   private func startObservation(

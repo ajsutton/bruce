@@ -52,7 +52,8 @@ struct BruceHomeAssistantDependencies {
       garageDoorStore: garageDoorStore,
       homeEnergyStore: homeEnergyStore,
       refreshStateFeed: { await context.states.refresh() },
-      resetStateFeed: { await context.states.reset() }
+      resetStateFeed: { await context.states.reset() },
+      serverUpdates: { await context.states.stateUpdates() }
     )
   }
 

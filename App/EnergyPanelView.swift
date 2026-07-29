@@ -5,6 +5,7 @@ struct EnergyPanelView: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
   let mode: BruceMode
+  var showsConnectionProblems = true
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
 
@@ -19,6 +20,7 @@ struct EnergyPanelView: View {
           HomeAssistantHomeEnergyCard(
             store: homeEnergyStore,
             mode: mode,
+            showsConnectionProblems: showsConnectionProblems,
             manageConnection: manageConnection,
             requestRefresh: requestRefresh
           )

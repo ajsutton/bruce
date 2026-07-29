@@ -8,7 +8,8 @@ struct BrucePanelsView: View {
   @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
   let mode: BruceMode
   let isConnecting: Bool
-  let connectionProblem: String?
+  let connectionProblem: HomeAssistantPresentation.ConnectionProblem?
+  let serverStatus: HomeAssistantServerStatus
   let manageConnection: () -> Void
   let requestHomeRefresh: () -> Void
   let isRemovingConnection: Bool
@@ -17,40 +18,70 @@ struct BrucePanelsView: View {
     AppCopy(mode: mode)
   }
 
+  private var connectionBanner: HomeAssistantConnectionBanner? {
+    HomeAssistantConnectionBanner(
+      presentationProblem: connectionProblem,
+      serverStatus: serverStatus
+    )
+  }
+
+  private var showsServerStatus: Bool {
+    isRemovingConnection || isConnecting || serverStatus.phase != .idle
+  }
+
   var body: some View {
-    TabView(selection: $selectedPanel) {
-      Tab(copy.climateTab, systemImage: "thermometer", value: BrucePanel.climate) {
-        HomeAssistantTemperatureView(
-          store: temperatureStore,
+    VStack(spacing: 0) {
+      if let connectionBanner {
+        HomeAssistantConnectionBannerView(
+          banner: connectionBanner,
+          lastSuccessfulUpdate: serverStatus.lastSuccessfulUpdate,
           mode: mode,
-          isConnecting: isConnecting,
-          connectionProblem: connectionProblem,
           manageConnection: manageConnection,
-          requestRefresh: requestHomeRefresh,
+          requestRefresh: requestHomeRefresh
+        )
+      } else if showsServerStatus {
+        HomeAssistantServerStatusView(
+          mode: mode,
+          status: serverStatus,
+          isConnecting: isConnecting,
           isRemovingConnection: isRemovingConnection
         )
       }
 
-      Tab(copy.carTab, systemImage: "car", value: BrucePanel.car) {
-        CarPanelView(
-          chargingStore: chargingStore,
-          garageDoorStore: garageDoorStore,
-          mode: mode,
-          manageConnection: manageConnection,
-          requestRefresh: requestHomeRefresh
-        )
-      }
+      TabView(selection: $selectedPanel) {
+        Tab(copy.climateTab, systemImage: "thermometer", value: BrucePanel.climate) {
+          HomeAssistantTemperatureView(
+            store: temperatureStore,
+            mode: mode,
+            isConnecting: isConnecting,
+            showsConnectionProblems: connectionBanner == nil,
+            requestRefresh: requestHomeRefresh
+          )
+        }
 
-      Tab(copy.energyTab, systemImage: "bolt", value: BrucePanel.energy) {
-        EnergyPanelView(
-          homeEnergyStore: homeEnergyStore,
-          mode: mode,
-          manageConnection: manageConnection,
-          requestRefresh: requestHomeRefresh
-        )
+        Tab(copy.carTab, systemImage: "car", value: BrucePanel.car) {
+          CarPanelView(
+            chargingStore: chargingStore,
+            garageDoorStore: garageDoorStore,
+            mode: mode,
+            showsConnectionProblems: connectionBanner == nil,
+            manageConnection: manageConnection,
+            requestRefresh: requestHomeRefresh
+          )
+        }
+
+        Tab(copy.energyTab, systemImage: "bolt", value: BrucePanel.energy) {
+          EnergyPanelView(
+            homeEnergyStore: homeEnergyStore,
+            mode: mode,
+            showsConnectionProblems: connectionBanner == nil,
+            manageConnection: manageConnection,
+            requestRefresh: requestHomeRefresh
+          )
+        }
       }
+      .tabViewStyle(.sidebarAdaptable)
     }
-    .tabViewStyle(.sidebarAdaptable)
   }
 }
 
@@ -99,6 +130,10 @@ private enum BrucePanelsPreview {
       mode: .standard,
       isConnecting: false,
       connectionProblem: nil,
+      serverStatus: HomeAssistantServerStatus(
+        phase: .live,
+        lastSuccessfulUpdate: .now
+      ),
       manageConnection: {},
       requestHomeRefresh: {},
       isRemovingConnection: false
