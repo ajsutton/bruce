@@ -364,6 +364,15 @@ final class StreamingEVChargingClient:
     continuation?.resume(returning: mode)
   }
 
+  func failSet() {
+    let continuation = lock.withLock {
+      let continuation = setContinuation
+      setContinuation = nil
+      return continuation
+    }
+    continuation?.resume(throwing: StreamingEVChargingError.unexpectedRequest)
+  }
+
   func succeedLoad(with snapshot: HomeAssistantEVChargingSnapshot) {
     let continuation = lock.withLock {
       let continuation = loadContinuation

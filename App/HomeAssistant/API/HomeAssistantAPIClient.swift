@@ -27,7 +27,7 @@ protocol HomeAssistantClimateControlling: Sendable {
 
 struct HomeAssistantAPIClient:
   HomeAssistantClimateControlling, HomeAssistantEVCharging,
-  HomeAssistantHomeEnergyLoading, Sendable
+  HomeAssistantHomeEnergyLoading, HomeAssistantGarageDoorControlling, Sendable
 {
   private static let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "net.symphonious.bruce",
@@ -97,10 +97,8 @@ struct HomeAssistantAPIClient:
   }
 
   func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {
-    let data = try await session.authenticatedGET(
-      path: "api/states/input_select.ev_charging_mode"
-    )
-    return try Self.evChargingMode(from: data)
+    let states = try await loadHomeAssistantStates()
+    return try Self.evChargingMode(from: states)
   }
 
   func loadEVChargingSnapshot() async throws -> HomeAssistantEVChargingSnapshot {
@@ -115,9 +113,13 @@ struct HomeAssistantAPIClient:
   func setEVChargingMode(
     _ mode: HomeAssistantEVChargingMode
   ) async throws -> HomeAssistantEVChargingMode {
+    let states = try await loadHomeAssistantStates()
+    guard let modeEntity = HomeAssistantEVChargingSnapshot.modeEntity(in: states) else {
+      throw HomeAssistantAPIError.invalidResponse
+    }
     let body = try JSONEncoder().encode(
       HomeAssistantSelectOptionRequest(
-        entityID: "input_select.ev_charging_mode",
+        entityID: modeEntity.entityID,
         option: mode.rawValue
       )
     )
@@ -206,6 +208,18 @@ struct HomeAssistantAPIClient:
     }
   }
 
+  static func evChargingMode(
+    from states: [HomeAssistantState]
+  ) throws -> HomeAssistantEVChargingMode {
+    guard
+      let state = HomeAssistantEVChargingSnapshot.modeEntity(in: states),
+      let mode = HomeAssistantEVChargingMode(rawValue: state.state)
+    else {
+      throw HomeAssistantAPIError.invalidResponse
+    }
+    return mode
+  }
+
   static func temperatures(
     from data: Data,
     unit: String,
@@ -257,6 +271,53 @@ struct HomeAssistantAPIClient:
 
 }
 
+extension HomeAssistantAPIClient {
+  func setGarageLight(entityID: String, isOn: Bool) async throws {
+    try await callEntityService(
+      domain: "light",
+      service: isOn ? "turn_on" : "turn_off",
+      entityID: entityID
+    )
+  }
+
+  func setGarageLock(entityID: String, isLocked: Bool) async throws {
+    try await callEntityService(
+      domain: "lock",
+      service: isLocked ? "lock" : "unlock",
+      entityID: entityID
+    )
+  }
+
+  func sendGarageDoorCommand(
+    _ command: HomeAssistantGarageDoorCommand,
+    entityID: String
+  ) async throws {
+    let service =
+      switch command {
+      case .open: "open_cover"
+      case .close: "close_cover"
+      case .stop: "stop_cover"
+      }
+    try await callEntityService(
+      domain: "cover",
+      service: service,
+      entityID: entityID
+    )
+  }
+
+  private func callEntityService(
+    domain: String,
+    service: String,
+    entityID: String
+  ) async throws {
+    let body = try JSONEncoder().encode(HomeAssistantEntityTarget(entityID: entityID))
+    _ = try await session.authenticatedPOST(
+      path: "api/services/\(domain)/\(service)",
+      body: body
+    )
+  }
+}
+
 private struct HomeAssistantAPIConfiguration: Decodable {
   let unitSystem: HomeAssistantUnitSystem
 
@@ -270,6 +331,14 @@ private struct HomeAssistantUnitSystem: Decodable {
 }
 
 private struct HomeAssistantClimateTarget: Encodable {
+  let entityID: String
+
+  enum CodingKeys: String, CodingKey {
+    case entityID = "entity_id"
+  }
+}
+
+private struct HomeAssistantEntityTarget: Encodable {
   let entityID: String
 
   enum CodingKeys: String, CodingKey {

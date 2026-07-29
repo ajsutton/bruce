@@ -70,6 +70,9 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
     let coordinator = HomeAssistantObservationCoordinator(
       temperatureStore: temperatureStore,
       chargingStore: chargingStore,
+      garageDoorStore: HomeAssistantGarageDoorStore(
+        loader: TestGarageDoorLoader()
+      ),
       homeEnergyStore: homeEnergyStore,
       refreshStateFeed: { await states.refresh() }
     )
@@ -90,6 +93,9 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
         loader: CoordinatorTemperatureLoader()
       ),
       chargingStore: chargingStore,
+      garageDoorStore: HomeAssistantGarageDoorStore(
+        loader: TestGarageDoorLoader()
+      ),
       homeEnergyStore: HomeAssistantHomeEnergyStore(
         loader: CoordinatorEnergyLoader()
       )
@@ -189,8 +195,8 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
     let data = Data(
       """
       [
-        {"entity_id":"input_select.ev_charging_mode","state":"\(mode)","attributes":{},"last_updated":"2026-07-28T01:02:03Z"},
-        {"entity_id":"sensor.home_myenergi_home_power_charging","state":"\(power)","attributes":{}},
+        {"entity_id":"input_select.ev_charging_mode","state":"\(mode)","attributes":{"options":["Off","Smart Charging","On"]},"last_updated":"2026-07-28T01:02:03Z"},
+        {"entity_id":"sensor.home_myenergi_home_power_charging","state":"\(power)","attributes":{"device_class":"power","unit_of_measurement":"W"}},
         {"entity_id":"sensor.zappi_myenergi_zappi_26482259_plug_status","state":"EV Connected","attributes":{}},
         {"entity_id":"sensor.zappi_myenergi_zappi_26482259_status","state":"Ready","attributes":{}},
         {"entity_id":"sensor.sigen_plant_pv_power","state":"\(solar)","attributes":{}},
@@ -216,6 +222,9 @@ extension HomeAssistantObservationCoordinatorTests {
         loader: CoordinatorTemperatureLoader()
       ),
       chargingStore: chargingStore,
+      garageDoorStore: HomeAssistantGarageDoorStore(
+        loader: TestGarageDoorLoader()
+      ),
       homeEnergyStore: HomeAssistantHomeEnergyStore(
         loader: CoordinatorEnergyLoader()
       )

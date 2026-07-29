@@ -4,6 +4,7 @@ struct BrucePanelsView: View {
   @AppStorage(BrucePanel.storageKey) private var selectedPanel = BrucePanel.climate
   @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
   @ObservedObject var chargingStore: HomeAssistantEVChargingStore
+  @ObservedObject var garageDoorStore: HomeAssistantGarageDoorStore
   @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
   let mode: BruceMode
   let isConnecting: Bool
@@ -30,9 +31,18 @@ struct BrucePanelsView: View {
         )
       }
 
+      Tab(copy.carTab, systemImage: "car", value: BrucePanel.car) {
+        CarPanelView(
+          chargingStore: chargingStore,
+          garageDoorStore: garageDoorStore,
+          mode: mode,
+          manageConnection: manageConnection,
+          requestRefresh: requestHomeRefresh
+        )
+      }
+
       Tab(copy.energyTab, systemImage: "bolt", value: BrucePanel.energy) {
         EnergyPanelView(
-          chargingStore: chargingStore,
           homeEnergyStore: homeEnergyStore,
           mode: mode,
           manageConnection: manageConnection,
@@ -68,9 +78,23 @@ private enum BrucePanelsPreview {
       ),
       isLive: true
     )
+    let garageDoorStore = HomeAssistantGarageDoorStore(
+      loader: BrucePanelsPreviewGarageDoorLoader(),
+      doors: [
+        HomeAssistantGarageDoorSnapshot(
+          id: "cover.garage",
+          name: "Garage Door",
+          doorState: .closed,
+          lightState: .off,
+          lockState: .locked
+        )
+      ],
+      isLive: true
+    )
     return BrucePanelsView(
       temperatureStore: store,
       chargingStore: chargingStore,
+      garageDoorStore: garageDoorStore,
       homeEnergyStore: homeEnergyStore,
       mode: .standard,
       isConnecting: false,
@@ -83,6 +107,12 @@ private enum BrucePanelsPreview {
     .task {
       await store.load()
     }
+  }
+}
+
+private struct BrucePanelsPreviewGarageDoorLoader: HomeAssistantGarageDoorLoading {
+  func loadGarageDoors() async throws -> [HomeAssistantGarageDoorSnapshot] {
+    []
   }
 }
 

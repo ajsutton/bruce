@@ -28,6 +28,7 @@ final class PartialObservationRecoveryTests: XCTestCase {
     let coordinator = HomeAssistantObservationCoordinator(
       temperatureStore: temperatureStore,
       chargingStore: chargingStore,
+      garageDoorStore: HomeAssistantGarageDoorStore(loader: TestGarageDoorLoader()),
       homeEnergyStore: homeEnergyStore,
       refreshStateFeed: { await states.refresh() }
     )
@@ -56,8 +57,7 @@ final class PartialObservationRecoveryTests: XCTestCase {
     await waitForValue(temperatureStore.$isLive, matching: true)
 
     XCTAssertEqual(temperatureStore.readings.first?.value, 9.1)
-    XCTAssertTrue(chargingStore.isLive)
-    XCTAssertTrue(homeEnergyStore.isLive)
+    XCTAssertTrue(chargingStore.isLive && homeEnergyStore.isLive)
     XCTAssertEqual(source.subscriptionCount, 2)
     await coordinator.synchronize(with: .disconnected)
   }
@@ -78,8 +78,8 @@ final class PartialObservationRecoveryTests: XCTestCase {
     let data = Data(
       """
       [
-        {"entity_id":"input_select.ev_charging_mode","state":"Smart Charging","attributes":{},"last_updated":"2026-07-28T01:02:03Z"},
-        {"entity_id":"sensor.home_myenergi_home_power_charging","state":"0","attributes":{}},
+        {"entity_id":"input_select.ev_charging_mode","state":"Smart Charging","attributes":{"options":["Off","Smart Charging","On"]},"last_updated":"2026-07-28T01:02:03Z"},
+        {"entity_id":"sensor.home_myenergi_home_power_charging","state":"0","attributes":{"device_class":"power","unit_of_measurement":"W"}},
         {"entity_id":"sensor.zappi_myenergi_zappi_26482259_plug_status","state":"EV Connected","attributes":{}},
         {"entity_id":"sensor.zappi_myenergi_zappi_26482259_status","state":"Ready","attributes":{}},
         {"entity_id":"sensor.sigen_plant_pv_power","state":"\(solar)","attributes":{}},

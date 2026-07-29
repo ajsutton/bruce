@@ -5,6 +5,7 @@ struct BruceHomeAssistantDependencies {
   let setupStore: HomeAssistantSetupStore
   let temperatureStore: HomeAssistantTemperatureStore
   let chargingStore: HomeAssistantEVChargingStore
+  let garageDoorStore: HomeAssistantGarageDoorStore
   let homeEnergyStore: HomeAssistantHomeEnergyStore
   let observationCoordinator: HomeAssistantObservationCoordinator
 
@@ -25,6 +26,14 @@ struct BruceHomeAssistantDependencies {
       ),
       onAuthenticationRequired: context.requireReauthentication
     )
+    let garageDoorStore = HomeAssistantGarageDoorStore(
+      loader: HomeAssistantGarageDoorStream(
+        states: context.states,
+        registryLoader: HomeAssistantRegistryClient(session: context.session)
+      ),
+      controller: context.apiClient,
+      onAuthenticationRequired: context.requireReauthentication
+    )
     let temperatureStore = HomeAssistantTemperatureStore(
       loader: HomeAssistantTemperatureStream(
         states: context.states,
@@ -34,11 +43,13 @@ struct BruceHomeAssistantDependencies {
       onAuthenticationRequired: context.requireReauthentication
     )
     self.chargingStore = chargingStore
+    self.garageDoorStore = garageDoorStore
     self.homeEnergyStore = homeEnergyStore
     self.temperatureStore = temperatureStore
     observationCoordinator = HomeAssistantObservationCoordinator(
       temperatureStore: temperatureStore,
       chargingStore: chargingStore,
+      garageDoorStore: garageDoorStore,
       homeEnergyStore: homeEnergyStore,
       refreshStateFeed: { await context.states.refresh() },
       resetStateFeed: { await context.states.reset() }
@@ -70,6 +81,7 @@ struct BruceHomeAssistantDependencies {
     let apiClient = HomeAssistantAPIClient(session: session)
     return Context(
       setupStore: setupStore,
+      session: session,
       apiClient: apiClient,
       states: HomeAssistantStateHub(
         source: HomeAssistantStateStream(session: session, apiClient: apiClient)
@@ -85,6 +97,7 @@ struct BruceHomeAssistantDependencies {
 
   private struct Context {
     let setupStore: HomeAssistantSetupStore
+    let session: HomeAssistantSession
     let apiClient: HomeAssistantAPIClient
     let states: HomeAssistantStateHub
 

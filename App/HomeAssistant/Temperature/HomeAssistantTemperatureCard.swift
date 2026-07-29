@@ -251,7 +251,7 @@ struct HomeAssistantTemperatureCard: View {
               .font(isCondensed ? .body : .title2)
           }
         } else {
-          Text("—")
+          Text(verbatim: "—")
             .accessibilityLabel(copy.unavailable)
         }
       }

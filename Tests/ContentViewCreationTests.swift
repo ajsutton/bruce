@@ -15,6 +15,9 @@ final class ContentViewCreationTests: XCTestCase {
         chargingStore: HomeAssistantEVChargingStore(
           client: ContentViewEVChargingClient()
         ),
+        garageDoorStore: HomeAssistantGarageDoorStore(
+          loader: TestGarageDoorLoader()
+        ),
         homeEnergyStore: HomeAssistantHomeEnergyStore(
           loader: ContentViewHomeEnergyLoader()
         ),
@@ -29,6 +32,9 @@ final class ContentViewCreationTests: XCTestCase {
         ),
         chargingStore: HomeAssistantEVChargingStore(
           client: ContentViewEVChargingClient()
+        ),
+        garageDoorStore: HomeAssistantGarageDoorStore(
+          loader: TestGarageDoorLoader()
         ),
         homeEnergyStore: HomeAssistantHomeEnergyStore(
           loader: ContentViewHomeEnergyLoader()

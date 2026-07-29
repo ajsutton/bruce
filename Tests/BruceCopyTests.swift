@@ -60,6 +60,20 @@ final class BruceCopyTests: XCTestCase {
     XCTAssertEqual(TemperatureCopy(mode: .full).lastKnown, "Last word Bruce got")
   }
 
+  func testGarageStatusCopyResolvesForEachLanguageVariant() {
+    let standard = GarageDoorCopy(mode: .standard)
+    let full = GarageDoorCopy(mode: .full)
+
+    XCTAssertEqual(standard.navigationTitle, "Car")
+    XCTAssertEqual(standard.doorState(.closed), "Closed")
+    XCTAssertEqual(standard.lightOff, "Off")
+    XCTAssertEqual(standard.unlocked, "Unlocked")
+    XCTAssertEqual(full.navigationTitle, "The Wheels")
+    XCTAssertEqual(full.doorState(.closed), "Shut. Good as gold.")
+    XCTAssertEqual(full.stopDoor, "Stop the Garage Door")
+    XCTAssertNotEqual(standard.noDevicesTitle, full.noDevicesTitle)
+  }
+
   func testClimateErrorsAndAccessibilityCopyUseFullBruceVoice() {
     let standard = TemperatureCopy(mode: .standard)
     let full = TemperatureCopy(mode: .full)

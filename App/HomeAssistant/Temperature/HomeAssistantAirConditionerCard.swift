@@ -299,7 +299,7 @@ extension HomeAssistantAirConditionerCard {
               .font(isCondensed ? .body : .title2)
           }
         } else {
-          Text("—")
+          Text(verbatim: "—")
             .accessibilityLabel(copy.unavailable)
         }
       }

@@ -6,6 +6,14 @@ struct HomeAssistantState: Decodable, Equatable, Sendable {
   let lastUpdated: Date?
   private let attributes: HomeAssistantStateAttributes
 
+  var deviceClass: String? { attributes.deviceClass }
+  var friendlyName: String? { attributes.friendlyName }
+  var icon: String? { attributes.icon }
+  var options: [String] { attributes.options ?? [] }
+  var unitOfMeasurement: String? { attributes.unitOfMeasurement }
+  var currentPosition: Double? { attributes.currentPosition }
+  var supportedFeatures: Int { attributes.supportedFeatures ?? 0 }
+
   enum CodingKeys: String, CodingKey {
     case entityID = "entity_id"
     case state
@@ -127,6 +135,7 @@ struct HomeAssistantState: Decodable, Equatable, Sendable {
 private struct HomeAssistantStateAttributes: Decodable, Equatable, Sendable {
   let currentTemperature: Double?
   let targetTemperature: Double?
+  let deviceClass: String?
   let friendlyName: String?
   let icon: String?
   let hvacModes: [String]?
@@ -134,10 +143,15 @@ private struct HomeAssistantStateAttributes: Decodable, Equatable, Sendable {
   let maximumTemperature: Double?
   let targetTemperatureStep: Double?
   let temperaturePrecision: Double?
+  let options: [String]?
+  let unitOfMeasurement: String?
+  let currentPosition: Double?
+  let supportedFeatures: Int?
 
   enum CodingKeys: String, CodingKey {
     case currentTemperature = "current_temperature"
     case targetTemperature = "temperature"
+    case deviceClass = "device_class"
     case friendlyName = "friendly_name"
     case icon
     case hvacModes = "hvac_modes"
@@ -145,5 +159,9 @@ private struct HomeAssistantStateAttributes: Decodable, Equatable, Sendable {
     case maximumTemperature = "max_temp"
     case targetTemperatureStep = "target_temp_step"
     case temperaturePrecision = "precision"
+    case options
+    case unitOfMeasurement = "unit_of_measurement"
+    case currentPosition = "current_position"
+    case supportedFeatures = "supported_features"
   }
 }

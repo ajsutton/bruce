@@ -3,7 +3,6 @@ import SwiftUI
 struct EnergyPanelView: View {
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  @ObservedObject var chargingStore: HomeAssistantEVChargingStore
   @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
   let mode: BruceMode
   let manageConnection: () -> Void
@@ -17,12 +16,6 @@ struct EnergyPanelView: View {
     NavigationStack {
       ScrollView {
         VStack(spacing: 16) {
-          HomeAssistantEVChargingCard(
-            store: chargingStore,
-            mode: mode,
-            manageConnection: manageConnection,
-            requestRefresh: requestRefresh
-          )
           HomeAssistantHomeEnergyCard(
             store: homeEnergyStore,
             mode: mode,
@@ -50,11 +43,6 @@ struct EnergyPanelView: View {
 
 #Preview("Energy") {
   EnergyPanelView(
-    chargingStore: HomeAssistantEVChargingStore(
-      client: PreviewEVChargingClient(),
-      mode: .smart,
-      activity: .charging(powerWatts: 7_024)
-    ),
     homeEnergyStore: HomeAssistantHomeEnergyStore(
       loader: PreviewHomeEnergyLoader(),
       snapshot: PreviewHomeEnergyLoader.exportingSnapshot,
@@ -69,11 +57,6 @@ struct EnergyPanelView: View {
 
 #Preview("Energy — Full Bruce") {
   EnergyPanelView(
-    chargingStore: HomeAssistantEVChargingStore(
-      client: PreviewEVChargingClient(),
-      mode: .smart,
-      activity: .paused(reason: .homeBattery)
-    ),
     homeEnergyStore: HomeAssistantHomeEnergyStore(
       loader: PreviewHomeEnergyLoader(),
       snapshot: PreviewHomeEnergyLoader.importingSnapshot,
@@ -84,18 +67,6 @@ struct EnergyPanelView: View {
     requestRefresh: {}
   )
   .tint(BruceMode.full.accentColor)
-}
-
-private struct PreviewEVChargingClient: HomeAssistantEVCharging {
-  func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {
-    .smart
-  }
-
-  func setEVChargingMode(
-    _ mode: HomeAssistantEVChargingMode
-  ) async throws -> HomeAssistantEVChargingMode {
-    mode
-  }
 }
 
 private struct PreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {

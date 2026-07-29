@@ -253,7 +253,7 @@ extension HomeAssistantLiveDataTests {
     switch try XCTUnwrap(update) {
     case .live(let snapshot):
       return snapshot
-    case .refreshing, .reconnecting, .unavailable:
+    case .absent, .refreshing, .reconnecting, .unavailable:
       throw LiveDataTestError.unexpectedUpdate
     }
   }
@@ -282,8 +282,8 @@ extension HomeAssistantLiveDataTests {
     let data = Data(
       """
       [
-        {"entity_id":"input_select.ev_charging_mode","state":"\(mode)","attributes":{},"last_updated":"2026-07-28T01:02:03Z"},
-        {"entity_id":"sensor.home_myenergi_home_power_charging","state":"\(power)","attributes":{}},
+        {"entity_id":"input_select.ev_charging_mode","state":"\(mode)","attributes":{"options":["Off","Smart Charging","On"]},"last_updated":"2026-07-28T01:02:03Z"},
+        {"entity_id":"sensor.home_myenergi_home_power_charging","state":"\(power)","attributes":{"device_class":"power","unit_of_measurement":"W"}},
         {"entity_id":"sensor.zappi_myenergi_zappi_26482259_plug_status","state":"EV Connected","attributes":{}},
         {"entity_id":"sensor.zappi_myenergi_zappi_26482259_status","state":"Ready","attributes":{}},
         {"entity_id":"input_boolean.ev_smart_battery_allows_charging","state":"on","attributes":{}},

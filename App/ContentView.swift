@@ -12,6 +12,7 @@ struct ContentView: View {
   @ObservedObject var setupStore: HomeAssistantSetupStore
   @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
   @ObservedObject var chargingStore: HomeAssistantEVChargingStore
+  @ObservedObject var garageDoorStore: HomeAssistantGarageDoorStore
   @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
   #if os(macOS)
     @ObservedObject var settingsNavigation: BruceSettingsNavigation
@@ -83,6 +84,7 @@ struct ContentView: View {
       BrucePanelsView(
         temperatureStore: temperatureStore,
         chargingStore: chargingStore,
+        garageDoorStore: garageDoorStore,
         homeEnergyStore: homeEnergyStore,
         mode: mode,
         isConnecting: presentation.isConnecting,
@@ -154,9 +156,13 @@ private func previewContentView() -> some View {
   let homeEnergyStore = HomeAssistantHomeEnergyStore(
     loader: PreviewContentHomeEnergyLoader()
   )
+  let garageDoorStore = HomeAssistantGarageDoorStore(
+    loader: PreviewContentGarageDoorLoader()
+  )
   let coordinator = HomeAssistantObservationCoordinator(
     temperatureStore: temperatureStore,
     chargingStore: chargingStore,
+    garageDoorStore: garageDoorStore,
     homeEnergyStore: homeEnergyStore
   )
   #if os(macOS)
@@ -168,6 +174,7 @@ private func previewContentView() -> some View {
       setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery()),
       temperatureStore: temperatureStore,
       chargingStore: chargingStore,
+      garageDoorStore: garageDoorStore,
       homeEnergyStore: homeEnergyStore,
       settingsNavigation: BruceSettingsNavigation()
     )
@@ -181,11 +188,18 @@ private func previewContentView() -> some View {
       setupStore: HomeAssistantSetupStore(discovery: PreviewHomeAssistantDiscovery()),
       temperatureStore: temperatureStore,
       chargingStore: chargingStore,
+      garageDoorStore: garageDoorStore,
       homeEnergyStore: homeEnergyStore
     )
     .environmentObject(BruceSceneDelegate())
     .environmentObject(coordinator)
   #endif
+}
+
+private struct PreviewContentGarageDoorLoader: HomeAssistantGarageDoorLoading {
+  func loadGarageDoors() async throws -> [HomeAssistantGarageDoorSnapshot] {
+    []
+  }
 }
 
 @MainActor

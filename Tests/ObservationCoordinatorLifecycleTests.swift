@@ -184,6 +184,9 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
     HomeAssistantObservationCoordinator(
       temperatureStore: HomeAssistantTemperatureStore(loader: temperatureLoader),
       chargingStore: HomeAssistantEVChargingStore(client: LifecycleEVChargingClient()),
+      garageDoorStore: HomeAssistantGarageDoorStore(
+        loader: TestGarageDoorLoader()
+      ),
       homeEnergyStore: HomeAssistantHomeEnergyStore(loader: LifecycleEnergyLoader()),
       refreshStateFeed: refreshStateFeed,
       resetStateFeed: resetStateFeed

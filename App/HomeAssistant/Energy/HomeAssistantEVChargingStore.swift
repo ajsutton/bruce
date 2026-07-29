@@ -2,30 +2,31 @@ import Foundation
 
 @MainActor
 final class HomeAssistantEVChargingStore: ObservableObject {
-  @Published private(set) var mode: HomeAssistantEVChargingMode?
-  @Published private(set) var activity: HomeAssistantEVChargingActivity
-  @Published private(set) var isActivityLive: Bool
-  @Published private(set) var isLoading = false
-  @Published private(set) var isLive = false
-  @Published private(set) var isRefreshing = false
-  @Published private(set) var isChanging = false
-  @Published private(set) var showsProgress = false
-  @Published private(set) var problem: Problem?
+  @Published var mode: HomeAssistantEVChargingMode?
+  @Published var activity: HomeAssistantEVChargingActivity
+  @Published var isActivityLive: Bool
+  @Published var isLoading = false
+  @Published var isLive = false
+  @Published var isRefreshing = false
+  @Published var isChanging = false
+  @Published var showsProgress = false
+  @Published var problem: Problem?
   private let client: any HomeAssistantEVCharging
-  private let onAuthenticationRequired: @MainActor @Sendable () -> Void
+  let onAuthenticationRequired: @MainActor @Sendable () -> Void
   private let progressDelay, updateTimeout: Duration
   private let progressSleep, timeoutSleep: @Sendable (Duration) async -> Void
-  private let liveSubscription: HomeAssistantEVChargingLiveSubscription
-  private let tasks = HomeAssistantEVChargingTasks()
-  private var operationGeneration = UUID()
+  let liveSubscription: HomeAssistantEVChargingLiveSubscription
+  let tasks = HomeAssistantEVChargingTasks()
+  var operationGeneration = UUID()
   private var rollbackMode: HomeAssistantEVChargingMode?
   private var lateReconciliationSubscriptionRevision = 0
-  private var lateModeChangesToReconcile: Set<UUID> = []
-  private var canReconcileLateModeChanges = false, needsLateModeChangeReconciliation = false
+  var lateModeChangesToReconcile: Set<UUID> = []
+  var canReconcileLateModeChanges = false, needsLateModeChangeReconciliation = false
   init(
     client: any HomeAssistantEVCharging,
     mode: HomeAssistantEVChargingMode? = nil,
     activity: HomeAssistantEVChargingActivity = .unavailable,
+    hasCompletedDiscovery: Bool? = nil,
     progressDelay: Duration = .milliseconds(500),
     updateTimeout: Duration = .seconds(8),
     progressSleep: @escaping @Sendable (Duration) async -> Void = {
@@ -47,6 +48,7 @@ final class HomeAssistantEVChargingStore: ObservableObject {
     liveSubscription = HomeAssistantEVChargingLiveSubscription(
       client: client,
       progressDelay: progressDelay,
+      hasCompletedDiscovery: hasCompletedDiscovery ?? (mode != nil),
       sleep: progressSleep
     )
     canReconcileLateModeChanges = mode != nil
@@ -141,12 +143,11 @@ final class HomeAssistantEVChargingStore: ObservableObject {
     }
   }
   private func invalidateConnection() {
-    invalidateSubscription()
+    liveSubscription.invalidate()
     invalidateModeChange()
     operationGeneration = UUID()
   }
 }
-
 extension HomeAssistantEVChargingStore {
   private func receiveModeChangeResult(
     _ result: Result<HomeAssistantEVChargingMode, any Error>,
@@ -215,7 +216,7 @@ extension HomeAssistantEVChargingStore {
     (isActivityLive, isChanging, isLive, isRefreshing) = (false, false, false, false)
     finishModeChange()
   }
-  private func finishModeChange() {
+  func finishModeChange() {
     finishProgress()
     tasks.finishTimeout()
     rollbackMode = nil
@@ -316,84 +317,5 @@ extension HomeAssistantEVChargingStore {
     guard needsLateModeChangeReconciliation else { return }
     needsLateModeChangeReconciliation = false
     reconcileLateModeChange()
-  }
-}
-
-extension HomeAssistantEVChargingStore {
-  private func observeUpdates() async {
-    let generation = beginUpdateObservation()
-    for await event in liveSubscription.events() {
-      guard !Task.isCancelled, liveSubscription.isCurrent(generation) else { return }
-      receiveUpdateEvent(event)
-    }
-  }
-  private func beginUpdateObservation() -> UUID {
-    let preservesRefreshPresentation = isRefreshing && problem == nil
-    let generation = liveSubscription.begin(
-      preservingModeChangeSequence: isChanging
-    )
-    if preservesRefreshPresentation {
-      isLoading = false
-    } else {
-      (isLoading, isLive, isActivityLive, problem) = (true, false, false, nil)
-      isRefreshing = false
-    }
-    finishProgress()
-    return generation
-  }
-  private func receiveUpdateEvent(_ event: HomeAssistantEVChargingLiveSubscription.Event) {
-    switch event {
-    case .progress:
-      if liveSubscription.shouldShowProgress { showsProgress = true }
-    case .update(let update):
-      apply(
-        liveSubscription.presentation(
-          for: update,
-          current: .init(store: self),
-          isChanging: isChanging
-        ))
-    case .finished:
-      if liveSubscription.expectsContinuousUpdates {
-        finishSubscription(problem: .connectionUnavailable)
-      } else {
-        finishOneShotSubscription()
-      }
-    case .failed(let error):
-      finishSubscription(problem: Self.problem(for: error, operation: .loading))
-    }
-  }
-  private func invalidateSubscription() { liveSubscription.invalidate() }
-  private func finishLoad(isLive: Bool, activityIsLive: Bool = false) {
-    (isLoading, self.isLive, isActivityLive, isRefreshing) = (
-      false, isLive, activityIsLive, false
-    )
-    finishProgress()
-  }
-  private func finishProgress() {
-    tasks.finishProgress()
-    showsProgress = false
-  }
-  private func apply(
-    _ presentation: HomeAssistantEVChargingLiveSubscription.Presentation
-  ) {
-    (mode, activity) = (presentation.mode, presentation.activity)
-    (isLoading, isLive, isActivityLive) = (
-      false, presentation.isLive, presentation.isActivityLive
-    )
-    isRefreshing = presentation.isRefreshing
-    problem = presentation.problem
-    if presentation.finishesProgress { finishProgress() }
-  }
-  private func finishSubscription(problem: Problem) {
-    liveSubscription.finish()
-    (isLoading, isLive, isActivityLive, isRefreshing) = (false, false, false, false)
-    self.problem = problem
-    if problem == .signInRequired { onAuthenticationRequired() }
-    if !isChanging { finishProgress() }
-  }
-  private func finishOneShotSubscription() {
-    liveSubscription.finish()
-    (isLoading, isRefreshing) = (false, false)
-    finishProgress()
   }
 }

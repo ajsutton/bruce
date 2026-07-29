@@ -61,13 +61,18 @@ final class HomeAssistantRefreshRecoveryTests: XCTestCase {
         {
           "entity_id": "input_select.ev_charging_mode",
           "state": "Smart Charging",
-          "attributes": {},
+          "attributes": {
+            "options": ["Off", "Smart Charging", "On"]
+          },
           "last_updated": "2026-07-27T01:02:03Z"
         },
         {
           "entity_id": "sensor.home_myenergi_home_power_charging",
           "state": "0",
-          "attributes": {},
+          "attributes": {
+            "device_class": "power",
+            "unit_of_measurement": "W"
+          },
           "last_updated": "2026-07-27T01:02:03Z"
         },
         {

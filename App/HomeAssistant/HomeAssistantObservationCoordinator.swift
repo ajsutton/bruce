@@ -5,11 +5,13 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   private enum Feature: CaseIterable {
     case temperature
     case charging
+    case garageDoor
     case homeEnergy
   }
 
   private let temperatureStore: HomeAssistantTemperatureStore
   private let chargingStore: HomeAssistantEVChargingStore
+  private let garageDoorStore: HomeAssistantGarageDoorStore
   private let homeEnergyStore: HomeAssistantHomeEnergyStore
   private let refreshStateFeed: @Sendable () async -> Bool
   private let resetStateFeed: @Sendable () async -> Void
@@ -24,12 +26,14 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   init(
     temperatureStore: HomeAssistantTemperatureStore,
     chargingStore: HomeAssistantEVChargingStore,
+    garageDoorStore: HomeAssistantGarageDoorStore,
     homeEnergyStore: HomeAssistantHomeEnergyStore,
     refreshStateFeed: @escaping @Sendable () async -> Bool = { false },
     resetStateFeed: @escaping @Sendable () async -> Void = {}
   ) {
     self.temperatureStore = temperatureStore
     self.chargingStore = chargingStore
+    self.garageDoorStore = garageDoorStore
     self.homeEnergyStore = homeEnergyStore
     self.refreshStateFeed = refreshStateFeed
     self.resetStateFeed = resetStateFeed
@@ -103,6 +107,10 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
       case .charging:
         { [chargingStore] in
           await chargingStore.synchronize(with: connection)
+        }
+      case .garageDoor:
+        { [garageDoorStore] in
+          await garageDoorStore.synchronize(with: connection)
         }
       case .homeEnergy:
         { [homeEnergyStore] in

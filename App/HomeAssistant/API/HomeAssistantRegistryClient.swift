@@ -4,12 +4,18 @@ protocol HomeAssistantClimateMetadataLoading: Sendable {
   func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata]
 }
 
+protocol HomeAssistantGarageDoorRegistryLoading: Sendable {
+  func loadGarageDoorRegistry() async throws -> HomeAssistantGarageDoorRegistry
+}
+
 struct HomeAssistantClimateMetadata: Equatable, Sendable {
   let icon: String?
   let kind: HomeAssistantTemperatureReading.Kind
 }
 
-struct HomeAssistantRegistryClient: HomeAssistantClimateMetadataLoading {
+struct HomeAssistantRegistryClient:
+  HomeAssistantClimateMetadataLoading, HomeAssistantGarageDoorRegistryLoading
+{
   private let session: HomeAssistantSession
   private let connector: any HomeAssistantWebSocketConnecting
 
@@ -50,6 +56,47 @@ struct HomeAssistantRegistryClient: HomeAssistantClimateMetadataLoading {
     } onCancel: {
       connection.cancel()
     }
+  }
+
+  func loadGarageDoorRegistry() async throws -> HomeAssistantGarageDoorRegistry {
+    let access = try await session.authenticatedWebSocketAccess()
+    let connection = connector.connect(to: access.url)
+    return try await withTaskCancellationHandler {
+      defer {
+        connection.cancel()
+      }
+      try await authenticate(connection, accessToken: access.accessToken)
+      let entities: [HomeAssistantRegistryEntity] = try await request(
+        "config/entity_registry/list",
+        id: 1,
+        over: connection
+      )
+      let devices: [HomeAssistantRegistryDevice] = try await request(
+        "config/device_registry/list",
+        id: 2,
+        over: connection
+      )
+      try Task.checkCancellation()
+      return Self.garageDoorRegistry(entities: entities, devices: devices)
+    } onCancel: {
+      connection.cancel()
+    }
+  }
+
+  static func garageDoorRegistry(
+    entities: [HomeAssistantRegistryEntity],
+    devices: [HomeAssistantRegistryDevice]
+  ) -> HomeAssistantGarageDoorRegistry {
+    HomeAssistantGarageDoorRegistry(
+      deviceIDByEntityID: entities.reduce(into: [:]) { result, entity in
+        guard let deviceID = entity.deviceID else { return }
+        result[entity.id] = deviceID
+      },
+      deviceNameByID: devices.reduce(into: [:]) { result, device in
+        guard let name = device.nameByUser ?? device.name else { return }
+        result[device.id] = name
+      }
+    )
   }
 
   static func climateMetadata(
@@ -208,11 +255,32 @@ struct HomeAssistantRegistryEntity: Decodable, Equatable, Sendable {
 struct HomeAssistantRegistryDevice: Decodable, Equatable, Sendable {
   let id: String
   let areaID: String?
+  let name: String?
+  let nameByUser: String?
+
+  init(
+    id: String,
+    areaID: String?,
+    name: String? = nil,
+    nameByUser: String? = nil
+  ) {
+    self.id = id
+    self.areaID = areaID
+    self.name = name
+    self.nameByUser = nameByUser
+  }
 
   enum CodingKeys: String, CodingKey {
     case id
     case areaID = "area_id"
+    case name
+    case nameByUser = "name_by_user"
   }
+}
+
+struct HomeAssistantGarageDoorRegistry: Equatable, Sendable {
+  let deviceIDByEntityID: [String: String]
+  let deviceNameByID: [String: String]
 }
 
 struct HomeAssistantRegistryArea: Decodable, Equatable, Sendable {

@@ -1,4 +1,5 @@
 enum HomeAssistantEVChargingUpdate: Equatable, Sendable {
+  case absent
   case live(HomeAssistantEVChargingSnapshot)
   case refreshing(HomeAssistantEVChargingSnapshot?)
   case reconnecting(HomeAssistantEVChargingSnapshot?)

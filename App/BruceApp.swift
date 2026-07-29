@@ -10,6 +10,7 @@ struct BruceApp: App {
   @StateObject private var setupStore: HomeAssistantSetupStore
   @StateObject private var temperatureStore: HomeAssistantTemperatureStore
   @StateObject private var chargingStore: HomeAssistantEVChargingStore
+  @StateObject private var garageDoorStore: HomeAssistantGarageDoorStore
   @StateObject private var homeEnergyStore: HomeAssistantHomeEnergyStore
   @StateObject private var observationCoordinator: HomeAssistantObservationCoordinator
   #if os(macOS)
@@ -21,6 +22,7 @@ struct BruceApp: App {
     let dependencies = BruceHomeAssistantDependencies()
     _setupStore = StateObject(wrappedValue: dependencies.setupStore)
     _chargingStore = StateObject(wrappedValue: dependencies.chargingStore)
+    _garageDoorStore = StateObject(wrappedValue: dependencies.garageDoorStore)
     _homeEnergyStore = StateObject(wrappedValue: dependencies.homeEnergyStore)
     _temperatureStore = StateObject(wrappedValue: dependencies.temperatureStore)
     _observationCoordinator = StateObject(wrappedValue: dependencies.observationCoordinator)
@@ -34,6 +36,7 @@ struct BruceApp: App {
           setupStore: setupStore,
           temperatureStore: temperatureStore,
           chargingStore: chargingStore,
+          garageDoorStore: garageDoorStore,
           homeEnergyStore: homeEnergyStore,
           settingsNavigation: settingsNavigation
         )
@@ -45,6 +48,7 @@ struct BruceApp: App {
           setupStore: setupStore,
           temperatureStore: temperatureStore,
           chargingStore: chargingStore,
+          garageDoorStore: garageDoorStore,
           homeEnergyStore: homeEnergyStore
         )
         .tint(modeController.mode.accentColor)

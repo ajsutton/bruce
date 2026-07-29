@@ -25,7 +25,7 @@ struct HomeAssistantManualEntryView: View {
             get: { store.manualAddress },
             set: { store.updateManualAddress($0) }
           ),
-          prompt: Text("https://home.example.com")
+          prompt: Text(verbatim: "https://home.example.com")
         )
         .textContentType(.URL)
         #if os(iOS)

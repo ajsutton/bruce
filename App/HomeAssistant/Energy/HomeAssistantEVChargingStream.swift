@@ -65,6 +65,14 @@ struct HomeAssistantEVChargingStream: HomeAssistantEVCharging {
   ) -> HomeAssistantEVChargingUpdate? {
     switch update.phase {
     case .live:
+      switch HomeAssistantEVChargingSnapshot.modeEntityDiscovery(in: update.states) {
+      case .absent:
+        return .absent
+      case .ambiguous:
+        return .unavailable(lastUpdate?.snapshot)
+      case .found:
+        break
+      }
       do {
         return .live(try HomeAssistantEVChargingSnapshot(states: update.states))
       } catch {
@@ -76,28 +84,26 @@ struct HomeAssistantEVChargingStream: HomeAssistantEVCharging {
           ?? lastUpdate?.snapshot
       )
     case .reconnecting:
-      if let snapshot = try? HomeAssistantEVChargingSnapshot(states: update.states) {
-        return .reconnecting(snapshot)
-      }
-      switch lastUpdate {
-      case .live(let snapshot):
-        return .reconnecting(snapshot)
-      case .refreshing(let snapshot?):
-        return .reconnecting(snapshot)
-      case .reconnecting(let snapshot?):
-        return .reconnecting(snapshot)
-      case .unavailable(let snapshot?):
-        return .reconnecting(snapshot)
-      case .refreshing(nil), .reconnecting(nil), .unavailable(nil), nil:
-        return .reconnecting(nil)
-      }
+      return .reconnecting(reconnectingSnapshot(from: update.states, lastUpdate: lastUpdate))
     }
+  }
+
+  private static func reconnectingSnapshot(
+    from states: [HomeAssistantState],
+    lastUpdate: HomeAssistantEVChargingUpdate?
+  ) -> HomeAssistantEVChargingSnapshot? {
+    if let snapshot = try? HomeAssistantEVChargingSnapshot(states: states) {
+      return snapshot
+    }
+    return lastUpdate?.snapshot
   }
 }
 
 extension HomeAssistantEVChargingUpdate {
   fileprivate var snapshot: HomeAssistantEVChargingSnapshot? {
     switch self {
+    case .absent:
+      nil
     case .live(let snapshot):
       snapshot
     case .refreshing(let snapshot):

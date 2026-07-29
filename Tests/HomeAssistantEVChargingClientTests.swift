@@ -15,7 +15,7 @@ final class HomeAssistantEVChargingClientTests: XCTestCase {
     XCTAssertEqual(mode, .smart)
     XCTAssertEqual(
       fixture.apiLoader.requests.first?.url?.path,
-      "/api/states/input_select.ev_charging_mode"
+      "/api/states"
     )
   }
 
@@ -134,6 +134,7 @@ final class HomeAssistantEVChargingClientTests: XCTestCase {
     let fixture = SessionFixture()
     let session = fixture.makeSession(
       apiResponses: [
+        .success(chargingState("Smart Charging"), statusCode: 200),
         .success(Data("[]".utf8), statusCode: 200),
         .success(chargingState("On"), statusCode: 200),
       ]
@@ -147,11 +148,12 @@ final class HomeAssistantEVChargingClientTests: XCTestCase {
     XCTAssertEqual(
       fixture.apiLoader.requests.map { $0.url?.path },
       [
+        "/api/states",
         "/api/services/input_select/select_option",
-        "/api/states/input_select.ev_charging_mode",
+        "/api/states",
       ]
     )
-    let request = try XCTUnwrap(fixture.apiLoader.requests.first)
+    let request = try XCTUnwrap(fixture.apiLoader.requests.dropFirst().first)
     XCTAssertEqual(request.httpMethod, "POST")
     XCTAssertEqual(
       try JSONDecoder().decode(
@@ -159,7 +161,7 @@ final class HomeAssistantEVChargingClientTests: XCTestCase {
         from: try XCTUnwrap(request.httpBody)
       ),
       SelectOptionRequest(
-        entityID: "input_select.ev_charging_mode",
+        entityID: "input_select.house_car_charging",
         option: "On"
       )
     )
@@ -169,6 +171,7 @@ final class HomeAssistantEVChargingClientTests: XCTestCase {
     let fixture = SessionFixture()
     let session = fixture.makeSession(
       apiResponses: [
+        .success(chargingState("Smart Charging"), statusCode: 200),
         .success(Data("[]".utf8), statusCode: 200),
         .success(Data("Unavailable".utf8), statusCode: 500),
       ]
@@ -183,8 +186,9 @@ final class HomeAssistantEVChargingClientTests: XCTestCase {
       XCTAssertEqual(
         fixture.apiLoader.requests.map { $0.url?.path },
         [
+          "/api/states",
           "/api/services/input_select/select_option",
-          "/api/states/input_select.ev_charging_mode",
+          "/api/states",
         ]
       )
     }
@@ -193,14 +197,16 @@ final class HomeAssistantEVChargingClientTests: XCTestCase {
   private func chargingState(_ state: String) -> Data {
     Data(
       """
-      {
-        "entity_id": "input_select.ev_charging_mode",
-        "state": "\(state)",
-        "attributes": {
-          "friendly_name": "EV Charging",
-          "options": ["Off", "Smart Charging", "On"]
+      [
+        {
+          "entity_id": "input_select.house_car_charging",
+          "state": "\(state)",
+          "attributes": {
+            "friendly_name": "EV Charging",
+            "options": ["Off", "Smart Charging", "On"]
+          }
         }
-      }
+      ]
       """.utf8
     )
   }
@@ -222,12 +228,17 @@ final class HomeAssistantEVChargingClientTests: XCTestCase {
         {
           "entity_id": "input_select.ev_charging_mode",
           "state": "Smart Charging",
-          "attributes": {}\(orderingTimestamp)
+          "attributes": {
+            "options": ["Off", "Smart Charging", "On"]
+          }\(orderingTimestamp)
         },
         {
           "entity_id": "sensor.home_myenergi_home_power_charging",
           "state": "\(power)",
-          "attributes": {}
+          "attributes": {
+            "device_class": "power",
+            "unit_of_measurement": "W"
+          }
         },
         {
           "entity_id": "sensor.zappi_myenergi_zappi_26482259_plug_status",

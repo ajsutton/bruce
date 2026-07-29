@@ -37,6 +37,7 @@ final class HomeAssistantEVChargingLiveSubscription {
   private let sleep: @Sendable (Duration) async -> Void
   private(set) var revision = 0
   private(set) var isLive = false
+  private(set) var hasCompletedDiscovery: Bool
   private var hasReceivedSnapshot = false
   private var receivedLiveActivityDuringModeChange = false
   private var liveModeDuringModeChange: HomeAssistantEVChargingMode?
@@ -50,10 +51,12 @@ final class HomeAssistantEVChargingLiveSubscription {
   init(
     client: any HomeAssistantEVCharging,
     progressDelay: Duration,
+    hasCompletedDiscovery: Bool,
     sleep: @escaping @Sendable (Duration) async -> Void
   ) {
     self.client = client
     self.progressDelay = progressDelay
+    self.hasCompletedDiscovery = hasCompletedDiscovery
     self.sleep = sleep
   }
 
@@ -90,6 +93,7 @@ final class HomeAssistantEVChargingLiveSubscription {
     revision += 1
     isLive = false
     hasReceivedSnapshot = false
+    hasCompletedDiscovery = false
     if !preservingModeChangeSequence {
       clearModeSequence()
     }
@@ -101,6 +105,7 @@ final class HomeAssistantEVChargingLiveSubscription {
     revision += 1
     isLive = false
     hasReceivedSnapshot = false
+    hasCompletedDiscovery = false
     clearModeSequence()
   }
 
@@ -153,6 +158,8 @@ final class HomeAssistantEVChargingLiveSubscription {
   ) -> Presentation {
     revision += 1
     switch update {
+    case .absent:
+      return absentPresentation(isChanging: isChanging)
     case .live(let snapshot):
       return livePresentation(
         snapshot,
@@ -193,6 +200,22 @@ final class HomeAssistantEVChargingLiveSubscription {
     }
   }
 
+  private func absentPresentation(isChanging: Bool) -> Presentation {
+    isLive = false
+    hasReceivedSnapshot = true
+    hasCompletedDiscovery = true
+    clearModeSequence()
+    return Presentation(
+      mode: nil,
+      activity: .unavailable,
+      isLive: false,
+      isActivityLive: false,
+      isRefreshing: false,
+      problem: nil,
+      finishesProgress: true
+    )
+  }
+
   func finish() {
     observationGeneration = UUID()
     revision += 1
@@ -209,6 +232,7 @@ extension HomeAssistantEVChargingLiveSubscription {
   ) -> Presentation {
     isLive = true
     hasReceivedSnapshot = true
+    hasCompletedDiscovery = true
     let nextMode = liveMode(
       snapshot.mode,
       timestamp: snapshot.modeLastUpdated,

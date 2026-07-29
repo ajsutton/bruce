@@ -6,6 +6,7 @@ struct AppCopy {
   }
 
   var climateTab: String { text(.climateTab) }
+  var carTab: String { text(.carTab) }
   var energyTab: String { text(.energyTab) }
   var generalSettingsTab: String { text(.generalSettingsTab) }
   var homeAssistantSettingsTab: String { text(.homeAssistantSettingsTab) }
@@ -26,6 +27,7 @@ struct AppCopy {
 extension AppCopy {
   fileprivate enum Key {
     case climateTab
+    case carTab
     case energyTab
     case generalSettingsTab
     case homeAssistantSettingsTab
@@ -42,6 +44,8 @@ extension AppCopy {
       switch self {
       case .climateTab:
         .localized("app.climateTab")
+      case .carTab:
+        .localized("app.carTab")
       case .energyTab:
         .localized("app.energyTab")
       case .generalSettingsTab:

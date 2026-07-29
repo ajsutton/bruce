@@ -120,6 +120,42 @@ final class HomeAssistantRegistryClientTests: XCTestCase {
     XCTAssertEqual(metadata["climate.other"]?.kind, .other)
   }
 
+  func testRegistryAssociatesGarageCompanionsByDeviceIdentity() {
+    let registry = HomeAssistantRegistryClient.garageDoorRegistry(
+      entities: [
+        HomeAssistantRegistryEntity(
+          id: "cover.side_entry",
+          deviceID: "garage-device",
+          areaID: nil,
+          icon: nil,
+          originalIcon: nil
+        ),
+        HomeAssistantRegistryEntity(
+          id: "light.side_entry_opener",
+          deviceID: "garage-device",
+          areaID: nil,
+          icon: nil,
+          originalIcon: nil
+        ),
+      ],
+      devices: [
+        HomeAssistantRegistryDevice(
+          id: "garage-device",
+          areaID: nil,
+          name: "Opener 123",
+          nameByUser: "Side Garage"
+        )
+      ]
+    )
+
+    XCTAssertEqual(registry.deviceIDByEntityID["cover.side_entry"], "garage-device")
+    XCTAssertEqual(
+      registry.deviceIDByEntityID["light.side_entry_opener"],
+      "garage-device"
+    )
+    XCTAssertEqual(registry.deviceNameByID["garage-device"], "Side Garage")
+  }
+
   func testWebSocketLoadsRegistriesAfterAuthenticating() async throws {
     let fixture = SessionFixture()
     let session = fixture.makeSession(apiResponses: [])
