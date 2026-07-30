@@ -13,6 +13,9 @@ struct HomeAssistantState: Decodable, Equatable, Sendable {
   var unitOfMeasurement: String? { attributes.unitOfMeasurement }
   var currentPosition: Double? { attributes.currentPosition }
   var supportedFeatures: Int { attributes.supportedFeatures ?? 0 }
+  var isAvailable: Bool {
+    state != "unavailable" && state != "unknown"
+  }
 
   enum CodingKeys: String, CodingKey {
     case entityID = "entity_id"

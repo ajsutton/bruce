@@ -9,6 +9,7 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
   @Published private(set) var showsProgress = false
   @Published private(set) var problem: Problem?
 
+  let flowHistoryStore: HomeEnergyFlowHistoryStore
   let batteryHistoryStore: HomeEnergyBatteryHistoryStore
   let priceHistoryStore: HomeEnergyPriceHistoryStore
 
@@ -25,6 +26,7 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     loader: any HomeAssistantHomeEnergyLoading,
     snapshot: HomeAssistantHomeEnergySnapshot = .unavailable,
     isLive: Bool = false,
+    flowHistory: HomeEnergyFlowHistory = .empty,
     batteryHistory: HomeEnergyBatteryHistory = .empty,
     priceHistory: HomeEnergyPriceHistory = .empty,
     progressDelay: Duration = .milliseconds(500),
@@ -41,6 +43,14 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     self.loader = loader
     self.snapshot = snapshot
     self.isLive = isLive
+    flowHistoryStore = HomeEnergyFlowHistoryStore(
+      loader: loader,
+      flowHistory: flowHistory,
+      progressDelay: progressDelay,
+      progressSleep: progressSleep,
+      sampleInterval: historySampleInterval,
+      sampleSleep: historySampleSleep
+    )
     batteryHistoryStore = HomeEnergyBatteryHistoryStore(
       loader: loader,
       batteryHistory: batteryHistory,
@@ -61,6 +71,9 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     self.progressSleep = progressSleep
     self.onAuthenticationRequired = onAuthenticationRequired
     self.now = now
+    flowHistoryStore.authenticationFailureHandler = { [weak self] in
+      self?.handleHistoryAuthenticationFailure()
+    }
     batteryHistoryStore.authenticationFailureHandler = { [weak self] in
       self?.handleHistoryAuthenticationFailure()
     }

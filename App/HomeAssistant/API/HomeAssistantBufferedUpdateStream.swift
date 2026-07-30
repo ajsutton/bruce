@@ -3,6 +3,13 @@ import Foundation
 protocol HomeAssistantBufferedUpdate: Sendable {
   var isLiveUpdate: Bool { get }
   func preservingControlTransition(from update: Self) -> Self?
+  func preservingLiveTransition(from update: Self) -> Self?
+}
+
+extension HomeAssistantBufferedUpdate {
+  func preservingLiveTransition(from _: Self) -> Self? {
+    nil
+  }
 }
 
 private struct HomeAssistantBufferedUpdateWaiter<Update: HomeAssistantBufferedUpdate> {
@@ -227,10 +234,19 @@ extension HomeAssistantBufferedUpdateStream {
     private func buffer(_ update: Update) {
       if update.isLiveUpdate {
         let control = buffered.last(where: { !$0.isLiveUpdate })
-        buffered =
+        let pendingLiveUpdates = buffered.filter(\.isLiveUpdate)
+        let newerLiveTransition = pendingLiveUpdates.last.flatMap {
+          update.preservingLiveTransition(from: $0)
+        }
+        let existingLiveTransition =
+          pendingLiveUpdates.count > 1 ? pendingLiveUpdates.first : nil
+        buffered = [
           control.flatMap {
             update.preservingControlTransition(from: $0)
-          }.map { [$0, update] } ?? [update]
+          },
+          newerLiveTransition ?? existingLiveTransition,
+          update,
+        ].compactMap(\.self)
       } else {
         buffered.append(update)
         if buffered.count > 2 {

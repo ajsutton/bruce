@@ -40,6 +40,10 @@ struct HomeAssistantHomeEnergyStream: HomeAssistantHomeEnergyLoading {
     try await loader.loadHomeEnergySnapshot()
   }
 
+  func loadHomeEnergyFlowHistory() async throws -> HomeEnergyFlowHistory {
+    try await loader.loadHomeEnergyFlowHistory()
+  }
+
   func loadHomeEnergyBatteryHistory() async throws -> HomeEnergyBatteryHistory {
     try await loader.loadHomeEnergyBatteryHistory()
   }
@@ -75,6 +79,19 @@ extension HomeAssistantLiveUpdate {
     case .reconnecting:
       .reconnecting(latestValue)
     }
+  }
+
+  func preservingLiveTransition(from dropped: Self) -> Self? {
+    guard
+      case .live(let latestValue) = self,
+      case .live(let previousValue) = dropped,
+      let latestSnapshot = latestValue as? HomeAssistantHomeEnergySnapshot,
+      let previousSnapshot = previousValue as? HomeAssistantHomeEnergySnapshot,
+      latestSnapshot.hasAvailabilityTransition(from: previousSnapshot)
+    else {
+      return nil
+    }
+    return dropped
   }
 }
 

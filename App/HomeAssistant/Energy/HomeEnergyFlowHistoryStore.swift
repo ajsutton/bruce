@@ -2,8 +2,8 @@ import Combine
 import Foundation
 
 @MainActor
-final class HomeEnergyPriceHistoryStore: ObservableObject {
-  @Published private(set) var priceHistory: HomeEnergyPriceHistory
+final class HomeEnergyFlowHistoryStore: ObservableObject {
+  @Published private(set) var flowHistory: HomeEnergyFlowHistory
   @Published private(set) var hasUsableHistory: Bool
   @Published private(set) var isLoading = false
   @Published private(set) var isUnavailable = false
@@ -22,12 +22,12 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
   private var progressTask: Task<Void, Never>?
   private var sampleTask: Task<Void, Never>?
   private var loadID = UUID()
-  private var pendingHistory = HomeEnergyPriceHistory.empty
+  private var pendingHistory = HomeEnergyFlowHistory.empty
   private var queuedSample: QueuedSample?
 
   init(
     loader: any HomeAssistantHomeEnergyLoading,
-    priceHistory: HomeEnergyPriceHistory = .empty,
+    flowHistory: HomeEnergyFlowHistory = .empty,
     progressDelay: Duration = .milliseconds(500),
     progressSleep: @escaping @Sendable (Duration) async -> Void = {
       try? await Task.sleep(for: $0)
@@ -38,8 +38,8 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
     }
   ) {
     self.loader = loader
-    self.priceHistory = priceHistory
-    hasUsableHistory = priceHistory.hasCompleteTariffs
+    self.flowHistory = flowHistory
+    hasUsableHistory = flowHistory.hasCompleteSeries
     self.progressDelay = progressDelay
     self.progressSleep = progressSleep
     self.sampleInterval = sampleInterval
@@ -67,7 +67,7 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
     loadTask = Task { [weak self, loader] in
       guard !Task.isCancelled else { return }
       do {
-        let history = try await loader.loadHomeEnergyPriceHistory()
+        let history = try await loader.loadHomeEnergyFlowHistory()
         try Task.checkCancellation()
         self?.publish(history, for: requestID)
       } catch {
@@ -84,7 +84,7 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
   func reset() -> Task<Void, Never>? {
     let cancelledTask = cancelLoad()
     cancelQueuedSample()
-    priceHistory = .empty
+    flowHistory = .empty
     hasUsableHistory = false
     isUnavailable = true
     isStale = false
@@ -102,10 +102,10 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
     return cancelledTask
   }
 
-  private func publish(_ history: HomeEnergyPriceHistory, for requestID: UUID) {
+  private func publish(_ history: HomeEnergyFlowHistory, for requestID: UUID) {
     guard loadID == requestID, !Task.isCancelled else { return }
-    if history.hasCompleteTariffs {
-      priceHistory = history.mergingLiveReadings(
+    if history.hasCompleteSeries {
+      flowHistory = history.mergingLiveReadings(
         from: pendingHistoryIncludingQueuedSample()
       )
       hasUsableHistory = true
@@ -173,7 +173,7 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
   }
 }
 
-extension HomeEnergyPriceHistoryStore {
+extension HomeEnergyFlowHistoryStore {
   fileprivate struct QueuedSample {
     let snapshot: HomeAssistantHomeEnergySnapshot
     let timestamp: Date
@@ -206,10 +206,10 @@ extension HomeEnergyPriceHistoryStore {
       && !shouldRecordImmediately(
         snapshot: snapshot,
         at: timestamp,
-        in: priceHistory
+        in: flowHistory
       )
     if hasUsableHistory, !recordsPublishedHistory {
-      priceHistory = priceHistory.recording(
+      flowHistory = flowHistory.recording(
         snapshot: snapshot,
         at: timestamp
       )
@@ -236,7 +236,7 @@ extension HomeEnergyPriceHistoryStore {
       pendingHistory == .empty,
       let queuedSample,
       queuedSample.recordsPendingHistory,
-      snapshot.hasPriceAvailabilityTransition(from: queuedSample.snapshot)
+      snapshot.hasFlowAvailabilityTransition(from: queuedSample.snapshot)
     else {
       return
     }
@@ -248,23 +248,17 @@ extension HomeEnergyPriceHistoryStore {
   fileprivate func shouldRecordImmediately(
     snapshot: HomeAssistantHomeEnergySnapshot,
     at timestamp: Date,
-    in history: HomeEnergyPriceHistory
+    in history: HomeEnergyFlowHistory
   ) -> Bool {
     guard
       timestamp.timeIntervalSince(history.interval.end) < sampleInterval
     else {
       return true
     }
-    return HomeEnergyPriceHistory.Tariff.allCases.contains { tariff in
+    return HomeEnergyFlowHistory.Series.allCases.contains { series in
       let latestIsAvailable =
-        history.readings.last(where: { $0.tariff == tariff })?
-        .dollarsPerKilowattHour != nil
-      let newValue =
-        switch tariff {
-        case .general: snapshot.generalPriceDollarsPerKilowattHour
-        case .feedIn: snapshot.feedInPriceDollarsPerKilowattHour
-        }
-      return latestIsAvailable != (newValue?.isFinite == true)
+        history.readings.last(where: { $0.series == series })?.kilowatts != nil
+      return latestIsAvailable != (series.value(from: snapshot)?.isFinite == true)
     }
   }
 
@@ -291,7 +285,7 @@ extension HomeEnergyPriceHistoryStore {
     }
     if sample.recordsPublishedHistory {
       delays.append(
-        sampleInterval - sample.timestamp.timeIntervalSince(priceHistory.interval.end)
+        sampleInterval - sample.timestamp.timeIntervalSince(flowHistory.interval.end)
       )
     }
     return max(delays.min() ?? sampleInterval, 0)
@@ -308,14 +302,14 @@ extension HomeEnergyPriceHistoryStore {
       )
     }
     if sample.recordsPublishedHistory, hasUsableHistory {
-      priceHistory = priceHistory.recording(
+      flowHistory = flowHistory.recording(
         snapshot: sample.snapshot,
         at: sample.timestamp
       )
     }
   }
 
-  fileprivate func pendingHistoryIncludingQueuedSample() -> HomeEnergyPriceHistory {
+  fileprivate func pendingHistoryIncludingQueuedSample() -> HomeEnergyFlowHistory {
     guard let sample = queuedSample, sample.recordsPendingHistory else {
       return pendingHistory
     }
@@ -334,17 +328,11 @@ extension HomeEnergyPriceHistoryStore {
 }
 
 extension HomeAssistantHomeEnergySnapshot {
-  fileprivate func hasPriceAvailabilityTransition(from previous: Self) -> Bool {
-    let current = [
-      generalPriceDollarsPerKilowattHour,
-      feedInPriceDollarsPerKilowattHour,
-    ]
-    let earlier = [
-      previous.generalPriceDollarsPerKilowattHour,
-      previous.feedInPriceDollarsPerKilowattHour,
-    ]
-    return zip(current, earlier).contains {
-      ($0?.isFinite == true) != ($1?.isFinite == true)
+  fileprivate func hasFlowAvailabilityTransition(from previous: Self) -> Bool {
+    HomeEnergyFlowHistory.Series.allCases.contains { series in
+      let currentIsAvailable = series.value(from: self)?.isFinite == true
+      let previousIsAvailable = series.value(from: previous)?.isFinite == true
+      return currentIsAvailable != previousIsAvailable
     }
   }
 }

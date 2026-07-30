@@ -39,7 +39,7 @@ struct EnergyPanelView: View {
   }
 
   private var panelContent: some View {
-    VStack(spacing: 16) {
+    LazyVStack(spacing: 16) {
       HomeAssistantHomeEnergyCard(
         store: homeEnergyStore,
         mode: mode,
@@ -49,6 +49,10 @@ struct EnergyPanelView: View {
       )
       HomeAssistantHomeEnergyPriceChart(
         store: homeEnergyStore.priceHistoryStore,
+        mode: mode
+      )
+      HomeAssistantHomeEnergyFlowChart(
+        store: homeEnergyStore.flowHistoryStore,
         mode: mode
       )
       HomeAssistantHomeEnergyBatteryChart(
@@ -68,6 +72,7 @@ struct EnergyPanelView: View {
       loader: PreviewHomeEnergyLoader(),
       snapshot: PreviewHomeEnergyLoader.exportingSnapshot,
       isLive: true,
+      flowHistory: PreviewHomeEnergyLoader.flowHistory,
       batteryHistory: PreviewHomeEnergyLoader.batteryHistory,
       priceHistory: PreviewHomeEnergyLoader.priceHistory
     ),
@@ -84,6 +89,7 @@ struct EnergyPanelView: View {
       loader: PreviewHomeEnergyLoader(),
       snapshot: PreviewHomeEnergyLoader.importingSnapshot,
       isLive: true,
+      flowHistory: PreviewHomeEnergyLoader.flowHistory,
       batteryHistory: PreviewHomeEnergyLoader.batteryHistory,
       priceHistory: PreviewHomeEnergyLoader.priceHistory
     ),
@@ -92,6 +98,20 @@ struct EnergyPanelView: View {
     requestRefresh: {}
   )
   .tint(BruceMode.full.accentColor)
+}
+
+#Preview("Energy flow chart") {
+  HomeAssistantHomeEnergyFlowChart(
+    store: HomeAssistantHomeEnergyStore(
+      loader: PreviewHomeEnergyLoader(),
+      snapshot: PreviewHomeEnergyLoader.exportingSnapshot,
+      isLive: true,
+      flowHistory: PreviewHomeEnergyLoader.denseFlowHistory
+    ).flowHistoryStore,
+    mode: .standard
+  )
+  .padding()
+  .frame(maxWidth: 720)
 }
 
 #Preview("Battery chart") {
@@ -128,6 +148,7 @@ private struct PreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
   static let exportingSnapshot = HomeAssistantHomeEnergySnapshot(
     pvPowerKilowatts: 8.4,
     batteryStateOfCharge: 76,
+    batteryPowerKilowatts: -2.6,
     homeConsumptionKilowatts: 3.1,
     gridPowerKilowatts: -2.7,
     generalPriceDollarsPerKilowattHour: 0.341,
@@ -137,11 +158,114 @@ private struct PreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
   static let importingSnapshot = HomeAssistantHomeEnergySnapshot(
     pvPowerKilowatts: 0,
     batteryStateOfCharge: 38,
+    batteryPowerKilowatts: 0.7,
     homeConsumptionKilowatts: 4.6,
     gridPowerKilowatts: 3.9,
     generalPriceDollarsPerKilowattHour: 0.584,
     feedInPriceDollarsPerKilowattHour: -0.051
   )
+
+  static let flowHistory: HomeEnergyFlowHistory = {
+    let end = Date(timeIntervalSince1970: 1_785_408_000)
+    let values = [
+      (pv: 0.0, home: 1.2, grid: 0.0, battery: 1.2),
+      (pv: 0.0, home: 1.0, grid: 0.0, battery: 1.0),
+      (pv: 0.0, home: 1.1, grid: 0.0, battery: 1.1),
+      (pv: 0.4, home: 1.5, grid: 0.0, battery: 1.1),
+      (pv: 4.2, home: 1.8, grid: 0.0, battery: -2.4),
+      (pv: 8.0, home: 2.0, grid: -1.5, battery: -4.5),
+      (pv: 9.2, home: 2.4, grid: -4.8, battery: -2.0),
+      (pv: 7.5, home: 2.0, grid: -4.0, battery: -1.5),
+      (pv: 4.5, home: 2.6, grid: -1.9, battery: 0.0),
+      (pv: 1.0, home: 4.5, grid: 0.0, battery: 3.5),
+      (pv: 0.0, home: 5.8, grid: 2.2, battery: 3.6),
+      (pv: 0.0, home: 2.1, grid: 0.0, battery: 2.1),
+      (pv: 0.0, home: 1.4, grid: 0.2, battery: 1.2),
+    ]
+    let readings = values.enumerated().flatMap { index, value in
+      let timestamp = end.addingTimeInterval(TimeInterval(index - 12) * 2 * 60 * 60)
+      return [
+        HomeEnergyFlowHistory.Reading(
+          series: .pvGeneration,
+          timestamp: timestamp,
+          kilowatts: value.pv
+        ),
+        HomeEnergyFlowHistory.Reading(
+          series: .homeUsage,
+          timestamp: timestamp,
+          kilowatts: value.home
+        ),
+        HomeEnergyFlowHistory.Reading(
+          series: .grid,
+          timestamp: timestamp,
+          kilowatts: value.grid
+        ),
+        HomeEnergyFlowHistory.Reading(
+          series: .battery,
+          timestamp: timestamp,
+          kilowatts: value.battery
+        ),
+      ]
+    }
+    return HomeEnergyFlowHistory(
+      interval: DateInterval(
+        start: end.addingTimeInterval(-24 * 60 * 60),
+        end: end
+      ),
+      readings: readings
+    )
+  }()
+
+  static let denseFlowHistory: HomeEnergyFlowHistory = {
+    let end = Date(timeIntervalSince1970: 1_785_408_000)
+    let start = end.addingTimeInterval(-24 * 60 * 60)
+    let readings = (0...720).flatMap { index in
+      let timestamp = start.addingTimeInterval(TimeInterval(index) * 2 * 60)
+      let hour = Double(index) / 30
+      let daylightProgress = min(max((hour - 5.5) / 13, 0), 1)
+      let solar = 11.5 * 4 * daylightProgress * (1 - daylightProgress)
+      let backgroundUsage = 0.65 + Double((index * 37) % 18) / 100
+      let usageSpike = index % 97 < 2 ? 4.2 : 0
+      let home = backgroundUsage + usageSpike
+      let battery: Double
+      if hour < 7 {
+        battery = 0.5
+      } else if hour < 13 {
+        battery = -min(solar * 0.72, 5.5)
+      } else if hour < 18 {
+        battery = -min(max(solar - home, 0), 5.5)
+      } else {
+        battery = index % 89 < 3 ? 5.8 : 0.6
+      }
+      let grid = home - solar - battery
+      return [
+        HomeEnergyFlowHistory.Reading(
+          series: .pvGeneration,
+          timestamp: timestamp,
+          kilowatts: solar
+        ),
+        HomeEnergyFlowHistory.Reading(
+          series: .homeUsage,
+          timestamp: timestamp,
+          kilowatts: home
+        ),
+        HomeEnergyFlowHistory.Reading(
+          series: .grid,
+          timestamp: timestamp,
+          kilowatts: grid
+        ),
+        HomeEnergyFlowHistory.Reading(
+          series: .battery,
+          timestamp: timestamp,
+          kilowatts: battery
+        ),
+      ]
+    }
+    return HomeEnergyFlowHistory(
+      interval: DateInterval(start: start, end: end),
+      readings: readings
+    )
+  }()
 
   static let batteryHistory: HomeEnergyBatteryHistory = {
     let end = Date(timeIntervalSince1970: 1_785_408_000)

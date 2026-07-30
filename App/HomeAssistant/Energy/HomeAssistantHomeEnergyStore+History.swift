@@ -6,6 +6,7 @@ enum HomeEnergyHistorySampling {
 
 extension HomeAssistantHomeEnergyStore {
   func reloadHistory() {
+    flowHistoryStore.reload()
     batteryHistoryStore.reload()
     priceHistoryStore.reload()
   }
@@ -14,13 +15,15 @@ extension HomeAssistantHomeEnergyStore {
     snapshot: HomeAssistantHomeEnergySnapshot,
     at timestamp: Date
   ) {
+    flowHistoryStore.record(snapshot: snapshot, at: timestamp)
     batteryHistoryStore.record(snapshot: snapshot, at: timestamp)
     priceHistoryStore.record(snapshot: snapshot, at: timestamp)
   }
 
   @discardableResult
   func resetHistory() -> Task<Void, Never>? {
-    awaitBoth(
+    awaitAll(
+      flowHistoryStore.reset(),
       batteryHistoryStore.reset(),
       priceHistoryStore.reset()
     )
@@ -28,21 +31,22 @@ extension HomeAssistantHomeEnergyStore {
 
   @discardableResult
   func invalidateHistory() -> Task<Void, Never>? {
-    awaitBoth(
+    awaitAll(
+      flowHistoryStore.invalidate(),
       batteryHistoryStore.invalidate(),
       priceHistoryStore.invalidate()
     )
   }
 
-  private func awaitBoth(
-    _ first: Task<Void, Never>?,
-    _ second: Task<Void, Never>?
+  private func awaitAll(
+    _ tasks: Task<Void, Never>?...
   ) -> Task<Void, Never>? {
-    guard first != nil || second != nil else { return nil }
+    let tasks = tasks.compactMap { $0 }
+    guard !tasks.isEmpty else { return nil }
     return Task {
-      await first?.value
-      await second?.value
+      for task in tasks {
+        await task.value
+      }
     }
   }
-
 }

@@ -185,6 +185,7 @@ extension HomeEnergyBatteryHistoryStore {
     snapshot: HomeAssistantHomeEnergySnapshot,
     at timestamp: Date
   ) {
+    promoteQueuedSampleForPendingAvailabilityTransition(to: snapshot)
     let recordsPendingHistory =
       isLoading
       && (pendingHistory == .empty
@@ -225,6 +226,23 @@ extension HomeEnergyBatteryHistoryStore {
       recordsPublishedHistory: recordsPublishedHistory
     )
     scheduleQueuedSampleIfNeeded()
+  }
+
+  fileprivate func promoteQueuedSampleForPendingAvailabilityTransition(
+    to snapshot: HomeAssistantHomeEnergySnapshot
+  ) {
+    guard
+      isLoading,
+      pendingHistory == .empty,
+      let queuedSample,
+      queuedSample.recordsPendingHistory,
+      snapshot.hasBatteryAvailabilityTransition(from: queuedSample.snapshot)
+    else {
+      return
+    }
+    sampleTask?.cancel()
+    sampleTask = nil
+    flushQueuedSample()
   }
 
   fileprivate func shouldRecordImmediately(
@@ -307,5 +325,17 @@ extension HomeEnergyBatteryHistoryStore {
     sampleTask?.cancel()
     sampleTask = nil
     queuedSample = nil
+  }
+}
+
+extension HomeAssistantHomeEnergySnapshot {
+  fileprivate func hasBatteryAvailabilityTransition(from previous: Self) -> Bool {
+    isBatteryChargeAvailable != previous.isBatteryChargeAvailable
+  }
+
+  fileprivate var isBatteryChargeAvailable: Bool {
+    guard let batteryStateOfCharge else { return false }
+    return batteryStateOfCharge.isFinite
+      && (0...100).contains(batteryStateOfCharge)
   }
 }

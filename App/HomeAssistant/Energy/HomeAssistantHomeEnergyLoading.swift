@@ -7,12 +7,17 @@ protocol HomeAssistantHomeEnergyLoading: Sendable {
 
   func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream
   func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot
+  func loadHomeEnergyFlowHistory() async throws -> HomeEnergyFlowHistory
   func loadHomeEnergyBatteryHistory() async throws -> HomeEnergyBatteryHistory
   func loadHomeEnergyPriceHistory() async throws -> HomeEnergyPriceHistory
 }
 
 extension HomeAssistantHomeEnergyLoading {
   var providesContinuousEnergyUpdates: Bool { false }
+
+  func loadHomeEnergyFlowHistory() async throws -> HomeEnergyFlowHistory {
+    .empty
+  }
 
   func loadHomeEnergyBatteryHistory() async throws -> HomeEnergyBatteryHistory {
     .empty

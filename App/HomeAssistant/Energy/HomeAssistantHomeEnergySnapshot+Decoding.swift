@@ -11,7 +11,7 @@ extension HomeAssistantHomeEnergySnapshot {
       return value
     }
 
-    pvPowerKilowatts = value("sensor.sigen_plant_pv_power").flatMap {
+    pvPowerKilowatts = value(Self.pvPowerEntityID).flatMap {
       $0 >= 0 ? $0 : nil
     }
     batteryStateOfCharge = value(
@@ -19,12 +19,13 @@ extension HomeAssistantHomeEnergySnapshot {
     ).flatMap {
       (0...100).contains($0) ? $0 : nil
     }
+    batteryPowerKilowatts = value(Self.batteryPowerEntityID).map { -$0 }
     homeConsumptionKilowatts = value(
-      "sensor.sigen_plant_consumed_power"
+      Self.homeConsumptionEntityID
     ).flatMap {
       $0 >= 0 ? $0 : nil
     }
-    gridPowerKilowatts = value("sensor.sigen_plant_grid_active_power")
+    gridPowerKilowatts = value(Self.gridPowerEntityID)
     generalPriceDollarsPerKilowattHour = value(
       Self.generalPriceEntityID
     )

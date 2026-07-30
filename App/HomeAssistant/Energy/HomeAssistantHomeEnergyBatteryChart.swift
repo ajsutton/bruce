@@ -93,7 +93,7 @@ struct HomeAssistantHomeEnergyBatteryChart: View {
             )
             .foregroundStyle(mode.accentColor)
             .interpolationMethod(.stepEnd)
-            .lineStyle(StrokeStyle(lineWidth: 2.5))
+            .lineStyle(StrokeStyle(lineWidth: 1))
           }
         }
       }

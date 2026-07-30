@@ -18,6 +18,7 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
       HomeAssistantHomeEnergySnapshot(
         pvPowerKilowatts: 8.4,
         batteryStateOfCharge: 76,
+        batteryPowerKilowatts: 2.6,
         homeConsumptionKilowatts: 3.1,
         gridPowerKilowatts: -2.7,
         generalPriceDollarsPerKilowattHour: 0.341,
@@ -96,7 +97,9 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
       XCTFail("Unexpected price history error: \(error)")
     }
   }
+}
 
+extension HomeAssistantHomeEnergyClientTests {
   private func assertHistoryRequest(
     _ requestURL: URL?,
     start: Date,
@@ -157,7 +160,7 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
   private var homeEnergyStates: Data {
     states(
       solarPower: "8.4",
-      battery: "76",
+      battery: (charge: "76", power: "-2.6"),
       usage: "3.1",
       grid: "-2.7",
       prices: (general: "0.341", feedIn: "0.127")
@@ -167,7 +170,7 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
   private var invalidHomeEnergyStates: Data {
     states(
       solarPower: "-1",
-      battery: "101",
+      battery: (charge: "101", power: "unknown"),
       usage: "unknown",
       grid: "unavailable",
       prices: (general: "NaN", feedIn: "infinite")
@@ -222,7 +225,7 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
 
   private func states(
     solarPower: String,
-    battery: String,
+    battery: (charge: String, power: String),
     usage: String,
     grid: String,
     prices: (general: String, feedIn: String)
@@ -237,7 +240,12 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
         },
         {
           "entity_id": "sensor.sigen_plant_battery_state_of_charge",
-          "state": "\(battery)",
+          "state": "\(battery.charge)",
+          "attributes": {}
+        },
+        {
+          "entity_id": "sensor.sigen_plant_battery_power",
+          "state": "\(battery.power)",
           "attributes": {}
         },
         {

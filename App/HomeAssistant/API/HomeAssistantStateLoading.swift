@@ -52,6 +52,17 @@ struct HomeAssistantStateUpdate: Sendable, Equatable {
       generation: generation
     )
   }
+
+  func preservingLiveTransition(from dropped: Self) -> Self? {
+    guard phase == .live, dropped.phase == .live else { return nil }
+    guard states.count == dropped.states.count else { return dropped }
+    let statePairs = zip(states, dropped.states)
+    let hasAvailabilityTransition = statePairs.contains { latest, previous in
+      latest.entityID != previous.entityID
+        || latest.isAvailable != previous.isAvailable
+    }
+    return hasAvailabilityTransition ? dropped : nil
+  }
 }
 
 extension HomeAssistantStateUpdate: HomeAssistantBufferedUpdate {

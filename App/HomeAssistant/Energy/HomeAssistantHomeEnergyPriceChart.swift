@@ -100,8 +100,8 @@ struct HomeAssistantHomeEnergyPriceChart: View {
 
   private var chartLegend: some View {
     HStack(spacing: 12) {
-      legendItem(copy.generalPrice, tariff: .general, color: .orange)
-      legendItem(copy.feedInPrice, tariff: .feedIn, color: .green)
+      legendItem(copy.generalPrice, color: .orange)
+      legendItem(copy.feedInPrice, color: .green)
     }
     .font(.caption)
     .foregroundStyle(secondaryForeground)
@@ -110,7 +110,6 @@ struct HomeAssistantHomeEnergyPriceChart: View {
 
   private func legendItem(
     _ title: String,
-    tariff: HomeEnergyPriceHistory.Tariff,
     color: Color
   ) -> some View {
     HStack(spacing: 5) {
@@ -118,7 +117,7 @@ struct HomeAssistantHomeEnergyPriceChart: View {
         path.move(to: CGPoint(x: 0, y: 2))
         path.addLine(to: CGPoint(x: 18, y: 2))
       }
-      .stroke(color, style: lineStyle(for: tariff, width: 2.5))
+      .stroke(color, style: StrokeStyle(lineWidth: 1))
       .frame(width: 18, height: 4)
       .accessibilityHidden(true)
       Text(title)
@@ -193,7 +192,7 @@ struct HomeAssistantHomeEnergyPriceChart: View {
         by: .value(copy.priceHistorySeries, seriesName(for: tariff))
       )
       .interpolationMethod(.stepEnd)
-      .lineStyle(lineStyle(for: tariff, width: 2.5))
+      .lineStyle(StrokeStyle(lineWidth: 1))
     }
   }
 
@@ -219,18 +218,6 @@ struct HomeAssistantHomeEnergyPriceChart: View {
       copy.generalPrice
     case .feedIn:
       copy.feedInPrice
-    }
-  }
-
-  private func lineStyle(
-    for tariff: HomeEnergyPriceHistory.Tariff,
-    width: Double
-  ) -> StrokeStyle {
-    switch tariff {
-    case .general:
-      StrokeStyle(lineWidth: width)
-    case .feedIn:
-      StrokeStyle(lineWidth: width, dash: [6, 4])
     }
   }
 

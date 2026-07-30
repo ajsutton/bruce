@@ -4097,6 +4097,214 @@
         }
       }
     },
+    "homeEnergy.flowBattery" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery Juice Tank"
+          }
+        }
+      }
+    },
+    "homeEnergy.flowGrid" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grid"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Grid"
+          }
+        }
+      }
+    },
+    "homeEnergy.flowHistory" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy flows"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where the Juice Went"
+          }
+        }
+      }
+    },
+    "homeEnergy.flowHistoryLoading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading energy flow history"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracing where the juice went"
+          }
+        }
+      }
+    },
+    "homeEnergy.flowHistoryLoadFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load energy flow history."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t trace the juice around the joint."
+          }
+        }
+      }
+    },
+    "homeEnergy.flowHistoryPeriod" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 24 hours · kW"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last day, start to finish · kW"
+          }
+        }
+      }
+    },
+    "homeEnergy.flowHistoryPolarity" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import and battery discharge + · Export and battery charging −"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grid in and battery out + · Grid out and battery in −"
+          }
+        }
+      }
+    },
+    "homeEnergy.flowHistoryPowerAxis" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Power in kilowatts"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Power in kilowatts"
+          }
+        }
+      }
+    },
+    "homeEnergy.flowHistorySeries" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy flow"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy flow"
+          }
+        }
+      }
+    },
+    "homeEnergy.flowHistoryTimeAxis" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time"
+          }
+        }
+      }
+    },
+    "homeEnergy.flowHistoryUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy flow history isn’t available."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The juice trail has gone walkabout."
+          }
+        }
+      }
+    },
+    "homeEnergy.flowHomeUsage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home usage"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Power Chew"
+          }
+        }
+      }
+    },
+    "homeEnergy.flowPVGeneration" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PV generation"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunshine on the Tiles"
+          }
+        }
+      }
+    },
     "homeEnergy.generalPrice" : {
       "localizations" : {
         "en" : {

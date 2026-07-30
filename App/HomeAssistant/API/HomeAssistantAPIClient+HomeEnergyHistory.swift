@@ -1,6 +1,21 @@
 import Foundation
 
 extension HomeAssistantAPIClient {
+  func loadHomeEnergyFlowHistory() async throws -> HomeEnergyFlowHistory {
+    let response = try await loadHomeEnergyHistory(
+      entityIDs: [
+        HomeAssistantHomeEnergySnapshot.pvPowerEntityID,
+        HomeAssistantHomeEnergySnapshot.homeConsumptionEntityID,
+        HomeAssistantHomeEnergySnapshot.gridPowerEntityID,
+        HomeAssistantHomeEnergySnapshot.batteryPowerEntityID,
+      ]
+    )
+    return try HomeEnergyFlowHistory(
+      data: response.data,
+      interval: response.interval
+    )
+  }
+
   func loadHomeEnergyBatteryHistory() async throws -> HomeEnergyBatteryHistory {
     let response = try await loadHomeEnergyHistory(
       entityIDs: [HomeAssistantHomeEnergySnapshot.batteryStateOfChargeEntityID]

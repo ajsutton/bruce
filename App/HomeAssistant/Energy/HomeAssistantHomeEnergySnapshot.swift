@@ -1,8 +1,12 @@
 import Foundation
 
 struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
+  static let pvPowerEntityID = "sensor.sigen_plant_pv_power"
   static let batteryStateOfChargeEntityID =
     "sensor.sigen_plant_battery_state_of_charge"
+  static let batteryPowerEntityID = "sensor.sigen_plant_battery_power"
+  static let homeConsumptionEntityID = "sensor.sigen_plant_consumed_power"
+  static let gridPowerEntityID = "sensor.sigen_plant_grid_active_power"
   static let generalPriceEntityID =
     "sensor.01krmdgkh60wyckeepvgtbbgv3_general_price"
   static let feedInPriceEntityID =
@@ -10,14 +14,34 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
 
   let pvPowerKilowatts: Double?
   let batteryStateOfCharge: Double?
+  let batteryPowerKilowatts: Double?
   let homeConsumptionKilowatts: Double?
   let gridPowerKilowatts: Double?
   let generalPriceDollarsPerKilowattHour: Double?
   let feedInPriceDollarsPerKilowattHour: Double?
 
+  init(
+    pvPowerKilowatts: Double?,
+    batteryStateOfCharge: Double?,
+    batteryPowerKilowatts: Double? = nil,
+    homeConsumptionKilowatts: Double?,
+    gridPowerKilowatts: Double?,
+    generalPriceDollarsPerKilowattHour: Double?,
+    feedInPriceDollarsPerKilowattHour: Double?
+  ) {
+    self.pvPowerKilowatts = pvPowerKilowatts
+    self.batteryStateOfCharge = batteryStateOfCharge
+    self.batteryPowerKilowatts = batteryPowerKilowatts
+    self.homeConsumptionKilowatts = homeConsumptionKilowatts
+    self.gridPowerKilowatts = gridPowerKilowatts
+    self.generalPriceDollarsPerKilowattHour = generalPriceDollarsPerKilowattHour
+    self.feedInPriceDollarsPerKilowattHour = feedInPriceDollarsPerKilowattHour
+  }
+
   static let unavailable = HomeAssistantHomeEnergySnapshot(
     pvPowerKilowatts: nil,
     batteryStateOfCharge: nil,
+    batteryPowerKilowatts: nil,
     homeConsumptionKilowatts: nil,
     gridPowerKilowatts: nil,
     generalPriceDollarsPerKilowattHour: nil,
@@ -27,10 +51,31 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
   var hasReadings: Bool {
     pvPowerKilowatts != nil
       || batteryStateOfCharge != nil
+      || batteryPowerKilowatts != nil
       || homeConsumptionKilowatts != nil
       || gridPowerKilowatts != nil
       || generalPriceDollarsPerKilowattHour != nil
       || feedInPriceDollarsPerKilowattHour != nil
+  }
+
+  func hasAvailabilityTransition(from previous: Self) -> Bool {
+    [
+      pvPowerKilowatts != nil,
+      batteryStateOfCharge != nil,
+      batteryPowerKilowatts != nil,
+      homeConsumptionKilowatts != nil,
+      gridPowerKilowatts != nil,
+      generalPriceDollarsPerKilowattHour != nil,
+      feedInPriceDollarsPerKilowattHour != nil,
+    ] != [
+      previous.pvPowerKilowatts != nil,
+      previous.batteryStateOfCharge != nil,
+      previous.batteryPowerKilowatts != nil,
+      previous.homeConsumptionKilowatts != nil,
+      previous.gridPowerKilowatts != nil,
+      previous.generalPriceDollarsPerKilowattHour != nil,
+      previous.feedInPriceDollarsPerKilowattHour != nil,
+    ]
   }
 
   func hasSamePresentation(as other: Self) -> Bool {

@@ -24,6 +24,19 @@ struct HomeEnergyCopy {
   var batteryHistoryTimeAxis: String { text(.batteryHistoryTimeAxis) }
   var batteryHistoryChargeAxis: String { text(.batteryHistoryChargeAxis) }
   var batteryHistorySeries: String { text(.batteryHistorySeries) }
+  var flowHistory: String { text(.flowHistory) }
+  var flowHistoryPeriod: String { text(.flowHistoryPeriod) }
+  var flowHistoryPolarity: String { text(.flowHistoryPolarity) }
+  var flowHistoryLoading: String { text(.flowHistoryLoading) }
+  var flowHistoryLoadFailed: String { text(.flowHistoryLoadFailed) }
+  var flowHistoryUnavailable: String { text(.flowHistoryUnavailable) }
+  var flowHistoryTimeAxis: String { text(.flowHistoryTimeAxis) }
+  var flowHistoryPowerAxis: String { text(.flowHistoryPowerAxis) }
+  var flowHistorySeries: String { text(.flowHistorySeries) }
+  var flowPVGeneration: String { text(.flowPVGeneration) }
+  var flowHomeUsage: String { text(.flowHomeUsage) }
+  var flowGrid: String { text(.flowGrid) }
+  var flowBattery: String { text(.flowBattery) }
   var usage: String { text(.usage) }
   var usageUnavailable: String { text(.usageUnavailable) }
   var grid: String { text(.grid) }
@@ -95,6 +108,10 @@ extension HomeEnergyCopy {
     case batteryHistory, batteryHistoryPeriod, batteryHistoryLoading, batteryHistoryLoadFailed
     case batteryHistoryUnavailable
     case batteryHistoryTimeAxis, batteryHistoryChargeAxis, batteryHistorySeries
+    case flowHistory, flowHistoryPeriod, flowHistoryPolarity, flowHistoryLoading
+    case flowHistoryLoadFailed, flowHistoryUnavailable
+    case flowHistoryTimeAxis, flowHistoryPowerAxis, flowHistorySeries
+    case flowPVGeneration, flowHomeUsage, flowGrid, flowBattery
     case usage, usageUnavailable, grid, gridExport, gridImport, gridIdle
     case generalPrice, generalPriceUnavailable, feedInPrice, feedInCharge
     case feedInPriceUnavailable
@@ -146,6 +163,32 @@ extension HomeEnergyCopy {
         .localized("homeEnergy.batteryHistoryChargeAxis")
       case .batteryHistorySeries:
         .localized("homeEnergy.batteryHistorySeries")
+      case .flowHistory:
+        .localized("homeEnergy.flowHistory")
+      case .flowHistoryPeriod:
+        .localized("homeEnergy.flowHistoryPeriod")
+      case .flowHistoryPolarity:
+        .localized("homeEnergy.flowHistoryPolarity")
+      case .flowHistoryLoading:
+        .localized("homeEnergy.flowHistoryLoading")
+      case .flowHistoryLoadFailed:
+        .localized("homeEnergy.flowHistoryLoadFailed")
+      case .flowHistoryUnavailable:
+        .localized("homeEnergy.flowHistoryUnavailable")
+      case .flowHistoryTimeAxis:
+        .localized("homeEnergy.flowHistoryTimeAxis")
+      case .flowHistoryPowerAxis:
+        .localized("homeEnergy.flowHistoryPowerAxis")
+      case .flowHistorySeries:
+        .localized("homeEnergy.flowHistorySeries")
+      case .flowPVGeneration:
+        .localized("homeEnergy.flowPVGeneration")
+      case .flowHomeUsage:
+        .localized("homeEnergy.flowHomeUsage")
+      case .flowGrid:
+        .localized("homeEnergy.flowGrid")
+      case .flowBattery:
+        .localized("homeEnergy.flowBattery")
       case .usage: .localized("homeEnergy.usage")
       case .usageUnavailable:
         .localized("homeEnergy.usageUnavailable")
