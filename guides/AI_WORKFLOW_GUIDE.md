@@ -39,12 +39,24 @@ mkdir -p .agent-tmp
 just test 2>&1 | tee .agent-tmp/test-output.txt
 ```
 
+## Build-generated string catalog updates
+
+Xcode can rewrite `App/Localizable.xcstrings` while building or testing as it discovers
+localizable strings in source code. After the final build or test:
+
+1. Inspect `git diff -- App/Localizable.xcstrings`.
+2. Include legitimate extracted entries, metadata changes and canonical reordering in the task
+   commit, even when the catalog was not edited by hand.
+3. If an extracted string should not be localized, fix the source declaration intentionally and
+   rebuild instead of discarding or leaving the catalog rewrite uncommitted.
+
 ## Before committing
 
 1. Run `just format`.
 2. Run `just format-check`.
 3. Run the relevant builds and tests.
-4. Fix all compiler warnings; warnings are errors in project settings.
-5. Run the required reviewer cycle from `AI_ASSISTANT_GUIDE.md`.
+4. Inspect and resolve any build-generated string catalog changes.
+5. Fix all compiler warnings; warnings are errors in project settings.
+6. Run the required reviewer cycle from `AI_ASSISTANT_GUIDE.md`.
 
 There is no SwiftLint baseline. Do not create one or weaken thresholds to make a change pass.

@@ -4,6 +4,9 @@
     "·" : {
 
     },
+    "%@ kW" : {
+
+    },
     "%@, %@ %@" : {
       "localizations" : {
         "en" : {
@@ -13,6 +16,9 @@
           }
         }
       }
+    },
+    "%@%%" : {
+
     },
     "%@¢" : {
 
@@ -3825,22 +3831,6 @@
         }
       }
     },
-    "homeEnergy.batteryHistoryLoading" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading battery charge history"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Digging up the battery’s last day"
-          }
-        }
-      }
-    },
     "homeEnergy.batteryHistoryLoadFailed" : {
       "localizations" : {
         "en" : {
@@ -3853,6 +3843,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t dig up the battery’s last day."
+          }
+        }
+      }
+    },
+    "homeEnergy.batteryHistoryLoading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading battery charge history"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digging up the battery’s last day"
           }
         }
       }
@@ -4145,22 +4151,6 @@
         }
       }
     },
-    "homeEnergy.flowHistoryLoading" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading energy flow history"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tracing where the juice went"
-          }
-        }
-      }
-    },
     "homeEnergy.flowHistoryLoadFailed" : {
       "localizations" : {
         "en" : {
@@ -4173,6 +4163,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t trace the juice around the joint."
+          }
+        }
+      }
+    },
+    "homeEnergy.flowHistoryLoading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading energy flow history"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracing where the juice went"
           }
         }
       }
@@ -4561,22 +4567,6 @@
         }
       }
     },
-    "homeEnergy.priceHistoryLoading" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading price history"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Digging up the last day’s prices"
-          }
-        }
-      }
-    },
     "homeEnergy.priceHistoryLoadFailed" : {
       "localizations" : {
         "en" : {
@@ -4589,6 +4579,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t dig up the grid’s last day."
+          }
+        }
+      }
+    },
+    "homeEnergy.priceHistoryLoading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading price history"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digging up the last day’s prices"
           }
         }
       }

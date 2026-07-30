@@ -180,6 +180,9 @@ in views.
 - Do not scatter `isFullBruce` text branches through views or presentation types.
 - For a safety-critical entry, put the same direct wording in both language variants. Do not
   bypass the catalog.
+- Xcode may update the catalog during builds when it discovers strings in source code. Review and
+  commit legitimate extracted entries and canonical reordering with the feature that caused them;
+  do not leave the generated rewrite uncommitted.
 
 Non-linguistic values such as URLs, numbers, units and an unavailable-value dash do not require
 catalog entries.
