@@ -163,9 +163,9 @@ struct BrucePanelsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .tag(panel)
-        .highPriorityGesture(
+        .simultaneousGesture(
           TapGesture().onEnded {
-            requestScroll(to: panel)
+            requestPanelScroll(to: panel)
           }
         )
         .accessibilityAction {
@@ -175,6 +175,10 @@ struct BrucePanelsView: View {
 
     private func requestScroll(to panel: BrucePanel) {
       selectedPanel = panel
+      requestPanelScroll(to: panel)
+    }
+
+    private func requestPanelScroll(to panel: BrucePanel) {
       scrollRequest = BrucePanelScrollRequest(panel: panel)
     }
   #else
