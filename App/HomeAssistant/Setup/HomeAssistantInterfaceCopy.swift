@@ -111,6 +111,9 @@ struct HomeAssistantInterfaceCopy {
   var serverLive: String {
     localized("homeAssistantInterface.serverStatus.live")
   }
+  var serverLiveAccessibility: String {
+    localized("homeAssistantInterface.serverStatus.liveAccessibility")
+  }
   var serverUpdating: String {
     localized("homeAssistantInterface.serverStatus.updating")
   }

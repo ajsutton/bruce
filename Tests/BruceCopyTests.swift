@@ -60,6 +60,15 @@ final class BruceCopyTests: XCTestCase {
     XCTAssertEqual(TemperatureCopy(mode: .full).lastKnown, "Last word Bruce got")
   }
 
+  func testLiveServerStatusKeepsContextInItsAccessibilityCopy() {
+    let standard = HomeAssistantInterfaceCopy(mode: .standard)
+    let full = HomeAssistantInterfaceCopy(mode: .full)
+
+    XCTAssertEqual(standard.serverLive, "Live")
+    XCTAssertEqual(standard.serverLiveAccessibility, "Home Assistant is live")
+    XCTAssertTrue(full.serverLiveAccessibility.contains("Home Assistant"))
+  }
+
   func testGarageStatusCopyResolvesForEachLanguageVariant() {
     let standard = GarageDoorCopy(mode: .standard)
     let full = GarageDoorCopy(mode: .full)

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct BrucePanelsView: View {
+  @Environment(\.colorScheme) private var colorScheme
   @AppStorage(BrucePanel.storageKey) private var selectedPanel = BrucePanel.climate
   @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
   @ObservedObject var chargingStore: HomeAssistantEVChargingStore
@@ -39,13 +40,6 @@ struct BrucePanelsView: View {
           manageConnection: manageConnection,
           requestRefresh: requestHomeRefresh
         )
-      } else if showsServerStatus {
-        HomeAssistantServerStatusView(
-          mode: mode,
-          status: serverStatus,
-          isConnecting: isConnecting,
-          isRemovingConnection: isRemovingConnection
-        )
       }
 
       TabView(selection: $selectedPanel) {
@@ -81,7 +75,17 @@ struct BrucePanelsView: View {
         }
       }
       .tabViewStyle(.sidebarAdaptable)
+
+      if connectionBanner == nil, showsServerStatus {
+        HomeAssistantServerStatusView(
+          mode: mode,
+          status: serverStatus,
+          isConnecting: isConnecting,
+          isRemovingConnection: isRemovingConnection
+        )
+      }
     }
+    .background(mode.panelBackgroundColor(for: colorScheme).ignoresSafeArea())
   }
 }
 

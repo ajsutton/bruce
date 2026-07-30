@@ -12,6 +12,20 @@ struct HomeAssistantConnectionBannerView: View {
   }
 
   var body: some View {
+    TimelineView(
+      .periodic(
+        from: HomeAssistantServerStatus.nextTimestampRefresh(
+          after: .now,
+          lastSuccessfulUpdate: lastSuccessfulUpdate
+        ),
+        by: 60
+      )
+    ) { context in
+      bannerContent(at: context.date)
+    }
+  }
+
+  private func bannerContent(at date: Date) -> some View {
     HStack(alignment: .center, spacing: 12) {
       Image(systemName: "exclamationmark.triangle.fill")
         .foregroundStyle(.red)
@@ -20,7 +34,10 @@ struct HomeAssistantConnectionBannerView: View {
       VStack(alignment: .leading, spacing: 2) {
         Text(copy.connectionBannerProblem(banner.problem))
           .font(.callout)
-        if let lastSuccessfulUpdate {
+        if let lastSuccessfulUpdate,
+          date.timeIntervalSince(lastSuccessfulUpdate)
+            >= HomeAssistantServerStatus.recentUpdateInterval
+        {
           lastUpdatedText(lastSuccessfulUpdate)
             .font(.caption)
         }

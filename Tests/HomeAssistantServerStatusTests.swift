@@ -4,6 +4,50 @@ import XCTest
 @testable import Bruce
 
 final class HomeAssistantServerStatusTests: XCTestCase {
+  func testRecentSuccessfulUpdateDoesNotNeedAVisibleTimestamp() {
+    let date = Date(timeIntervalSince1970: 100)
+    let status = HomeAssistantServerStatus(phase: .live, lastSuccessfulUpdate: date)
+
+    XCTAssertNil(status.lastSuccessfulUpdateForDisplay(at: date.addingTimeInterval(60)))
+  }
+
+  func testOlderSuccessfulUpdateIsVisible() {
+    let date = Date(timeIntervalSince1970: 100)
+    let status = HomeAssistantServerStatus(phase: .live, lastSuccessfulUpdate: date)
+
+    XCTAssertEqual(
+      status.lastSuccessfulUpdateForDisplay(
+        at: date.addingTimeInterval(HomeAssistantServerStatus.recentUpdateInterval)
+      ),
+      date
+    )
+  }
+
+  func testTimestampRefreshOccursAtFreshnessBoundary() {
+    let date = Date(timeIntervalSince1970: 100)
+
+    XCTAssertEqual(
+      HomeAssistantServerStatus.nextTimestampRefresh(
+        after: date.addingTimeInterval(299),
+        lastSuccessfulUpdate: date
+      ),
+      date.addingTimeInterval(HomeAssistantServerStatus.recentUpdateInterval)
+    )
+  }
+
+  func testTimestampRefreshContinuesEachMinuteAfterFreshnessBoundary() {
+    let date = Date(timeIntervalSince1970: 100)
+    let currentDate = date.addingTimeInterval(301)
+
+    XCTAssertEqual(
+      HomeAssistantServerStatus.nextTimestampRefresh(
+        after: currentDate,
+        lastSuccessfulUpdate: date
+      ),
+      currentDate.addingTimeInterval(60)
+    )
+  }
+
   func testLiveUpdateRecordsSuccessfulUpdateTime() {
     let date = Date(timeIntervalSince1970: 100)
 

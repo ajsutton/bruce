@@ -11,31 +11,62 @@ struct HomeAssistantServerStatusView: View {
   }
 
   var body: some View {
-    HStack(spacing: 8) {
-      Image(systemName: statusIcon)
-        .foregroundStyle(statusIconColor)
-        .accessibilityHidden(true)
-        .frame(width: 16, height: 16)
+    TimelineView(
+      .periodic(
+        from: HomeAssistantServerStatus.nextTimestampRefresh(
+          after: .now,
+          lastSuccessfulUpdate: status.lastSuccessfulUpdate
+        ),
+        by: 60
+      )
+    ) { context in
+      HStack(spacing: 6) {
+        Image(systemName: statusIcon)
+          .font(.system(size: isHealthyLive ? 7 : 11))
+          .foregroundStyle(statusIconColor)
+          .accessibilityHidden(true)
+          .frame(width: 12, height: 12)
 
-      statusText
+        ZStack(alignment: .leading) {
+          statusText(at: context.date)
+          footerHeightReference
+            .hidden()
+        }
         .font(.caption)
         .foregroundStyle(foregroundStyle)
         .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(accessibilityStatusText(at: context.date))
     }
     .padding(.horizontal)
-    .padding(.vertical, 10)
-    .background(.bar)
-    .accessibilityElement(children: .combine)
+    .padding(.vertical, 6)
+  }
+
+  private var footerHeightReference: some View {
+    ZStack(alignment: .leading) {
+      statusReferenceText(copy.serverConnecting)
+      statusReferenceText(copy.serverUpdating)
+      Text(copy.disconnecting)
+    }
+  }
+
+  private func statusReferenceText(_ title: String) -> some View {
+    HStack(spacing: 4) {
+      Text(title)
+      Text("·")
+      lastUpdatedText(.now.addingTimeInterval(-HomeAssistantServerStatus.recentUpdateInterval))
+    }
   }
 
   @ViewBuilder
-  private var statusText: some View {
+  private func statusText(at date: Date) -> some View {
     if isRemovingConnection {
       Text(copy.disconnecting)
     } else if isConnecting {
       HStack(spacing: 4) {
         Text(copy.serverConnecting)
-        if let lastSuccessfulUpdate = status.lastSuccessfulUpdate {
+        if let lastSuccessfulUpdate = status.lastSuccessfulUpdateForDisplay(at: date) {
           Text("·")
           lastUpdatedText(lastSuccessfulUpdate)
         }
@@ -43,7 +74,7 @@ struct HomeAssistantServerStatusView: View {
     } else if status.phase == .updating {
       HStack(spacing: 4) {
         Text(copy.serverUpdating)
-        if let lastSuccessfulUpdate = status.lastSuccessfulUpdate {
+        if let lastSuccessfulUpdate = status.lastSuccessfulUpdateForDisplay(at: date) {
           Text("·")
           lastUpdatedText(lastSuccessfulUpdate)
         }
@@ -51,7 +82,7 @@ struct HomeAssistantServerStatusView: View {
     } else if status.phase == .live {
       HStack(spacing: 4) {
         Text(copy.serverLive)
-        if let lastSuccessfulUpdate = status.lastSuccessfulUpdate {
+        if let lastSuccessfulUpdate = status.lastSuccessfulUpdateForDisplay(at: date) {
           Text("·")
           lastUpdatedText(lastSuccessfulUpdate)
         }
@@ -66,11 +97,43 @@ struct HomeAssistantServerStatusView: View {
     if isConnecting || status.phase == .updating {
       return "arrow.clockwise"
     }
-    return "checkmark.circle.fill"
+    return "circle.fill"
   }
 
   private var statusIconColor: Color {
     isConnecting || isRemovingConnection || status.phase == .updating ? .secondary : .green
+  }
+
+  private var isHealthyLive: Bool {
+    !isConnecting && !isRemovingConnection && status.phase == .live
+  }
+
+  private func accessibilityStatusText(at date: Date) -> Text {
+    let title: String
+    if isRemovingConnection {
+      title = copy.disconnecting
+    } else if isConnecting {
+      title = copy.serverConnecting
+    } else if status.phase == .updating {
+      title = copy.serverUpdating
+    } else {
+      title = copy.serverLiveAccessibility
+    }
+    guard
+      !isRemovingConnection,
+      let lastSuccessfulUpdate = status.lastSuccessfulUpdateForDisplay(at: date)
+    else {
+      return Text(title)
+    }
+    let timestamp = Text(
+      .currentDate,
+      format: Date.AnchoredRelativeFormatStyle(
+        anchor: lastSuccessfulUpdate,
+        presentation: .named,
+        unitsStyle: .wide
+      )
+    )
+    return Text("\(Text(title)), \(Text(copy.serverLastChecked)) \(timestamp)")
   }
 
   private func lastUpdatedText(_ date: Date) -> some View {

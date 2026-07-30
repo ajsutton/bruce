@@ -1,6 +1,8 @@
 import Foundation
 
 struct HomeAssistantServerStatus: Equatable {
+  static let recentUpdateInterval: TimeInterval = 5 * 60
+
   enum Phase: Equatable {
     case idle
     case updating
@@ -18,6 +20,26 @@ struct HomeAssistantServerStatus: Equatable {
     phase: .idle,
     lastSuccessfulUpdate: nil
   )
+
+  func lastSuccessfulUpdateForDisplay(at date: Date) -> Date? {
+    guard let lastSuccessfulUpdate,
+      date.timeIntervalSince(lastSuccessfulUpdate) >= Self.recentUpdateInterval
+    else {
+      return nil
+    }
+    return lastSuccessfulUpdate
+  }
+
+  static func nextTimestampRefresh(
+    after date: Date,
+    lastSuccessfulUpdate: Date?
+  ) -> Date {
+    guard let lastSuccessfulUpdate else {
+      return date.addingTimeInterval(60)
+    }
+    let freshnessBoundary = lastSuccessfulUpdate.addingTimeInterval(recentUpdateInterval)
+    return freshnessBoundary > date ? freshnessBoundary : date.addingTimeInterval(60)
+  }
 
   func receiving(
     _ update: HomeAssistantStateUpdate,
