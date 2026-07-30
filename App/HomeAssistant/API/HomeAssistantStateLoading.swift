@@ -10,60 +10,57 @@ struct HomeAssistantStateUpdate: Sendable, Equatable {
   let phase: Phase
   let states: [HomeAssistantState]
   let generation: UUID
-  let requiresHistoryBackfill: Bool
 
   static func live(
     _ states: [HomeAssistantState],
-    generation: UUID = UUID(),
-    requiresHistoryBackfill: Bool = false
+    generation: UUID = UUID()
   ) -> Self {
     Self(
       phase: .live,
       states: states,
-      generation: generation,
-      requiresHistoryBackfill: requiresHistoryBackfill
+      generation: generation
     )
   }
 
   static func refreshing(
     _ states: [HomeAssistantState],
-    generation: UUID = UUID(),
-    requiresHistoryBackfill: Bool = false
+    generation: UUID = UUID()
   ) -> Self {
     Self(
       phase: .refreshing,
       states: states,
-      generation: generation,
-      requiresHistoryBackfill: requiresHistoryBackfill
+      generation: generation
     )
   }
 
   static func reconnecting(
     _ states: [HomeAssistantState],
-    generation: UUID = UUID(),
-    requiresHistoryBackfill: Bool = false
+    generation: UUID = UUID()
   ) -> Self {
     Self(
       phase: .reconnecting,
       states: states,
-      generation: generation,
-      requiresHistoryBackfill: requiresHistoryBackfill
+      generation: generation
     )
   }
 
-  func requiringHistoryBackfill() -> Self {
-    Self(
-      phase: phase,
+  func preservingControlTransition(from dropped: Self) -> Self? {
+    guard phase == .live, dropped.phase != .live else { return nil }
+    return Self(
+      phase: dropped.phase,
       states: states,
-      generation: generation,
-      requiresHistoryBackfill: true
+      generation: generation
     )
   }
 }
 
+extension HomeAssistantStateUpdate: HomeAssistantBufferedUpdate {
+  var isLiveUpdate: Bool { phase == .live }
+}
+
 protocol HomeAssistantStateLoading: Sendable {
-  func stateUpdates() async -> AsyncThrowingStream<
-    HomeAssistantStateUpdate, any Error
+  func stateUpdates() async -> HomeAssistantBufferedUpdateStream<
+    HomeAssistantStateUpdate
   >
   func refresh() async -> Bool
 }

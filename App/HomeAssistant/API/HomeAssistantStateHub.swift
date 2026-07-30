@@ -2,7 +2,8 @@ import Foundation
 
 actor HomeAssistantStateHub: HomeAssistantStateLoading {
   private typealias Update = HomeAssistantStateUpdate
-  private typealias Continuation = AsyncThrowingStream<Update, any Error>.Continuation
+  private typealias Stream = HomeAssistantBufferedUpdateStream<Update>
+  private typealias Continuation = Stream.Continuation
 
   private let source: any HomeAssistantStateLoading
   private var continuations: [UUID: Continuation] = [:]
@@ -14,10 +15,8 @@ actor HomeAssistantStateHub: HomeAssistantStateLoading {
     self.source = source
   }
 
-  func stateUpdates() -> AsyncThrowingStream<
-    HomeAssistantStateUpdate, any Error
-  > {
-    AsyncThrowingStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
+  func stateUpdates() -> HomeAssistantBufferedUpdateStream<HomeAssistantStateUpdate> {
+    Stream { continuation in
       let id = UUID()
       add(continuation, id: id)
       continuation.onTermination = { _ in
@@ -33,8 +32,8 @@ actor HomeAssistantStateHub: HomeAssistantStateLoading {
     if hasActiveSubscribers, let latestUpdate {
       let refreshingUpdate = refreshingUpdate(from: latestUpdate)
       self.latestUpdate = refreshingUpdate
-      continuations.values.forEach {
-        yield(refreshingUpdate, to: $0)
+      for continuation in continuations.values {
+        continuation.yield(refreshingUpdate)
       }
     }
     sourceGeneration = UUID()
@@ -58,7 +57,7 @@ actor HomeAssistantStateHub: HomeAssistantStateLoading {
   private func add(_ continuation: Continuation, id: UUID) {
     continuations[id] = continuation
     if let latestUpdate {
-      yield(latestUpdate, to: continuation)
+      continuation.yield(latestUpdate)
     }
     startSourceIfNeeded()
   }
@@ -80,6 +79,7 @@ actor HomeAssistantStateHub: HomeAssistantStateLoading {
     sourceTask = Task { [weak self] in
       do {
         let updates = await source.stateUpdates()
+        defer { updates.cancel() }
         for try await update in updates {
           guard !Task.isCancelled else { return }
           await self?.publish(update, generation: generation)
@@ -96,13 +96,7 @@ actor HomeAssistantStateHub: HomeAssistantStateLoading {
     let presentedUpdate = presentedUpdate(update)
     latestUpdate = presentedUpdate
     for continuation in continuations.values {
-      yield(presentedUpdate, to: continuation)
-    }
-  }
-
-  private func yield(_ update: Update, to continuation: Continuation) {
-    if case .dropped = continuation.yield(update) {
-      continuation.yield(update.requiringHistoryBackfill())
+      continuation.yield(presentedUpdate)
     }
   }
 

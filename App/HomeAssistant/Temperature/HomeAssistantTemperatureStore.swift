@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 final class HomeAssistantTemperatureStore: ObservableObject {
   @Published private(set) var readings: [HomeAssistantTemperatureReading] = []
-  @Published private(set) var lastChecked: Date?
+  private(set) var lastChecked: Date?
   @Published private(set) var isLoading = false
   @Published private(set) var isLive = false
   @Published private(set) var isRefreshing = false
@@ -11,7 +11,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   @Published private(set) var controllingEntityIDs: Set<String> = []
   @Published private(set) var controlProblem: ControlProblem?
   private let loader: any HomeAssistantTemperatureLoading
-  private let controller: (any HomeAssistantClimateControlling)?
+  let controller: (any HomeAssistantClimateControlling)?
   private let now: @Sendable () -> Date
   private let confirmationTimeout: Duration
   private let sleep: @Sendable (Duration) async throws -> Void
@@ -21,7 +21,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   private var latestControlSequence = 0
   private var presentedControlProblemSequence: Int?
   private var serverReadings: [HomeAssistantTemperatureReading] = []
-  private var pendingControls: [String: PendingClimateControl] = [:]
+  var pendingControls: [String: PendingClimateControl] = [:]
   private var confirmationTasks: [String: Task<Void, Never>] = [:]
   private var targetControlTasks: [String: Task<Void, Never>] = [:]
   init(
@@ -40,13 +40,6 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     self.confirmationTimeout = confirmationTimeout
     self.sleep = sleep
     self.onAuthenticationRequired = onAuthenticationRequired
-  }
-  func canControl(_ reading: HomeAssistantTemperatureReading) -> Bool {
-    controller != nil && isLive && reading.powerState != .unavailable
-  }
-  var supportsControl: Bool { controller != nil }
-  func isAdjustingTarget(entityID: String) -> Bool {
-    pendingControls[entityID]?.intent.isTargetValue == true
   }
   func setPower(
     for reading: HomeAssistantTemperatureReading,
@@ -197,7 +190,9 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     case .live:
       finishConfirmedControls()
       lastChecked = now()
-      (isLoading, isLive, isRefreshing, problem) = (false, true, false, nil)
+      if isLoading || !isLive || isRefreshing || problem != nil {
+        (isLoading, isLive, isRefreshing, problem) = (false, true, false, nil)
+      }
     case .refreshing:
       publishReadings()
       (isLoading, isLive, isRefreshing, problem) = (false, false, true, nil)
@@ -393,8 +388,11 @@ extension HomeAssistantTemperatureStore {
   }
 
   private func publishReadings() {
-    readings = serverReadings.map { reading in
+    let presentedReadings = serverReadings.map { reading in
       pendingControls[reading.id]?.intent.applying(to: reading) ?? reading
+    }
+    if !HomeAssistantTemperaturePresentation.matches(readings, presentedReadings) {
+      readings = presentedReadings
     }
   }
 }

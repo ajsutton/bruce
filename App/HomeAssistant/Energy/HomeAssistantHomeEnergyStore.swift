@@ -31,6 +31,10 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     progressSleep: @escaping @Sendable (Duration) async -> Void = {
       try? await Task.sleep(for: $0)
     },
+    historySampleInterval: TimeInterval = HomeEnergyHistorySampling.interval,
+    historySampleSleep: @escaping @Sendable (Duration) async -> Void = {
+      try? await Task.sleep(for: $0)
+    },
     onAuthenticationRequired: @escaping @MainActor @Sendable () -> Void = {},
     now: @escaping @Sendable () -> Date = Date.init
   ) {
@@ -41,13 +45,17 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       loader: loader,
       batteryHistory: batteryHistory,
       progressDelay: progressDelay,
-      progressSleep: progressSleep
+      progressSleep: progressSleep,
+      sampleInterval: historySampleInterval,
+      sampleSleep: historySampleSleep
     )
     priceHistoryStore = HomeEnergyPriceHistoryStore(
       loader: loader,
       priceHistory: priceHistory,
       progressDelay: progressDelay,
-      progressSleep: progressSleep
+      progressSleep: progressSleep,
+      sampleInterval: historySampleInterval,
+      sampleSleep: historySampleSleep
     )
     self.progressDelay = progressDelay
     self.progressSleep = progressSleep
@@ -121,10 +129,14 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       }
     }
   }
+}
 
+extension HomeAssistantHomeEnergyStore {
   private func observeUpdates(generation: UUID) async {
     do {
-      for try await update in loader.homeEnergyUpdates() {
+      let updates = loader.homeEnergyUpdates()
+      defer { updates.cancel() }
+      for try await update in updates {
         try Task.checkCancellation()
         guard loadGeneration == generation else { return }
         apply(update)
@@ -180,19 +192,23 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
         finishLoad(isLive: false)
         return
       }
-      self.snapshot = snapshot
+      publishSnapshotIfChanged(snapshot)
       let timestamp = now()
-      if needsHistoryBackfill || snapshot.requiresHistoryBackfill {
+      if needsHistoryBackfill {
         needsHistoryBackfill = false
         reloadHistory()
       }
       recordHistory(snapshot: snapshot, at: timestamp)
-      problem = nil
-      isRefreshing = false
+      if problem != nil {
+        problem = nil
+      }
+      if isRefreshing {
+        isRefreshing = false
+      }
       finishLoad(isLive: true)
     case .refreshing(let snapshot):
       if snapshot.hasReadings {
-        self.snapshot = snapshot
+        publishSnapshotIfChanged(snapshot)
       }
       problem = nil
       isLoading = false
@@ -203,7 +219,7 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       needsHistoryBackfill = true
     case .reconnecting(let snapshot):
       if snapshot.hasReadings {
-        self.snapshot = snapshot
+        publishSnapshotIfChanged(snapshot)
       }
       problem = .reconnecting
       isRefreshing = false
@@ -249,16 +265,24 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
   }
 
   private func finishLoad(isLive: Bool) {
-    isLoading = false
-    self.isLive = isLive
-    isRefreshing = false
+    if isLoading {
+      isLoading = false
+    }
+    if self.isLive != isLive {
+      self.isLive = isLive
+    }
+    if isRefreshing {
+      isRefreshing = false
+    }
     finishProgress()
   }
 
   private func finishProgress() {
     progressTask?.cancel()
     progressTask = nil
-    showsProgress = false
+    if showsProgress {
+      showsProgress = false
+    }
   }
 
   private func handleHistoryAuthenticationFailure() {
@@ -269,4 +293,10 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     onAuthenticationRequired()
   }
 
+  private func publishSnapshotIfChanged(
+    _ snapshot: HomeAssistantHomeEnergySnapshot
+  ) {
+    guard !self.snapshot.hasSamePresentation(as: snapshot) else { return }
+    self.snapshot = snapshot
+  }
 }

@@ -11,7 +11,7 @@ final class ControlledStateSource:
 
   private let lock = NSLock()
   private var continuations:
-    [Int: AsyncThrowingStream<HomeAssistantStateUpdate, any Error>.Continuation] = [:]
+    [Int: HomeAssistantBufferedUpdateStream<HomeAssistantStateUpdate>.Continuation] = [:]
   private var storedSubscriptionCount = 0
   private var storedIsCancelled = false
   private var subscriptionExpectations: [Int: XCTestExpectation] = [:]
@@ -24,10 +24,10 @@ final class ControlledStateSource:
     lock.withLock { storedIsCancelled }
   }
 
-  func stateUpdates() async -> AsyncThrowingStream<
-    HomeAssistantStateUpdate, any Error
+  func stateUpdates() async -> HomeAssistantBufferedUpdateStream<
+    HomeAssistantStateUpdate
   > {
-    AsyncThrowingStream { continuation in
+    HomeAssistantBufferedUpdateStream { continuation in
       let state = lock.withLock {
         storedSubscriptionCount += 1
         let index = storedSubscriptionCount

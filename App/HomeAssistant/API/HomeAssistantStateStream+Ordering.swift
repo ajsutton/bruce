@@ -4,6 +4,7 @@ extension HomeAssistantStateStream {
   struct Snapshot: Sendable {
     var statesByID: [String: HomeAssistantState]
     var removals: [String: Date]
+    var orderedStates: [HomeAssistantState]
   }
 
   static func mergedSnapshot(
@@ -29,7 +30,11 @@ extension HomeAssistantStateStream {
     ) {
       statesByID[previousState.entityID] = previousState
     }
-    return Snapshot(statesByID: statesByID, removals: removals)
+    return Snapshot(
+      statesByID: statesByID,
+      removals: removals,
+      orderedStates: sorted(statesByID.values)
+    )
   }
 
   private static func mergeRemovals(
@@ -72,18 +77,43 @@ extension HomeAssistantStateStream {
 
   static func apply(
     _ change: HomeAssistantStateChangedData,
-    to statesByID: inout [String: HomeAssistantState],
-    removals: inout [String: Date]
+    to snapshot: inout Snapshot
   ) throws {
     try validate(change.newState, entityID: change.entityID)
     try validate(change.oldState, entityID: change.entityID)
     guard change.newState != nil || change.oldState != nil else {
       throw HomeAssistantAPIError.invalidResponse
     }
+    let previousState = snapshot.statesByID[change.entityID]
     if let newState = change.newState {
-      apply(newState, to: &statesByID, removals: &removals)
+      apply(
+        newState,
+        to: &snapshot.statesByID,
+        removals: &snapshot.removals
+      )
     } else {
-      applyRemoval(change, to: &statesByID, removals: &removals)
+      applyRemoval(
+        change,
+        to: &snapshot.statesByID,
+        removals: &snapshot.removals
+      )
+    }
+    let currentState = snapshot.statesByID[change.entityID]
+    guard previousState != currentState else { return }
+    if let index = snapshot.orderedStates.firstIndex(where: {
+      $0.entityID == change.entityID
+    }) {
+      if let currentState {
+        snapshot.orderedStates[index] = currentState
+      } else {
+        snapshot.orderedStates.remove(at: index)
+      }
+    } else if let currentState {
+      let insertionIndex =
+        snapshot.orderedStates.firstIndex(where: {
+          $0.entityID > change.entityID
+        }) ?? snapshot.orderedStates.endIndex
+      snapshot.orderedStates.insert(currentState, at: insertionIndex)
     }
   }
 

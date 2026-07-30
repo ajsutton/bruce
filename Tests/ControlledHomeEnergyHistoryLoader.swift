@@ -18,7 +18,7 @@ final class ControlledHomeEnergyHistoryLoader:
   private var nextHistoryRequest = 0
   private var historyContinuations: [Int: CheckedContinuation<HomeEnergyPriceHistory, any Error>] =
     [:]
-  private var updateContinuation: AsyncThrowingStream<Update, any Error>.Continuation?
+  private var updateContinuation: HomeAssistantHomeEnergyUpdateStream.Continuation?
 
   init(historyRequestCount: Int) {
     historyStartedExpectations = (0..<historyRequestCount).map {
@@ -43,8 +43,8 @@ final class ControlledHomeEnergyHistoryLoader:
     historyFinishedExpectations[index]
   }
 
-  func homeEnergyUpdates() -> AsyncThrowingStream<Update, any Error> {
-    AsyncThrowingStream { continuation in
+  func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
+    HomeAssistantHomeEnergyUpdateStream { continuation in
       lock.withLock {
         updateContinuation = continuation
       }

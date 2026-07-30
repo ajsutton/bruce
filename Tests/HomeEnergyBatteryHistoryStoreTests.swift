@@ -6,7 +6,7 @@ import XCTest
 
 @MainActor
 final class HomeEnergyBatteryHistoryStoreTests: XCTestCase {
-  func testPendingHistoryLoadMergesEveryLiveChargeTransition() async {
+  func testPendingHistoryLoadMergesNewestLiveChargeAtGraphResolution() async {
     let start = Date(timeIntervalSince1970: 100_000)
     let remoteEnd = start.addingTimeInterval(24 * 60 * 60)
     let loader = ControlledBatteryHistoryLoader(batteryRequestCount: 1)
@@ -39,7 +39,11 @@ final class HomeEnergyBatteryHistoryStoreTests: XCTestCase {
 
     XCTAssertEqual(
       store.batteryHistory.readings.map(\.stateOfCharge),
-      [34, 41, 43]
+      [34, 43]
+    )
+    XCTAssertEqual(
+      store.batteryHistory.readings.last?.timestamp,
+      remoteEnd.addingTimeInterval(20)
     )
     XCTAssertTrue(store.hasUsableHistory)
     XCTAssertFalse(store.isStale)

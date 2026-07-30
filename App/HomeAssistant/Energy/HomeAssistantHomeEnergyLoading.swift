@@ -1,9 +1,11 @@
+typealias HomeAssistantHomeEnergyUpdateStream = HomeAssistantBufferedUpdateStream<
+  HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>
+>
+
 protocol HomeAssistantHomeEnergyLoading: Sendable {
   var providesContinuousEnergyUpdates: Bool { get }
 
-  func homeEnergyUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
-  >
+  func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream
   func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot
   func loadHomeEnergyBatteryHistory() async throws -> HomeEnergyBatteryHistory
   func loadHomeEnergyPriceHistory() async throws -> HomeEnergyPriceHistory
@@ -20,10 +22,8 @@ extension HomeAssistantHomeEnergyLoading {
     .empty
   }
 
-  func homeEnergyUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
+    HomeAssistantHomeEnergyUpdateStream { continuation in
       let task = Task {
         do {
           continuation.yield(.live(try await loadHomeEnergySnapshot()))

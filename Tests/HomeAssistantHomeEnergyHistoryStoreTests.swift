@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class HomeAssistantHomeEnergyHistoryStoreTests: XCTestCase {
-  func testPendingHistoryLoadMergesEveryLivePriceTransition() async {
+  func testPendingHistoryLoadMergesNewestLivePricesAtGraphResolution() async {
     let start = Date(timeIntervalSince1970: 100_000)
     let remoteEnd = start.addingTimeInterval(24 * 60 * 60)
     let dates = ControlledHomeEnergyDateSequence([
@@ -32,11 +32,17 @@ final class HomeAssistantHomeEnergyHistoryStoreTests: XCTestCase {
 
     XCTAssertEqual(
       prices(in: store.priceHistoryStore.priceHistory, for: .general),
-      [0.22, 0.41, 0.31]
+      [0.22, 0.31]
     )
     XCTAssertEqual(
       prices(in: store.priceHistoryStore.priceHistory, for: .feedIn),
-      [0.07, 0.08, 0.09]
+      [0.07, 0.09]
+    )
+    XCTAssertEqual(
+      store.priceHistoryStore.priceHistory.readings
+        .last(where: { $0.tariff == .general })?
+        .timestamp,
+      remoteEnd.addingTimeInterval(20)
     )
     withExtendedLifetime(completion.subscription) {}
     await stop(synchronization, loader: loader)

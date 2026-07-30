@@ -12,6 +12,9 @@ final class ControlledBatteryHistoryLoader:
     description: "Home energy update stream started"
   )
   let providesContinuousEnergyUpdates: Bool
+  var startedBatteryRequestCount: Int {
+    lock.withLock { nextBatteryRequest }
+  }
 
   private let lock = NSLock()
   private let batteryStartedExpectations: [XCTestExpectation]
@@ -24,7 +27,7 @@ final class ControlledBatteryHistoryLoader:
     [Int: CheckedContinuation<HomeEnergyBatteryHistory, any Error>] = [:]
   private var priceContinuations: [Int: CheckedContinuation<HomeEnergyPriceHistory, any Error>] =
     [:]
-  private var updateContinuation: AsyncThrowingStream<Update, any Error>.Continuation?
+  private var updateContinuation: HomeAssistantHomeEnergyUpdateStream.Continuation?
 
   init(
     batteryRequestCount: Int,
@@ -66,8 +69,8 @@ final class ControlledBatteryHistoryLoader:
     priceFinishedExpectations[index]
   }
 
-  func homeEnergyUpdates() -> AsyncThrowingStream<Update, any Error> {
-    AsyncThrowingStream { continuation in
+  func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
+    HomeAssistantHomeEnergyUpdateStream { continuation in
       lock.withLock {
         updateContinuation = continuation
       }
@@ -113,7 +116,8 @@ final class ControlledBatteryHistoryLoader:
   }
 
   func yield(_ update: Update) {
-    lock.withLock { updateContinuation }?.yield(update)
+    guard let continuation = lock.withLock({ updateContinuation }) else { return }
+    continuation.yield(update)
   }
 
   func finishUpdates() {

@@ -12,17 +12,16 @@ struct HomeAssistantHomeEnergyStream: HomeAssistantHomeEnergyLoading {
     self.loader = loader
   }
 
-  func homeEnergyUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
-  > {
-    AsyncThrowingStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
+  func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
+    HomeAssistantHomeEnergyUpdateStream { continuation in
       let task = Task {
         do {
           let stateUpdates = await states.stateUpdates()
+          defer { stateUpdates.cancel() }
           for try await stateUpdate in stateUpdates {
             try Task.checkCancellation()
             let update = Self.homeEnergyUpdate(from: stateUpdate)
-            Self.yield(update, to: continuation)
+            continuation.yield(update)
           }
           continuation.finish()
         } catch is CancellationError {
@@ -52,10 +51,7 @@ struct HomeAssistantHomeEnergyStream: HomeAssistantHomeEnergyLoading {
   private static func homeEnergyUpdate(
     from update: HomeAssistantStateUpdate
   ) -> HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot> {
-    var snapshot = HomeAssistantHomeEnergySnapshot(states: update.states)
-    if update.requiresHistoryBackfill {
-      snapshot = snapshot.requiringHistoryBackfill()
-    }
+    let snapshot = HomeAssistantHomeEnergySnapshot(states: update.states)
     return switch update.phase {
     case .live:
       .live(snapshot)
@@ -66,28 +62,28 @@ struct HomeAssistantHomeEnergyStream: HomeAssistantHomeEnergyLoading {
     }
   }
 
-  static func yield(
-    _ update: HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>,
-    to continuation: AsyncThrowingStream<
-      HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
-    >.Continuation
-  ) {
-    if case .dropped = continuation.yield(update) {
-      continuation.yield(update.requiringHistoryBackfill())
+}
+
+extension HomeAssistantLiveUpdate {
+  func preservingControlTransition(from dropped: Self) -> Self? {
+    guard case .live(let latestValue) = self else { return nil }
+    return switch dropped {
+    case .live:
+      nil
+    case .refreshing:
+      .refreshing(latestValue)
+    case .reconnecting:
+      .reconnecting(latestValue)
     }
   }
 }
 
-extension HomeAssistantLiveUpdate
-where Value == HomeAssistantHomeEnergySnapshot {
-  fileprivate func requiringHistoryBackfill() -> Self {
-    switch self {
-    case .live(let snapshot):
-      .live(snapshot.requiringHistoryBackfill())
-    case .refreshing(let snapshot):
-      .refreshing(snapshot.requiringHistoryBackfill())
-    case .reconnecting(let snapshot):
-      .reconnecting(snapshot.requiringHistoryBackfill())
+extension HomeAssistantLiveUpdate: HomeAssistantBufferedUpdate {
+  var isLiveUpdate: Bool {
+    if case .live = self {
+      true
+    } else {
+      false
     }
   }
 }

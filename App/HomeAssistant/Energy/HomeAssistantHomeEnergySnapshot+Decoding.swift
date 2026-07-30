@@ -31,6 +31,5 @@ extension HomeAssistantHomeEnergySnapshot {
     feedInPriceDollarsPerKilowattHour = value(
       Self.feedInPriceEntityID
     )
-    requiresHistoryBackfill = false
   }
 }

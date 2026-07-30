@@ -47,7 +47,11 @@ final class BatteryHistoryIntegrationTests: XCTestCase {
     let start = Date(timeIntervalSince1970: 400_000)
     let initialEnd = start.addingTimeInterval(24 * 60 * 60)
     let liveTimestamp = initialEnd.addingTimeInterval(60)
-    let dates = ControlledHomeEnergyDateSequence([liveTimestamp])
+    let latestLiveTimestamp = liveTimestamp.addingTimeInterval(1)
+    let dates = ControlledHomeEnergyDateSequence([
+      liveTimestamp,
+      latestLiveTimestamp,
+    ])
     let loader = ControlledBatteryHistoryLoader(
       batteryRequestCount: 2,
       providesContinuousEnergyUpdates: true
@@ -60,51 +64,44 @@ final class BatteryHistoryIntegrationTests: XCTestCase {
       of: [loader.updateStreamStarted, loader.batteryStarted(at: 0)],
       timeout: 1
     )
-    await completeBatteryLoad(
-      0,
-      on: store,
-      loader: loader,
-      history: batteryHistory(
-        start: start,
-        end: initialEnd,
-        charge: 34
-      )
-    )
+    await completeInitialBatteryLoad(start, initialEnd, store, loader)
 
+    let newestSnapshot = expectation(description: "Newest snapshot presented")
+    let newestSnapshotSubscription = store.$snapshot
+      .filter { $0.batteryStateOfCharge == 44 }
+      .prefix(1)
+      .sink { _ in newestSnapshot.fulfill() }
     loader.yield(.reconnecting(store.snapshot))
     loader.yield(.live(snapshot(charge: 43)))
+    loader.yield(.live(snapshot(charge: 44)))
     await fulfillment(
-      of: [dates.requested(at: 0), loader.batteryStarted(at: 1)],
+      of: [
+        dates.requested(at: 0),
+        loader.batteryStarted(at: 1),
+        newestSnapshot,
+      ],
       timeout: 1
     )
-    await completeBatteryLoad(
-      1,
-      on: store,
-      loader: loader,
-      history: recoveredHistory(
-        start: start,
-        initialEnd: initialEnd,
-        liveTimestamp: liveTimestamp
-      )
+    await completeReconnectRecovery(
+      start,
+      initialEnd,
+      latestLiveTimestamp,
+      store,
+      loader
     )
-
-    XCTAssertEqual(
-      store.batteryHistoryStore.batteryHistory.readings.compactMap(
-        \.stateOfCharge
-      ),
-      [34, 40, 43]
-    )
-    XCTAssertFalse(store.batteryHistoryStore.isStale)
+    withExtendedLifetime(newestSnapshotSubscription) {}
     await stop(synchronization, loader: loader)
   }
 
-  func testOverflowMarkedUpdateBackfillsDroppedBatteryTransitions() async {
+  func testLiveUpdateAppendsNewestReadingWithoutReloadingHistory() async {
     let start = Date(timeIntervalSince1970: 500_000)
     let initialEnd = start.addingTimeInterval(24 * 60 * 60)
-    let liveTimestamp = initialEnd.addingTimeInterval(60)
+    let liveTimestamp = initialEnd.addingTimeInterval(
+      HomeEnergyHistorySampling.interval
+    )
     let dates = ControlledHomeEnergyDateSequence([liveTimestamp])
     let loader = ControlledBatteryHistoryLoader(
-      batteryRequestCount: 2,
+      batteryRequestCount: 1,
       providesContinuousEnergyUpdates: true
     )
     let store = HomeAssistantHomeEnergyStore(loader: loader, now: dates.next)
@@ -126,32 +123,22 @@ final class BatteryHistoryIntegrationTests: XCTestCase {
       )
     )
 
-    loader.yield(.live(snapshot(charge: 43).requiringHistoryBackfill()))
-    await fulfillment(
-      of: [dates.requested(at: 0), loader.batteryStarted(at: 1)],
-      timeout: 1
-    )
-    await completeBatteryLoad(
-      1,
-      on: store,
-      loader: loader,
-      history: recoveredHistory(
-        start: start,
-        initialEnd: initialEnd,
-        liveTimestamp: liveTimestamp
-      )
-    )
+    loader.yield(.live(snapshot(charge: 43)))
+    await fulfillment(of: [dates.requested(at: 0)], timeout: 1)
 
     XCTAssertEqual(
       store.batteryHistoryStore.batteryHistory.readings.compactMap(
         \.stateOfCharge
       ),
-      [34, 40, 43]
+      [34, 43]
     )
+    XCTAssertEqual(loader.startedBatteryRequestCount, 1)
     XCTAssertFalse(store.batteryHistoryStore.isStale)
     await stop(synchronization, loader: loader)
   }
+}
 
+extension BatteryHistoryIntegrationTests {
   private func completeBatteryLoad(
     _ request: Int,
     on store: HomeAssistantHomeEnergyStore,
@@ -162,6 +149,48 @@ final class BatteryHistoryIntegrationTests: XCTestCase {
     loader.succeedBattery(request, with: history)
     await fulfillment(of: [completion.expectation], timeout: 1)
     withExtendedLifetime(completion.subscription) {}
+  }
+
+  private func completeInitialBatteryLoad(
+    _ start: Date,
+    _ end: Date,
+    _ store: HomeAssistantHomeEnergyStore,
+    _ loader: ControlledBatteryHistoryLoader
+  ) async {
+    await completeBatteryLoad(
+      0,
+      on: store,
+      loader: loader,
+      history: batteryHistory(start: start, end: end, charge: 34)
+    )
+  }
+
+  private func completeReconnectRecovery(
+    _ start: Date,
+    _ initialEnd: Date,
+    _ liveTimestamp: Date,
+    _ store: HomeAssistantHomeEnergyStore,
+    _ loader: ControlledBatteryHistoryLoader
+  ) async {
+    await completeBatteryLoad(
+      1,
+      on: store,
+      loader: loader,
+      history: recoveredHistory(
+        start: start,
+        initialEnd: initialEnd,
+        liveTimestamp: liveTimestamp
+      )
+    )
+    XCTAssertEqual(
+      store.batteryHistoryStore.batteryHistory.readings.compactMap(
+        \.stateOfCharge
+      ),
+      [34, 40, 44]
+    )
+    XCTAssertEqual(store.snapshot.batteryStateOfCharge, 44)
+    XCTAssertEqual(loader.startedBatteryRequestCount, 2)
+    XCTAssertFalse(store.batteryHistoryStore.isStale)
   }
 
   private func loadCompletion(
@@ -239,7 +268,7 @@ final class BatteryHistoryIntegrationTests: XCTestCase {
     )
   }
 
-  private func snapshot(charge: Double) -> HomeAssistantHomeEnergySnapshot {
+  private func snapshot(charge: Double?) -> HomeAssistantHomeEnergySnapshot {
     HomeAssistantHomeEnergySnapshot(
       pvPowerKilowatts: 8.4,
       batteryStateOfCharge: charge,

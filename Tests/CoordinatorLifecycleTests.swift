@@ -32,8 +32,8 @@ final class CoordinatorLifecycleTests: XCTestCase {
 
   private func makeCoordinator(
     serverUpdates:
-      @escaping @Sendable () async -> AsyncThrowingStream<
-        HomeAssistantStateUpdate, any Error
+      @escaping @Sendable () async -> HomeAssistantBufferedUpdateStream<
+        HomeAssistantStateUpdate
       >
   ) -> HomeAssistantObservationCoordinator {
     HomeAssistantObservationCoordinator(
@@ -87,10 +87,8 @@ private struct LifecycleEnergyLoader: HomeAssistantHomeEnergyLoading {
     .unavailable
   }
 
-  func homeEnergyUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
+    HomeAssistantHomeEnergyUpdateStream { continuation in
       continuation.yield(.live(.unavailable))
     }
   }

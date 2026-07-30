@@ -9,10 +9,10 @@ struct BrucePanelsView: View {
   @State private var activeScrollRequest: BrucePanelScrollRequest?
   @State private var panelFrames: [BrucePanel: CGRect] = [:]
   @State private var energyPanelHeight: CGFloat = 0
-  @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
-  @ObservedObject var chargingStore: HomeAssistantEVChargingStore
-  @ObservedObject var garageDoorStore: HomeAssistantGarageDoorStore
-  @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
+  let temperatureStore: HomeAssistantTemperatureStore
+  let chargingStore: HomeAssistantEVChargingStore
+  let garageDoorStore: HomeAssistantGarageDoorStore
+  let homeEnergyStore: HomeAssistantHomeEnergyStore
   let mode: BruceMode
   let isConnecting: Bool
   let connectionProblem: HomeAssistantPresentation.ConnectionProblem?
@@ -141,7 +141,7 @@ struct BrucePanelsView: View {
   private var panelScrollView: some View {
     GeometryReader { viewport in
       ScrollView {
-        VStack(spacing: 0) {
+        LazyVStack(spacing: 0) {
           panelSection(.climate, viewportHeight: viewport.size.height) {
             HomeAssistantTemperatureView(
               store: temperatureStore,

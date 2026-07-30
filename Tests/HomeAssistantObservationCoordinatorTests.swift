@@ -318,10 +318,8 @@ private struct CoordinatorEnergyLoader: HomeAssistantHomeEnergyLoading {
     .unavailable
   }
 
-  func homeEnergyUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
+    HomeAssistantHomeEnergyUpdateStream { continuation in
       continuation.yield(.live(.unavailable))
     }
   }

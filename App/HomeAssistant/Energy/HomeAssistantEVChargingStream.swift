@@ -20,6 +20,7 @@ struct HomeAssistantEVChargingStream: HomeAssistantEVCharging {
         do {
           var lastUpdate: HomeAssistantEVChargingUpdate?
           let stateUpdates = await states.stateUpdates()
+          defer { stateUpdates.cancel() }
           for try await stateUpdate in stateUpdates {
             try Task.checkCancellation()
             guard

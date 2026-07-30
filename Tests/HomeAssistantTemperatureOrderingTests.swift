@@ -60,6 +60,43 @@ final class HomeAssistantTemperatureOrderingTests: XCTestCase {
     await probe.cancel()
   }
 
+  func testControlBurstStartsOneContextRequestForNewestLiveGeneration() async throws {
+    let setup = try await temperatureOrderingSetup()
+    let (source, loader, probe) = (setup.source, setup.loader, setup.probe)
+    await fulfillment(of: [source.started], timeout: 1)
+    let generation = UUID()
+
+    source.yield(
+      .refreshing(
+        try decodedTemperatureStates(value: 20),
+        generation: generation
+      )
+    )
+    source.yield(
+      .reconnecting(
+        try decodedTemperatureStates(value: 21),
+        generation: generation
+      )
+    )
+    source.yield(
+      .live(try decodedTemperatureStates(value: 22), generation: generation)
+    )
+    source.yield(
+      .live(try decodedTemperatureStates(value: 23), generation: generation)
+    )
+    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
+    await Task.yield()
+
+    XCTAssertEqual(loader.requestCount, 1)
+    loader.succeed(
+      at: 0,
+      with: Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8),
+      statusCode: 200
+    )
+    source.finish()
+    await probe.cancel()
+  }
+
   func testBlockedContextNeverPublishesSupersededLiveState() async throws {
     let setup = try await temperatureOrderingSetup()
     let (source, loader, probe) = (setup.source, setup.loader, setup.probe)
@@ -74,6 +111,12 @@ final class HomeAssistantTemperatureOrderingTests: XCTestCase {
       )
     )
     await fulfillment(of: [loader.started(at: 0)], timeout: 1)
+    source.yield(
+      .reconnecting(
+        try decodedTemperatureStates(value: 21),
+        generation: firstGeneration
+      )
+    )
     source.yield(
       .live(
         try decodedTemperatureStates(value: 23),
@@ -91,17 +134,18 @@ final class HomeAssistantTemperatureOrderingTests: XCTestCase {
       with: Data(#"{"unit_system":{"temperature":"°F"}}"#.utf8),
       statusCode: 200
     )
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
-    source.finish()
     await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    source.finish()
+    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
 
-    guard case .live(let readings) = try probe.value(at: 0) else {
+    XCTAssertEqual(try probe.value(at: 0), .reconnecting([]))
+    guard case .live(let readings) = try probe.value(at: 1) else {
       XCTFail("Expected replacement live data with its matching context.")
       return
     }
     XCTAssertEqual(readings.map(\.value), [23])
     XCTAssertEqual(readings.map(\.unit), ["°F"])
-    XCTAssertThrowsError(try probe.value(at: 1))
+    XCTAssertThrowsError(try probe.value(at: 2))
   }
 }
 
@@ -150,12 +194,15 @@ private final class TemperatureContextStateSource:
   let started = XCTestExpectation(description: "Temperature state source started")
 
   private let lock = NSLock()
-  private var continuation: AsyncThrowingStream<HomeAssistantStateUpdate, any Error>.Continuation?
+  private var continuation:
+    HomeAssistantBufferedUpdateStream<
+      HomeAssistantStateUpdate
+    >.Continuation?
 
-  func stateUpdates() async -> AsyncThrowingStream<
-    HomeAssistantStateUpdate, any Error
+  func stateUpdates() async -> HomeAssistantBufferedUpdateStream<
+    HomeAssistantStateUpdate
   > {
-    AsyncThrowingStream { continuation in
+    HomeAssistantBufferedUpdateStream { continuation in
       lock.withLock {
         self.continuation = continuation
       }

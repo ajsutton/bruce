@@ -26,12 +26,18 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
     await command.value
 
     XCTAssertTrue(store.isControlling(entityID: reading.id))
-    let staleUpdate = expectation(description: "Stale state received")
-    let staleSubscription = store.$readings.dropFirst().prefix(1).sink { _ in
-      staleUpdate.fulfill()
+    let refreshing = expectation(description: "Stale state refresh received")
+    let refreshingSubscription = store.$isRefreshing.dropFirst().filter { $0 }.sink { _ in
+      refreshing.fulfill()
+    }
+    loader.yieldRequest(0, update: .refreshing([reading]))
+    await fulfillment(of: [refreshing], timeout: 1)
+    let live = expectation(description: "Stale live state received")
+    let liveSubscription = store.$isLive.dropFirst().filter { $0 }.sink { _ in
+      live.fulfill()
     }
     loader.yieldRequest(0, update: .live([reading]))
-    await fulfillment(of: [staleUpdate], timeout: 1)
+    await fulfillment(of: [live], timeout: 1)
     XCTAssertEqual(store.readings.first?.powerState, .off)
 
     await confirm(
@@ -45,7 +51,7 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
     XCTAssertEqual(commands, [.power(entityID: reading.id, isOn: false)])
     loader.finishRequest(0)
     await load.value
-    withExtendedLifetime(staleSubscription) {}
+    withExtendedLifetime((refreshingSubscription, liveSubscription)) {}
   }
 
   func testModeCommandPublishesOptimisticStateUntilLiveStateConfirmsIt() async {

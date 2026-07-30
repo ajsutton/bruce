@@ -133,6 +133,7 @@ struct HomeAssistantTemperatureView: View {
             }
           }
         )
+        .equatable()
         .padding(.bottom, 4)
       }
 
@@ -160,6 +161,7 @@ struct HomeAssistantTemperatureView: View {
             }
           }
         )
+        .equatable()
       }
     }
     .padding()

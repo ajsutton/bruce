@@ -358,10 +358,8 @@ private struct LifecycleEnergyLoader: HomeAssistantHomeEnergyLoading {
     throw LifecycleObservationError.unexpectedRequest
   }
 
-  func homeEnergyUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
-  > {
-    AsyncThrowingStream { _ in }
+  func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
+    HomeAssistantHomeEnergyUpdateStream { _ in }
   }
 }
 

@@ -18,7 +18,7 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   private let refreshStateFeed: @Sendable () async -> Bool
   private let resetStateFeed: @Sendable () async -> Void
   private let serverUpdates:
-    (@Sendable () async -> AsyncThrowingStream<HomeAssistantStateUpdate, any Error>)?
+    (@Sendable () async -> HomeAssistantBufferedUpdateStream<HomeAssistantStateUpdate>)?
   private let now: @Sendable () -> Date
   private var connection: HomeAssistantConnectionState?
   private var serverStatusTask: Task<Void, Never>?
@@ -38,7 +38,7 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     refreshStateFeed: @escaping @Sendable () async -> Bool = { false },
     resetStateFeed: @escaping @Sendable () async -> Void = {},
     serverUpdates:
-      (@Sendable () async -> AsyncThrowingStream<HomeAssistantStateUpdate, any Error>)? = nil,
+      (@Sendable () async -> HomeAssistantBufferedUpdateStream<HomeAssistantStateUpdate>)? = nil,
     now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.temperatureStore = temperatureStore
@@ -139,6 +139,7 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
           return
         }
         let updates = await serverUpdates()
+        defer { updates.cancel() }
         guard
           !Task.isCancelled,
           self?.serverStatusGeneration == generation

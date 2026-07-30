@@ -4,6 +4,95 @@ import XCTest
 
 @MainActor
 final class HomeAssistantHomeEnergyStoreTests: XCTestCase {
+  func testSnapshotPresentationEquivalenceMatchesVisiblePrecisionAndStates() {
+    let snapshot = HomeAssistantHomeEnergySnapshot(
+      pvPowerKilowatts: 8.41,
+      batteryStateOfCharge: 49.4,
+      homeConsumptionKilowatts: 3.11,
+      gridPowerKilowatts: -0.06,
+      generalPriceDollarsPerKilowattHour: 0.341_1,
+      feedInPriceDollarsPerKilowattHour: 0.127_1
+    )
+    let visiblyIdentical = HomeAssistantHomeEnergySnapshot(
+      pvPowerKilowatts: 8.44,
+      batteryStateOfCharge: 49.49,
+      homeConsumptionKilowatts: 3.14,
+      gridPowerKilowatts: 0.06,
+      generalPriceDollarsPerKilowattHour: 0.341_4,
+      feedInPriceDollarsPerKilowattHour: 0.127_4
+    )
+    let changedGridState = HomeAssistantHomeEnergySnapshot(
+      pvPowerKilowatts: 8.44,
+      batteryStateOfCharge: 49.49,
+      homeConsumptionKilowatts: 3.14,
+      gridPowerKilowatts: -0.14,
+      generalPriceDollarsPerKilowattHour: 0.341_4,
+      feedInPriceDollarsPerKilowattHour: 0.127_4
+    )
+
+    XCTAssertTrue(snapshot.hasSamePresentation(as: visiblyIdentical))
+    XCTAssertFalse(snapshot.hasSamePresentation(as: changedGridState))
+  }
+
+  func testSnapshotPresentationEquivalenceUsesFormatterTieRounding() {
+    let snapshot = presentationSnapshot(
+      solarPower: 8.45,
+      battery: 48.5,
+      consumption: 3.25,
+      grid: -2.25,
+      generalPrice: 0.340_5,
+      feedInPrice: 0.127_5
+    )
+
+    XCTAssertFalse(
+      snapshot.hasSamePresentation(as: presentationSnapshot(solarPower: 8.46))
+    )
+    XCTAssertFalse(
+      snapshot.hasSamePresentation(as: presentationSnapshot(battery: 48.6))
+    )
+    XCTAssertFalse(
+      snapshot.hasSamePresentation(as: presentationSnapshot(consumption: 3.26))
+    )
+    XCTAssertFalse(
+      snapshot.hasSamePresentation(as: presentationSnapshot(grid: -2.26))
+    )
+    XCTAssertFalse(
+      snapshot.hasSamePresentation(as: presentationSnapshot(generalPrice: 0.340_49))
+    )
+    XCTAssertFalse(
+      snapshot.hasSamePresentation(as: presentationSnapshot(feedInPrice: 0.127_4))
+    )
+    XCTAssertFalse(
+      presentationSnapshot(generalPrice: 0.084_49)
+        .hasSamePresentation(as: presentationSnapshot(generalPrice: 0.084_5))
+    )
+    XCTAssertFalse(
+      presentationSnapshot(feedInPrice: 0.084_49)
+        .hasSamePresentation(as: presentationSnapshot(feedInPrice: 0.084_5))
+    )
+  }
+
+  func testSnapshotPresentationEquivalencePreservesSemanticBands() {
+    for (lower, upper) in [(19.9, 20.0), (24.9, 25.0), (49.9, 50.0), (74.9, 75.0)] {
+      XCTAssertFalse(
+        presentationSnapshot(battery: lower)
+          .hasSamePresentation(as: presentationSnapshot(battery: upper))
+      )
+    }
+    XCTAssertFalse(
+      presentationSnapshot(grid: 0.09)
+        .hasSamePresentation(as: presentationSnapshot(grid: 0.1))
+    )
+    XCTAssertFalse(
+      presentationSnapshot(grid: -0.09)
+        .hasSamePresentation(as: presentationSnapshot(grid: -0.1))
+    )
+    XCTAssertFalse(
+      presentationSnapshot(feedInPrice: 0.000_1)
+        .hasSamePresentation(as: presentationSnapshot(feedInPrice: -0.000_1))
+    )
+  }
+
   func testSuccessfulLoadPublishesLiveSnapshot() async {
     let snapshot = makeSnapshot(solarPower: 8.4)
     let store = HomeAssistantHomeEnergyStore(
@@ -135,6 +224,24 @@ final class HomeAssistantHomeEnergyStoreTests: XCTestCase {
       gridPowerKilowatts: -2.7,
       generalPriceDollarsPerKilowattHour: 0.341,
       feedInPriceDollarsPerKilowattHour: 0.127
+    )
+  }
+
+  private func presentationSnapshot(
+    solarPower: Double = 8.45,
+    battery: Double = 48.5,
+    consumption: Double = 3.25,
+    grid: Double = -2.25,
+    generalPrice: Double = 0.340_5,
+    feedInPrice: Double = 0.127_5
+  ) -> HomeAssistantHomeEnergySnapshot {
+    HomeAssistantHomeEnergySnapshot(
+      pvPowerKilowatts: solarPower,
+      batteryStateOfCharge: battery,
+      homeConsumptionKilowatts: consumption,
+      gridPowerKilowatts: grid,
+      generalPriceDollarsPerKilowattHour: generalPrice,
+      feedInPriceDollarsPerKilowattHour: feedInPrice
     )
   }
 }

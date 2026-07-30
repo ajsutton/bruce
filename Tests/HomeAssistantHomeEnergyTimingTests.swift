@@ -207,15 +207,10 @@ private final class StreamingHomeEnergyLoader:
   let started = XCTestExpectation(description: "Home energy stream started")
 
   private let lock = NSLock()
-  private var continuation:
-    AsyncThrowingStream<
-      HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
-    >.Continuation?
+  private var continuation: HomeAssistantHomeEnergyUpdateStream.Continuation?
 
-  func homeEnergyUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
+    HomeAssistantHomeEnergyUpdateStream { continuation in
       lock.withLock {
         self.continuation = continuation
       }

@@ -7,7 +7,8 @@ final class AsyncThrowingStreamTestProbe<Element: Sendable>: @unchecked Sendable
   private var expectations: [Int: XCTestExpectation] = [:]
   private var observation: Task<Void, Never>?
 
-  init(_ stream: AsyncThrowingStream<Element, any Error>) {
+  init<Stream: AsyncSequence & Sendable>(_ stream: Stream)
+  where Stream.Element == Element {
     observation = Task { [weak self] in
       do {
         for try await value in stream {

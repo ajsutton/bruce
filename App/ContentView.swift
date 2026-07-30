@@ -10,10 +10,10 @@ struct ContentView: View {
   #endif
   @ObservedObject var modeController: BruceModeController
   @ObservedObject var setupStore: HomeAssistantSetupStore
-  @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
-  @ObservedObject var chargingStore: HomeAssistantEVChargingStore
-  @ObservedObject var garageDoorStore: HomeAssistantGarageDoorStore
-  @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
+  let temperatureStore: HomeAssistantTemperatureStore
+  let chargingStore: HomeAssistantEVChargingStore
+  let garageDoorStore: HomeAssistantGarageDoorStore
+  let homeEnergyStore: HomeAssistantHomeEnergyStore
   #if os(macOS)
     @ObservedObject var settingsNavigation: BruceSettingsNavigation
   #else

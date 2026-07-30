@@ -3,7 +3,7 @@ import SwiftUI
 struct EnergyPanelView: View {
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  @ObservedObject var homeEnergyStore: HomeAssistantHomeEnergyStore
+  let homeEnergyStore: HomeAssistantHomeEnergyStore
   let mode: BruceMode
   var showsConnectionProblems = true
   let manageConnection: () -> Void

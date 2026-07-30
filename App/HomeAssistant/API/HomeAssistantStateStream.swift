@@ -10,7 +10,7 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
   private let session: HomeAssistantSession
   private let apiClient: HomeAssistantAPIClient
   private let connector: any HomeAssistantWebSocketConnecting
-  private let retryDelays: [Duration]
+  let retryDelays: [Duration]
   private let sleep: @Sendable (Duration) async throws -> Void
   private let orderingCache = HomeAssistantStateOrderingCache()
 
@@ -36,10 +36,10 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
     self.sleep = sleep
   }
 
-  func stateUpdates() async -> AsyncThrowingStream<
-    HomeAssistantStateUpdate, any Error
+  func stateUpdates() async -> HomeAssistantBufferedUpdateStream<
+    HomeAssistantStateUpdate
   > {
-    AsyncThrowingStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
+    HomeAssistantBufferedUpdateStream { continuation in
       let task = Task {
         do {
           try await run(continuation)
@@ -54,8 +54,8 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
   }
 
   private func run(
-    _ continuation: AsyncThrowingStream<
-      HomeAssistantStateUpdate, any Error
+    _ continuation: HomeAssistantBufferedUpdateStream<
+      HomeAssistantStateUpdate
     >.Continuation
   ) async throws {
     let observation = try await beginObservation()
@@ -87,23 +87,21 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
         continuation.finish()
         return
       } catch {
-        guard Self.shouldReconnect(after: error), !retryDelays.isEmpty else {
-          continuation.finish(throwing: error)
-          return
-        }
-        retryIndex = publishedSnapshot ? 0 : retryIndex
-        lastFailedURL = attemptedURL ?? lastFailedURL
-        let delay = retryDelays[min(retryIndex, retryDelays.count - 1)]
-        retryIndex = min(retryIndex + 1, retryDelays.count - 1)
-        Self.reportDisconnect(
-          error,
-          update: .reconnecting(latestSnapshot.states, generation: generation),
-          to: continuation
+        let attempt = HomeAssistantReconnectAttempt(
+          publishedSnapshot: publishedSnapshot,
+          attemptedURL: attemptedURL,
+          latestStates: latestSnapshot.states,
+          generation: generation
         )
-        guard await waitForRetry(delay) else {
-          continuation.finish()
-          return
-        }
+        guard
+          await recover(
+            from: error,
+            attempt: attempt,
+            retryIndex: &retryIndex,
+            lastFailedURL: &lastFailedURL,
+            continuation: continuation
+          )
+        else { return }
       }
     }
     continuation.finish()
@@ -156,7 +154,7 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
         previousRemovals: previousRemovals
       )
       try await session.validateWebSocketAccess(access)
-      try await publish(Self.sorted(snapshot.statesByID.values), snapshot.removals)
+      try await publish(snapshot.orderedStates, snapshot.removals)
 
       while !Task.isCancelled {
         let event = try decode(
@@ -168,12 +166,8 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
         else {
           throw HomeAssistantAPIError.invalidResponse
         }
-        try Self.apply(
-          event.event.data,
-          to: &snapshot.statesByID,
-          removals: &snapshot.removals
-        )
-        try await publish(Self.sorted(snapshot.statesByID.values), snapshot.removals)
+        try Self.apply(event.event.data, to: &snapshot)
+        try await publish(snapshot.orderedStates, snapshot.removals)
       }
       throw CancellationError()
     } onCancel: {
@@ -250,30 +244,28 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
 extension HomeAssistantStateStream {
   fileprivate static func yield(
     _ update: HomeAssistantStateUpdate,
-    to continuation: AsyncThrowingStream<
-      HomeAssistantStateUpdate, any Error
+    to continuation: HomeAssistantBufferedUpdateStream<
+      HomeAssistantStateUpdate
     >.Continuation
   ) {
-    if case .dropped = continuation.yield(update) {
-      continuation.yield(update.requiringHistoryBackfill())
-    }
+    continuation.yield(update)
   }
 
   fileprivate static func yieldLive(
     _ states: [HomeAssistantState],
     generation: UUID,
-    to continuation: AsyncThrowingStream<
-      HomeAssistantStateUpdate, any Error
+    to continuation: HomeAssistantBufferedUpdateStream<
+      HomeAssistantStateUpdate
     >.Continuation
   ) {
     yield(.live(states, generation: generation), to: continuation)
   }
 
-  fileprivate static func reportDisconnect(
+  static func reportDisconnect(
     _ error: any Error,
     update: HomeAssistantStateUpdate,
-    to continuation: AsyncThrowingStream<
-      HomeAssistantStateUpdate, any Error
+    to continuation: HomeAssistantBufferedUpdateStream<
+      HomeAssistantStateUpdate
     >.Continuation
   ) {
     logger.error(
@@ -282,7 +274,7 @@ extension HomeAssistantStateStream {
     yield(update, to: continuation)
   }
 
-  fileprivate func waitForRetry(_ delay: Duration) async -> Bool {
+  func waitForRetry(_ delay: Duration) async -> Bool {
     do {
       try await sleep(delay)
       return true

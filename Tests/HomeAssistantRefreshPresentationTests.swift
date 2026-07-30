@@ -103,18 +103,15 @@ final class HomeAssistantRefreshPresentationTests: XCTestCase {
     let secondStarted = loader.expectSubscription(2)
     let secondObservation = Task { await store.load() }
     await fulfillment(of: [secondStarted], timeout: 1)
-    let preserved = expectation(description: "Cached temperature reading preserved")
-    let subscription = store.$readings.dropFirst().filter { $0 == [reading] }.sink { _ in
-      preserved.fulfill()
-    }
+    loader.yield(.reconnecting([]), subscription: 2)
+    await waitForValue(store.$problem, matching: .reconnecting)
     loader.yield(.refreshing([]), subscription: 2)
-    await fulfillment(of: [preserved], timeout: 1)
+    await waitForValue(store.$isRefreshing, matching: true)
 
     XCTAssertEqual(store.readings, [reading])
     XCTAssertFalse(store.isLive)
     XCTAssertTrue(store.isRefreshing)
     XCTAssertFalse(store.isLoading)
-    withExtendedLifetime(subscription) {}
     secondObservation.cancel()
     await secondObservation.value
   }
@@ -309,15 +306,10 @@ private final class RefreshingEnergyLoader:
 {
   let started = XCTestExpectation(description: "Energy refresh stream started")
   private let lock = NSLock()
-  private var continuation:
-    AsyncThrowingStream<
-      HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
-    >.Continuation?
+  private var continuation: HomeAssistantHomeEnergyUpdateStream.Continuation?
 
-  func homeEnergyUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
+    HomeAssistantHomeEnergyUpdateStream { continuation in
       lock.withLock { self.continuation = continuation }
       started.fulfill()
     }

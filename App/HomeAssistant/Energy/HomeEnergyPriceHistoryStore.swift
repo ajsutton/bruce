@@ -16,16 +16,24 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
   private let loader: any HomeAssistantHomeEnergyLoading
   private let progressDelay: Duration
   private let progressSleep: @Sendable (Duration) async -> Void
+  private let sampleInterval: TimeInterval
+  private let sampleSleep: @Sendable (Duration) async -> Void
   private var loadTask: Task<Void, Never>?
   private var progressTask: Task<Void, Never>?
+  private var sampleTask: Task<Void, Never>?
   private var loadID = UUID()
   private var pendingHistory = HomeEnergyPriceHistory.empty
+  private var queuedSample: QueuedSample?
 
   init(
     loader: any HomeAssistantHomeEnergyLoading,
     priceHistory: HomeEnergyPriceHistory = .empty,
     progressDelay: Duration = .milliseconds(500),
     progressSleep: @escaping @Sendable (Duration) async -> Void = {
+      try? await Task.sleep(for: $0)
+    },
+    sampleInterval: TimeInterval = HomeEnergyHistorySampling.interval,
+    sampleSleep: @escaping @Sendable (Duration) async -> Void = {
       try? await Task.sleep(for: $0)
     }
   ) {
@@ -34,15 +42,19 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
     hasUsableHistory = priceHistory.hasCompleteTariffs
     self.progressDelay = progressDelay
     self.progressSleep = progressSleep
+    self.sampleInterval = sampleInterval
+    self.sampleSleep = sampleSleep
   }
 
   deinit {
     loadTask?.cancel()
     progressTask?.cancel()
+    sampleTask?.cancel()
   }
 
   func reload() {
     loadTask?.cancel()
+    cancelQueuedSample()
     pendingHistory = .empty
     let requestID = UUID()
     loadID = requestID
@@ -65,17 +77,13 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
   }
 
   func record(snapshot: HomeAssistantHomeEnergySnapshot, at timestamp: Date) {
-    if isLoading {
-      pendingHistory = pendingHistory.recording(snapshot: snapshot, at: timestamp)
-    }
-    if hasUsableHistory {
-      priceHistory = priceHistory.recording(snapshot: snapshot, at: timestamp)
-    }
+    recordSample(snapshot: snapshot, at: timestamp)
   }
 
   @discardableResult
   func reset() -> Task<Void, Never>? {
     let cancelledTask = cancelLoad()
+    cancelQueuedSample()
     priceHistory = .empty
     hasUsableHistory = false
     isUnavailable = true
@@ -87,6 +95,7 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
   @discardableResult
   func invalidate() -> Task<Void, Never>? {
     let cancelledTask = cancelLoad()
+    cancelQueuedSample()
     isUnavailable = !hasUsableHistory
     isStale = hasUsableHistory
     problem = nil
@@ -96,7 +105,9 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
   private func publish(_ history: HomeEnergyPriceHistory, for requestID: UUID) {
     guard loadID == requestID, !Task.isCancelled else { return }
     if history.hasCompleteTariffs {
-      priceHistory = history.mergingLiveReadings(from: pendingHistory)
+      priceHistory = history.mergingLiveReadings(
+        from: pendingHistoryIncludingQueuedSample()
+      )
       hasUsableHistory = true
       isStale = false
     } else if hasUsableHistory {
@@ -159,5 +170,147 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
     loadID = UUID()
     finishLoad()
     return cancelledTask
+  }
+}
+
+extension HomeEnergyPriceHistoryStore {
+  fileprivate struct QueuedSample {
+    let snapshot: HomeAssistantHomeEnergySnapshot
+    let timestamp: Date
+    let recordsPendingHistory: Bool
+    let recordsPublishedHistory: Bool
+  }
+
+  fileprivate func recordSample(
+    snapshot: HomeAssistantHomeEnergySnapshot,
+    at timestamp: Date
+  ) {
+    let recordsPendingHistory =
+      isLoading
+      && (pendingHistory == .empty
+        || !shouldRecordImmediately(
+          snapshot: snapshot,
+          at: timestamp,
+          in: pendingHistory
+        ))
+    if isLoading, !recordsPendingHistory {
+      pendingHistory = pendingHistory.recording(
+        snapshot: snapshot,
+        at: timestamp
+      )
+    }
+
+    let recordsPublishedHistory =
+      hasUsableHistory
+      && !shouldRecordImmediately(
+        snapshot: snapshot,
+        at: timestamp,
+        in: priceHistory
+      )
+    if hasUsableHistory, !recordsPublishedHistory {
+      priceHistory = priceHistory.recording(
+        snapshot: snapshot,
+        at: timestamp
+      )
+    }
+
+    guard recordsPendingHistory || recordsPublishedHistory else {
+      cancelQueuedSample()
+      return
+    }
+    queuedSample = QueuedSample(
+      snapshot: snapshot,
+      timestamp: timestamp,
+      recordsPendingHistory: recordsPendingHistory,
+      recordsPublishedHistory: recordsPublishedHistory
+    )
+    scheduleQueuedSampleIfNeeded()
+  }
+
+  fileprivate func shouldRecordImmediately(
+    snapshot: HomeAssistantHomeEnergySnapshot,
+    at timestamp: Date,
+    in history: HomeEnergyPriceHistory
+  ) -> Bool {
+    guard
+      timestamp.timeIntervalSince(history.interval.end) < sampleInterval
+    else {
+      return true
+    }
+    return HomeEnergyPriceHistory.Tariff.allCases.contains { tariff in
+      let latestIsAvailable =
+        history.readings.last(where: { $0.tariff == tariff })?
+        .dollarsPerKilowattHour != nil
+      let newValue =
+        switch tariff {
+        case .general: snapshot.generalPriceDollarsPerKilowattHour
+        case .feedIn: snapshot.feedInPriceDollarsPerKilowattHour
+        }
+      return latestIsAvailable != (newValue?.isFinite == true)
+    }
+  }
+
+  fileprivate func scheduleQueuedSampleIfNeeded() {
+    guard sampleTask == nil, let queuedSample else { return }
+    let delay = sampleDelay(for: queuedSample)
+    let sampleSleep = sampleSleep
+    sampleTask = Task { [weak self] in
+      await sampleSleep(.seconds(delay))
+      guard !Task.isCancelled else { return }
+      self?.flushQueuedSample()
+    }
+  }
+
+  fileprivate func sampleDelay(for sample: QueuedSample) -> TimeInterval {
+    var delays: [TimeInterval] = []
+    if sample.recordsPendingHistory {
+      delays.append(
+        pendingHistory == .empty
+          ? sampleInterval
+          : sampleInterval
+            - sample.timestamp.timeIntervalSince(pendingHistory.interval.end)
+      )
+    }
+    if sample.recordsPublishedHistory {
+      delays.append(
+        sampleInterval - sample.timestamp.timeIntervalSince(priceHistory.interval.end)
+      )
+    }
+    return max(delays.min() ?? sampleInterval, 0)
+  }
+
+  fileprivate func flushQueuedSample() {
+    sampleTask = nil
+    guard let sample = queuedSample else { return }
+    queuedSample = nil
+    if sample.recordsPendingHistory, isLoading {
+      pendingHistory = pendingHistory.recording(
+        snapshot: sample.snapshot,
+        at: sample.timestamp
+      )
+    }
+    if sample.recordsPublishedHistory, hasUsableHistory {
+      priceHistory = priceHistory.recording(
+        snapshot: sample.snapshot,
+        at: sample.timestamp
+      )
+    }
+  }
+
+  fileprivate func pendingHistoryIncludingQueuedSample() -> HomeEnergyPriceHistory {
+    guard let sample = queuedSample, sample.recordsPendingHistory else {
+      return pendingHistory
+    }
+    cancelQueuedSample()
+    return pendingHistory.recording(
+      snapshot: sample.snapshot,
+      at: sample.timestamp
+    )
+  }
+
+  fileprivate func cancelQueuedSample() {
+    sampleTask?.cancel()
+    sampleTask = nil
+    queuedSample = nil
   }
 }

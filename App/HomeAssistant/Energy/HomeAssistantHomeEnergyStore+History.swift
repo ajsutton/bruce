@@ -1,5 +1,9 @@
 import Foundation
 
+enum HomeEnergyHistorySampling {
+  static let interval: TimeInterval = 2 * 60
+}
+
 extension HomeAssistantHomeEnergyStore {
   func reloadHistory() {
     batteryHistoryStore.reload()

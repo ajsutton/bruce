@@ -79,7 +79,9 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
       loadContext: loadTemperatureContextWithRetry
     )
     do {
-      for try await stateUpdate in await states.stateUpdates() {
+      let stateUpdates = await states.stateUpdates()
+      defer { stateUpdates.cancel() }
+      for try await stateUpdate in stateUpdates {
         try Task.checkCancellation()
         await producer.receive(stateUpdate)
       }

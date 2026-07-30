@@ -22,8 +22,11 @@ struct HomeAssistantGarageDoorStream: HomeAssistantGarageDoorLoading {
         do {
           var registry: HomeAssistantGarageDoorRegistry?
           var registryGeneration: UUID?
+          var cachedDoors: [HomeAssistantGarageDoorSnapshot] = []
           var lastUpdate: HomeAssistantLiveUpdate<[HomeAssistantGarageDoorSnapshot]>?
-          for try await stateUpdate in await states.stateUpdates() {
+          let stateUpdates = await states.stateUpdates()
+          defer { stateUpdates.cancel() }
+          for try await stateUpdate in stateUpdates {
             try Task.checkCancellation()
             if stateUpdate.phase == .live, registryGeneration != stateUpdate.generation {
               do {
@@ -38,13 +41,15 @@ struct HomeAssistantGarageDoorStream: HomeAssistantGarageDoorLoading {
               }
               registryGeneration = stateUpdate.generation
             }
-            guard let registry else {
-              continue
-            }
-            let doors = HomeAssistantGarageDoorSnapshot.snapshots(
-              states: stateUpdate.states,
-              registry: registry
-            )
+            guard
+              let doors = Self.doors(
+                from: stateUpdate,
+                registry: registry,
+                registryGeneration: registryGeneration,
+                cachedDoors: cachedDoors
+              )
+            else { continue }
+            cachedDoors = doors
             let update = Self.update(doors: doors, phase: stateUpdate.phase)
             guard update != lastUpdate else { continue }
             lastUpdate = update
@@ -70,6 +75,22 @@ struct HomeAssistantGarageDoorStream: HomeAssistantGarageDoorLoading {
       }
     }
     throw HomeAssistantAPIError.invalidResponse
+  }
+
+  private static func doors(
+    from update: HomeAssistantStateUpdate,
+    registry: HomeAssistantGarageDoorRegistry?,
+    registryGeneration: UUID?,
+    cachedDoors: [HomeAssistantGarageDoorSnapshot]
+  ) -> [HomeAssistantGarageDoorSnapshot]? {
+    if update.phase != .live, registryGeneration != update.generation {
+      return cachedDoors
+    }
+    guard let registry else { return nil }
+    return HomeAssistantGarageDoorSnapshot.snapshots(
+      states: update.states,
+      registry: registry
+    )
   }
 
   private static func update(

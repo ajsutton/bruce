@@ -76,6 +76,30 @@ Brand expression, palette, language and the Bruce/Full Bruce presentation modes 
 - Avoid optimistic updates for safety-sensitive actions unless the pending state is explicit.
 - Confirm remote or safety-sensitive operations; do not confirm routine reversible actions.
 
+## Time-series displays
+
+- Match update fidelity to the visible chart resolution. Coalesce samples that cannot produce a
+  distinct rendered point.
+- Retain the newest sample in each coalescing window and flush a lone trailing sample at the
+  window boundary. Publish availability and other semantic state transitions immediately.
+- Observe each live store at the narrowest view subtree that needs it. A container that only passes
+  a store to independently observed children must not invalidate every child for every update.
+- Pass observable stores through ancestor containers as plain values when those ancestors do not
+  read the store. Avoid assigning unchanged `@Published` values because those assignments still
+  invalidate observers.
+- For high-rate values, retain full-precision source state for control and data decisions but only
+  publish when the displayed value or another visible property changes.
+- Put expensive repeated live cards behind an explicit equality boundary that covers every visible
+  input. Keep callbacks out of equality only when their owner and behaviour remain stable.
+- Lazily construct vertically stacked panels so off-screen live features do not participate in
+  layout and rendering work.
+- Load a bounded historical interval once, then append accepted live samples instead of
+  refetching and republishing the full interval for every update.
+- Do not refetch history merely because an intermediate live update was dropped. Reserve backfill
+  for reconnects, explicit refreshes, or another user-visible data gap.
+- Profile chart updates with representative history. Verify CPU, wakeups, request cadence, and
+  main-thread work before treating a live chart as complete.
+
 ## Accessibility
 
 - Give custom controls meaningful labels, values, and traits.
@@ -91,6 +115,10 @@ Brand expression, palette, language and the Bruce/Full Bruce presentation modes 
 - Are loading, stale, unavailable, error, and success states represented?
 - Do routine state changes remain visually stable without selection, text, spinner, or layout
   flicker?
+- Can bursty live data be coalesced without visible loss, and does it avoid repeated history I/O?
+- Does coalescing also apply while initial or refresh history is loading?
+- Are live-store observation, published-value, and repeated-card equality boundaries narrow enough
+  to prevent unrelated or visually identical updates from rebuilding the screen?
 - Does the app restore the user's durable UI context after a restart?
 - Are dangerous actions appropriately protected?
 - Does it work with Dynamic Type, VoiceOver, keyboard navigation, dark mode, and Reduce Motion?
