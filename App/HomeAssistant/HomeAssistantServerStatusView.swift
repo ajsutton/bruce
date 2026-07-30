@@ -20,6 +20,16 @@ struct HomeAssistantServerStatusView: View {
         by: 60
       )
     ) { context in
+      platformStatus(at: context.date)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityStatusText(at: context.date))
+        .allowsHitTesting(false)
+    }
+  }
+
+  @ViewBuilder
+  private func platformStatus(at date: Date) -> some View {
+    #if os(iOS)
       HStack(spacing: 6) {
         Image(systemName: statusIcon)
           .font(.system(size: isHealthyLive ? 7 : 11))
@@ -27,18 +37,18 @@ struct HomeAssistantServerStatusView: View {
           .accessibilityHidden(true)
           .frame(width: 12, height: 12)
 
-        statusText(at: context.date)
-          .font(.caption)
-          .foregroundStyle(foregroundStyle)
+        statusText(at: date)
       }
+      .font(.caption)
+      .foregroundStyle(foregroundStyle)
       .padding(.horizontal)
       .padding(.vertical, 6)
       .glassEffect()
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(accessibilityStatusText(at: context.date))
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .allowsHitTesting(false)
-    }
+    #else
+      statusText(at: date)
+        .font(.caption)
+        .foregroundStyle(foregroundStyle)
+    #endif
   }
 
   @ViewBuilder

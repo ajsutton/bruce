@@ -21,9 +21,7 @@ struct BrucePanelsView: View {
   let requestHomeRefresh: () -> Void
   let isRemovingConnection: Bool
 
-  private var copy: AppCopy {
-    AppCopy(mode: mode)
-  }
+  private var copy: AppCopy { AppCopy(mode: mode) }
 
   private var connectionBanner: HomeAssistantConnectionBanner? {
     HomeAssistantConnectionBanner(
@@ -33,7 +31,7 @@ struct BrucePanelsView: View {
   }
 
   private var showsServerStatus: Bool {
-    isRemovingConnection || isConnecting || serverStatus.phase != .idle
+    serverStatus.phase != .idle || isConnecting || isRemovingConnection
   }
 
   var body: some View {
@@ -82,7 +80,6 @@ struct BrucePanelsView: View {
           .toolbarTitleDisplayMode(.inline)
       }
     }
-
   #else
     @ViewBuilder
     private var iOSPanels: some View {
@@ -95,34 +92,39 @@ struct BrucePanelsView: View {
 
     private var compactIOSPanels: some View {
       panelScrollView
+        .safeAreaBar(edge: .top, alignment: .trailing, spacing: 0) {
+          iOSServerStatusOverlay
+        }
         .safeAreaBar(edge: .bottom, spacing: 0) {
-          VStack(alignment: .leading, spacing: 8) {
-            if connectionBanner == nil, showsServerStatus {
-              serverStatusView.padding(.horizontal)
-            }
-            BrucePanelTabBar(
-              selectedPanel: selectedPanel,
-              titles: BrucePanel.allCases.map(title),
-              selectPanel: requestScroll
-            )
-            .frame(maxWidth: .infinity)
-            .frame(height: 49)
-          }
+          BrucePanelTabBar(
+            selectedPanel: selectedPanel,
+            titles: BrucePanel.allCases.map(title),
+            selectPanel: { requestScroll(to: $0, animated: true) }
+          )
+          .frame(maxWidth: .infinity)
+          .frame(height: 49)
         }
     }
 
     private var iPadPanels: some View {
       NavigationSplitView {
         panelSidebar
-          .safeAreaBar(edge: .bottom, alignment: .leading) {
-            if connectionBanner == nil, showsServerStatus {
-              serverStatusView.padding()
-            }
-          }
       } detail: {
         panelScrollView
+          .safeAreaBar(edge: .top, alignment: .trailing, spacing: 0) {
+            iOSServerStatusOverlay
+          }
           .navigationTitle(title(for: selectedPanel))
           .toolbarTitleDisplayMode(.inline)
+      }
+    }
+
+    @ViewBuilder
+    private var iOSServerStatusOverlay: some View {
+      if connectionBanner == nil, showsServerStatus {
+        serverStatusView
+          .padding(.vertical, 8)
+          .padding(.trailing)
       }
     }
   #endif
@@ -132,7 +134,7 @@ struct BrucePanelsView: View {
       selectedPanel: selectedPanel,
       titles: BrucePanel.allCases.map(title),
       activePanel: activeScrollRequest?.panel,
-      selectPanel: requestScroll
+      selectPanel: { requestScroll(to: $0, animated: true) }
     )
   }
 
@@ -194,10 +196,6 @@ struct BrucePanelsView: View {
         updateSelectedPanel(viewportHeight: context.geometry.visibleRect.height)
       }
     }
-  }
-
-  private func requestScroll(to panel: BrucePanel) {
-    requestScroll(to: panel, animated: true)
   }
 
   private func requestScroll(to panel: BrucePanel, animated: Bool) {
@@ -272,9 +270,7 @@ struct BrucePanelsView: View {
     }
     selectedPanel = mostVisiblePanel
   }
-
 }
-
 #Preview("Panels") {
   BrucePanelsPreview.view
 }
