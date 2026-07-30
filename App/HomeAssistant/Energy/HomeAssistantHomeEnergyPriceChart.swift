@@ -125,24 +125,17 @@ struct HomeAssistantHomeEnergyPriceChart: View {
   }
 
   private var priceChart: some View {
-    Chart {
-      ForEach(HomeEnergyPriceHistory.Tariff.allCases, id: \.self) { tariff in
-        ForEach(
-          Array(
-            (store.priceHistory.availableReadingSegments[tariff] ?? [])
-              .enumerated()
-          ),
-          id: \.offset
-        ) { segmentIndex, segment in
-          ForEach(segment) { reading in
-            priceLine(
-              reading,
-              tariff: tariff,
-              segmentIndex: segmentIndex
-            )
-          }
-        }
-      }
+    Chart(priceChartPoints) { point in
+      LineMark(
+        x: .value(copy.priceHistoryTimeAxis, point.timestamp),
+        y: .value(copy.priceHistoryPriceAxis, point.centsPerKilowattHour),
+        series: .value(copy.priceHistorySeries, point.seriesID)
+      )
+      .foregroundStyle(
+        by: .value(copy.priceHistorySeries, seriesName(for: point.tariff))
+      )
+      .interpolationMethod(.stepEnd)
+      .lineStyle(StrokeStyle(lineWidth: 1))
     }
     .chartXScale(domain: store.priceHistory.interval.start...store.priceHistory.interval.end)
     .chartYScale(domain: priceYDomain)
@@ -175,24 +168,20 @@ struct HomeAssistantHomeEnergyPriceChart: View {
     .accessibilityChartDescriptor(priceAccessibilityDescriptor)
   }
 
-  @ChartContentBuilder
-  private func priceLine(
-    _ reading: HomeEnergyPriceHistory.Reading,
-    tariff: HomeEnergyPriceHistory.Tariff,
-    segmentIndex: Int
-  ) -> some ChartContent {
-    if let cents = reading.centsPerKilowattHour {
-      let seriesID = "\(tariff.rawValue)-\(segmentIndex)"
-      LineMark(
-        x: .value(copy.priceHistoryTimeAxis, reading.timestamp),
-        y: .value(copy.priceHistoryPriceAxis, cents),
-        series: .value(copy.priceHistorySeries, seriesID)
-      )
-      .foregroundStyle(
-        by: .value(copy.priceHistorySeries, seriesName(for: tariff))
-      )
-      .interpolationMethod(.stepEnd)
-      .lineStyle(StrokeStyle(lineWidth: 1))
+  private var priceChartPoints: [PriceChartPoint] {
+    let segments = store.priceHistory.availableReadingSegments
+    return HomeEnergyPriceHistory.Tariff.allCases.flatMap { tariff in
+      (segments[tariff] ?? []).enumerated().flatMap { segmentIndex, segment in
+        segment.compactMap { reading in
+          guard let cents = reading.centsPerKilowattHour else { return nil }
+          return PriceChartPoint(
+            tariff: tariff,
+            segmentIndex: segmentIndex,
+            timestamp: reading.timestamp,
+            centsPerKilowattHour: cents
+          )
+        }
+      }
     }
   }
 
@@ -254,5 +243,30 @@ struct HomeAssistantHomeEnergyPriceChart: View {
     return colorScheme == .dark
       ? Color.white.opacity(0.08)
       : mode.foregroundColor.opacity(0.08)
+  }
+}
+
+private struct PriceChartPoint: Identifiable {
+  struct Identifier: Hashable {
+    let tariff: HomeEnergyPriceHistory.Tariff
+    let segmentIndex: Int
+    let timestamp: Date
+  }
+
+  let tariff: HomeEnergyPriceHistory.Tariff
+  let segmentIndex: Int
+  let timestamp: Date
+  let centsPerKilowattHour: Double
+
+  var id: Identifier {
+    Identifier(
+      tariff: tariff,
+      segmentIndex: segmentIndex,
+      timestamp: timestamp
+    )
+  }
+
+  var seriesID: String {
+    "\(tariff.rawValue)-\(segmentIndex)"
   }
 }
