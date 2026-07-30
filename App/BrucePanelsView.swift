@@ -69,7 +69,8 @@ struct BrucePanelsView: View {
     private var macOSPanels: some View {
       NavigationSplitView {
         List(BrucePanel.allCases, selection: sidebarSelection) { panel in
-          sidebarLabel(for: panel)
+          Label(title(for: panel), systemImage: panel.systemImage)
+            .tag(panel)
         }
         .navigationSplitViewColumnWidth(min: 170, ideal: 190)
       } detail: {
@@ -158,27 +159,8 @@ struct BrucePanelsView: View {
       )
     }
 
-    private func sidebarLabel(for panel: BrucePanel) -> some View {
-      Label(title(for: panel), systemImage: panel.systemImage)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .tag(panel)
-        .simultaneousGesture(
-          TapGesture().onEnded {
-            requestPanelScroll(to: panel)
-          }
-        )
-        .accessibilityAction {
-          requestScroll(to: panel)
-        }
-    }
-
     private func requestScroll(to panel: BrucePanel) {
       selectedPanel = panel
-      requestPanelScroll(to: panel)
-    }
-
-    private func requestPanelScroll(to panel: BrucePanel) {
       scrollRequest = BrucePanelScrollRequest(panel: panel)
     }
   #else
