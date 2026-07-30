@@ -30,9 +30,9 @@ production layout to compensate for preview-canvas whitespace.
 
 Keep shared view code valid on both iOS and macOS. Guard AppKit/UIKit-only preview code.
 
-Use the running app only when the behavior needs a real window, navigation stack, Dock, system
-presentation, or runtime service. Use `run-mac-app-with-logs` when logs matter.
+When the behavior needs a real window, navigation stack, Dock, system presentation, or runtime
+service, launch the worktree app for user review without operating its UI. Use
+`run-mac-app-with-logs` when logs matter.
 
 Before finishing, remove preview-only scaffolding and run format, relevant builds/tests,
 `ui-review`, and any other required reviewers.
-

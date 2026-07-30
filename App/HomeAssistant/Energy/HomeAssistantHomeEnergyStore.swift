@@ -9,29 +9,45 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
   @Published private(set) var showsProgress = false
   @Published private(set) var problem: Problem?
 
+  let priceHistoryStore: HomeEnergyPriceHistoryStore
+
   private let loader: any HomeAssistantHomeEnergyLoading
+  private let now: @Sendable () -> Date
   private let onAuthenticationRequired: @MainActor @Sendable () -> Void
   private let progressDelay: Duration
   private let progressSleep: @Sendable (Duration) async -> Void
   private var loadGeneration = UUID()
   private var progressTask: Task<Void, Never>?
+  private var needsPriceHistoryBackfill = false
 
   init(
     loader: any HomeAssistantHomeEnergyLoading,
     snapshot: HomeAssistantHomeEnergySnapshot = .unavailable,
     isLive: Bool = false,
+    priceHistory: HomeEnergyPriceHistory = .empty,
     progressDelay: Duration = .milliseconds(500),
     progressSleep: @escaping @Sendable (Duration) async -> Void = {
       try? await Task.sleep(for: $0)
     },
-    onAuthenticationRequired: @escaping @MainActor @Sendable () -> Void = {}
+    onAuthenticationRequired: @escaping @MainActor @Sendable () -> Void = {},
+    now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.loader = loader
     self.snapshot = snapshot
     self.isLive = isLive
+    priceHistoryStore = HomeEnergyPriceHistoryStore(
+      loader: loader,
+      priceHistory: priceHistory,
+      progressDelay: progressDelay,
+      progressSleep: progressSleep
+    )
     self.progressDelay = progressDelay
     self.progressSleep = progressSleep
     self.onAuthenticationRequired = onAuthenticationRequired
+    self.now = now
+    priceHistoryStore.authenticationFailureHandler = { [weak self] in
+      self?.handlePriceHistoryAuthenticationFailure()
+    }
   }
 
   deinit {
@@ -41,7 +57,10 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
   func synchronize(with connection: HomeAssistantConnectionState) async {
     switch connection {
     case .connected:
-      await observeUpdates()
+      let generation = UUID()
+      beginObservation(generation: generation)
+      priceHistoryStore.reload()
+      await observeUpdates(generation: generation)
     case .disconnected:
       reset()
     case .connecting:
@@ -93,10 +112,7 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     }
   }
 
-  private func observeUpdates() async {
-    let generation = UUID()
-    beginObservation(generation: generation)
-
+  private func observeUpdates(generation: UUID) async {
     do {
       for try await update in loader.homeEnergyUpdates() {
         try Task.checkCancellation()
@@ -108,21 +124,25 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       if loader.providesContinuousEnergyUpdates {
         finishLoad(isLive: false)
         problem = .connectionUnavailable
+        priceHistoryStore.invalidate()
       } else {
         finishProgress()
       }
     } catch is CancellationError {
       guard loadGeneration == generation else { return }
+      priceHistoryStore.invalidate()
       finishLoad(isLive: false)
     } catch {
       guard loadGeneration == generation else { return }
       guard !Task.isCancelled, !Self.isCancellation(error) else {
+        priceHistoryStore.invalidate()
         finishLoad(isLive: false)
         return
       }
       let loadProblem = Self.problem(for: error)
       problem = loadProblem
       finishLoad(isLive: false)
+      priceHistoryStore.invalidate()
       if loadProblem == .signInRequired {
         onAuthenticationRequired()
       }
@@ -151,6 +171,12 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
         return
       }
       self.snapshot = snapshot
+      let timestamp = now()
+      if needsPriceHistoryBackfill {
+        needsPriceHistoryBackfill = false
+        priceHistoryStore.reload()
+      }
+      priceHistoryStore.record(snapshot: snapshot, at: timestamp)
       problem = nil
       isRefreshing = false
       finishLoad(isLive: true)
@@ -163,6 +189,8 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       isLive = false
       isRefreshing = true
       finishProgress()
+      priceHistoryStore.invalidate()
+      needsPriceHistoryBackfill = true
     case .reconnecting(let snapshot):
       if snapshot.hasReadings {
         self.snapshot = snapshot
@@ -170,10 +198,13 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       problem = .reconnecting
       isRefreshing = false
       finishLoad(isLive: false)
+      priceHistoryStore.invalidate()
+      needsPriceHistoryBackfill = true
     }
   }
 
-  func reset() {
+  @discardableResult
+  func reset() -> Task<Void, Never>? {
     loadGeneration = UUID()
     snapshot = .unavailable
     isLoading = false
@@ -181,14 +212,19 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     isRefreshing = false
     finishProgress()
     problem = nil
+    needsPriceHistoryBackfill = false
+    return priceHistoryStore.reset()
   }
 
-  private func invalidateLoad() {
+  @discardableResult
+  private func invalidateLoad() -> Task<Void, Never>? {
     loadGeneration = UUID()
     isLoading = false
     isLive = false
     isRefreshing = false
     finishProgress()
+    needsPriceHistoryBackfill = false
+    return priceHistoryStore.invalidate()
   }
 
   private func scheduleProgress(for generation: UUID) {
@@ -213,5 +249,11 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     progressTask?.cancel()
     progressTask = nil
     showsProgress = false
+  }
+
+  private func handlePriceHistoryAuthenticationFailure() {
+    problem = .signInRequired
+    finishLoad(isLive: false)
+    onAuthenticationRequired()
   }
 }

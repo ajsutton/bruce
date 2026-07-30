@@ -35,6 +35,23 @@ struct HomeAssistantWebSocketAccess: Sendable {
       authenticationSessionEpoch: authenticationSessionEpoch
     )
   }
+
+  static func candidates(
+    credentials: HomeAssistantCredentials,
+    credentialGeneration: Int,
+    authenticationSessionEpoch: Int
+  ) throws -> [HomeAssistantWebSocketAccess] {
+    try HomeAssistantRequestRouter.candidates(for: credentials).map { baseURL in
+      HomeAssistantWebSocketAccess(
+        baseURL: baseURL,
+        url: try HomeAssistantRequestRouter.webSocketURL(baseURL: baseURL),
+        accessToken: credentials.accessToken,
+        credentialGeneration: credentialGeneration,
+        authenticationSessionEpoch: authenticationSessionEpoch,
+        serverIdentity: HomeAssistantServerIdentity(credentials)
+      )
+    }
+  }
 }
 
 extension HomeAssistantSession {

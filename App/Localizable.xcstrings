@@ -14,6 +14,9 @@
         }
       }
     },
+    "%@¢" : {
+
+    },
     "app.carTab" : {
       "localizations" : {
         "en" : {
@@ -4202,6 +4205,118 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Manage Connection — Sort It Out"
+          }
+        }
+      }
+    },
+    "homeEnergy.priceHistory" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electricity prices"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What the Grid’s Been Charging"
+          }
+        }
+      }
+    },
+    "homeEnergy.priceHistoryLoading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading price history"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digging up the last day’s prices"
+          }
+        }
+      }
+    },
+    "homeEnergy.priceHistoryPeriod" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 24 hours · ¢/kWh"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last day, start to finish · ¢/kWh"
+          }
+        }
+      }
+    },
+    "homeEnergy.priceHistoryPriceAxis" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price in cents per kilowatt-hour"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price in cents per kilowatt-hour"
+          }
+        }
+      }
+    },
+    "homeEnergy.priceHistorySeries" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price type"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price type"
+          }
+        }
+      }
+    },
+    "homeEnergy.priceHistoryTimeAxis" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time"
+          }
+        }
+      }
+    },
+    "homeEnergy.priceHistoryUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price history isn’t available."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yesterday’s prices have gone walkabout."
           }
         }
       }

@@ -1,9 +1,9 @@
 ---
 name: automate-app
-description: Drive or inspect the running Bruce macOS app end to end. Use for one-off UI verification, screenshots, navigation, or reproducing an interaction in the worktree build. Also use when a task mentions AppleScript or terminal-driven app automation.
+description: Launch or inspect the running Bruce macOS app without operating its UI. Use for runtime logs, process verification, or preparing a worktree build for user-driven review.
 ---
 
-# Automate the Bruce App
+# Inspect the Bruce App
 
 Automate the debug build from the current worktree, never an installed copy.
 
@@ -28,18 +28,22 @@ Launch the verified worktree bundle only after this check.
 
 ## Choose the automation surface
 
-1. Use an available desktop-control tool for one-off interaction and visual verification.
+1. Use Xcode previews for visual verification; follow the `reviewing-ui-with-preview` skill.
 2. Use Xcode UI tests for repeatable regression coverage; follow the `writing-ui-tests` skill.
 3. Use `just run-mac-with-logs` when runtime evidence matters.
 
+Do not operate the app through desktop-control tools, accessibility scripting, injected mouse or
+keyboard events, or screen-coordinate clicks. You may launch the worktree app for user review, but
+the user must navigate and interact with it.
+
 Bruce does not currently expose an AppleScript dictionary. Do not copy Moolah AppleScript
 commands or add an automation API without a concrete product use case. If the user explicitly
-requests AppleScript, explain this boundary and use UI automation when available.
+requests AppleScript, explain this boundary and use previews or UI tests as appropriate.
 
 ## Verification
 
 - Keep launch arguments and test state deterministic.
 - Capture screenshots or logs in `.agent-tmp/`.
 - Confirm the active executable belongs to this worktree.
-- Record the exact interaction and observed result.
+- Record the exact runtime state inspected or user-reported interaction.
 - Stop only processes started for the verification.

@@ -27,6 +27,13 @@ struct HomeEnergyCopy {
   var feedInPrice: String { text(.feedInPrice) }
   var feedInCharge: String { text(.feedInCharge) }
   var feedInPriceUnavailable: String { text(.feedInPriceUnavailable) }
+  var priceHistory: String { text(.priceHistory) }
+  var priceHistoryPeriod: String { text(.priceHistoryPeriod) }
+  var priceHistoryLoading: String { text(.priceHistoryLoading) }
+  var priceHistoryUnavailable: String { text(.priceHistoryUnavailable) }
+  var priceHistoryTimeAxis: String { text(.priceHistoryTimeAxis) }
+  var priceHistoryPriceAxis: String { text(.priceHistoryPriceAxis) }
+  var priceHistorySeries: String { text(.priceHistorySeries) }
   var pvGenerationAccessibility: String { text(.pvGenerationAccessibility) }
   var pvGenerationUnavailableAccessibility: String {
     text(.pvGenerationUnavailableAccessibility)
@@ -79,6 +86,8 @@ extension HomeEnergyCopy {
     case usage, usageUnavailable, grid, gridExport, gridImport, gridIdle
     case generalPrice, generalPriceUnavailable, feedInPrice, feedInCharge
     case feedInPriceUnavailable
+    case priceHistory, priceHistoryPeriod, priceHistoryLoading, priceHistoryUnavailable
+    case priceHistoryTimeAxis, priceHistoryPriceAxis, priceHistorySeries
     case pvGenerationAccessibility, pvGenerationUnavailableAccessibility
     case batteryAccessibility, batteryUnavailableAccessibility
     case usageAccessibility, usageUnavailableAccessibility
@@ -122,6 +131,20 @@ extension HomeEnergyCopy {
       case .feedInCharge: .localized("homeEnergy.feedInCharge")
       case .feedInPriceUnavailable:
         .localized("homeEnergy.feedInPriceUnavailable")
+      case .priceHistory:
+        .localized("homeEnergy.priceHistory")
+      case .priceHistoryPeriod:
+        .localized("homeEnergy.priceHistoryPeriod")
+      case .priceHistoryLoading:
+        .localized("homeEnergy.priceHistoryLoading")
+      case .priceHistoryUnavailable:
+        .localized("homeEnergy.priceHistoryUnavailable")
+      case .priceHistoryTimeAxis:
+        .localized("homeEnergy.priceHistoryTimeAxis")
+      case .priceHistoryPriceAxis:
+        .localized("homeEnergy.priceHistoryPriceAxis")
+      case .priceHistorySeries:
+        .localized("homeEnergy.priceHistorySeries")
       case .pvGenerationAccessibility:
         .localized("homeEnergy.pvGenerationAccessibility")
       case .pvGenerationUnavailableAccessibility:

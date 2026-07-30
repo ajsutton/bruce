@@ -30,3 +30,13 @@ Use at least `code-review` after modifying production Swift. Add:
 - Never edit `Bruce.xcodeproj` directly.
 - Never add database, iCloud, Android, Watch, widget, App Intent, or CarPlay infrastructure
   without a concrete requirement.
+
+## UI verification
+
+- Use Xcode previews for visual UI iteration and verification.
+- Do not operate the app through OS-level UI automation, accessibility scripting, injected mouse
+  or keyboard events, or screen-coordinate clicks.
+- An assistant may launch the worktree app for user review, but must leave navigation and
+  interaction to the user.
+- When a runtime-only state cannot be represented in a preview, add deterministic preview data or
+  ask the user to navigate and report what they observe.

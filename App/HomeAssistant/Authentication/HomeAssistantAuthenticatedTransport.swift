@@ -15,9 +15,15 @@ actor HomeAssistantAuthenticatedTransport {
 
   func get(
     path: String,
+    queryItems: [URLQueryItem] = [],
     credentials: HomeAssistantCredentials
   ) async throws -> HomeAssistantAuthenticatedResponse {
-    try await request(path: path, credentials: credentials, allowsFallback: true)
+    try await request(
+      path: path,
+      queryItems: queryItems,
+      credentials: credentials,
+      allowsFallback: true
+    )
   }
 
   func getFirstAvailable(
@@ -87,6 +93,7 @@ actor HomeAssistantAuthenticatedTransport {
 
   private func request(
     path: String,
+    queryItems: [URLQueryItem] = [],
     method: String = "GET",
     body: Data? = nil,
     credentials: HomeAssistantCredentials,
@@ -99,6 +106,7 @@ actor HomeAssistantAuthenticatedTransport {
         return try await response(
           baseURL: baseURL,
           path: path,
+          queryItems: queryItems,
           method: method,
           body: body,
           credentials: credentials
@@ -122,6 +130,7 @@ actor HomeAssistantAuthenticatedTransport {
   private func response(
     baseURL: URL,
     path: String,
+    queryItems: [URLQueryItem] = [],
     method: String = "GET",
     body: Data? = nil,
     credentials: HomeAssistantCredentials
@@ -129,6 +138,7 @@ actor HomeAssistantAuthenticatedTransport {
     let request = try HomeAssistantRequestRouter.authenticatedRequest(
       baseURL: baseURL,
       path: path,
+      queryItems: queryItems,
       token: credentials.accessToken,
       method: method,
       body: body

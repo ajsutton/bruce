@@ -47,6 +47,10 @@ struct EnergyPanelView: View {
         manageConnection: manageConnection,
         requestRefresh: requestRefresh
       )
+      HomeAssistantHomeEnergyPriceChart(
+        store: homeEnergyStore.priceHistoryStore,
+        mode: mode
+      )
     }
     .padding()
     .frame(maxWidth: 720)
@@ -59,7 +63,8 @@ struct EnergyPanelView: View {
     homeEnergyStore: HomeAssistantHomeEnergyStore(
       loader: PreviewHomeEnergyLoader(),
       snapshot: PreviewHomeEnergyLoader.exportingSnapshot,
-      isLive: true
+      isLive: true,
+      priceHistory: PreviewHomeEnergyLoader.priceHistory
     ),
     mode: .standard,
     manageConnection: {},
@@ -73,13 +78,28 @@ struct EnergyPanelView: View {
     homeEnergyStore: HomeAssistantHomeEnergyStore(
       loader: PreviewHomeEnergyLoader(),
       snapshot: PreviewHomeEnergyLoader.importingSnapshot,
-      isLive: true
+      isLive: true,
+      priceHistory: PreviewHomeEnergyLoader.priceHistory
     ),
     mode: .full,
     manageConnection: {},
     requestRefresh: {}
   )
   .tint(BruceMode.full.accentColor)
+}
+
+#Preview("Price chart") {
+  HomeAssistantHomeEnergyPriceChart(
+    store: HomeAssistantHomeEnergyStore(
+      loader: PreviewHomeEnergyLoader(),
+      snapshot: PreviewHomeEnergyLoader.exportingSnapshot,
+      isLive: true,
+      priceHistory: PreviewHomeEnergyLoader.priceHistory
+    ).priceHistoryStore,
+    mode: .standard
+  )
+  .padding()
+  .frame(width: 720)
 }
 
 private struct PreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
@@ -100,6 +120,43 @@ private struct PreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
     generalPriceDollarsPerKilowattHour: 0.584,
     feedInPriceDollarsPerKilowattHour: -0.051
   )
+
+  static let priceHistory: HomeEnergyPriceHistory = {
+    let end = Date(timeIntervalSince1970: 1_785_408_000)
+    let values = [
+      (general: 0.24, feedIn: 0.08),
+      (general: 0.19, feedIn: 0.07),
+      (general: 0.16, feedIn: 0.06),
+      (general: 0.22, feedIn: 0.09),
+      (general: 0.38, feedIn: 0.14),
+      (general: 0.41, feedIn: 0.18),
+      (general: 0.17, feedIn: 0.01),
+      (general: 0.04, feedIn: -0.01),
+      (general: 0.341, feedIn: 0.127),
+    ]
+    let readings = values.enumerated().flatMap { index, value in
+      let timestamp = end.addingTimeInterval(TimeInterval(index - 8) * 3 * 60 * 60)
+      return [
+        HomeEnergyPriceHistory.Reading(
+          tariff: .general,
+          timestamp: timestamp,
+          dollarsPerKilowattHour: value.general
+        ),
+        HomeEnergyPriceHistory.Reading(
+          tariff: .feedIn,
+          timestamp: timestamp,
+          dollarsPerKilowattHour: value.feedIn
+        ),
+      ]
+    }
+    return HomeEnergyPriceHistory(
+      interval: DateInterval(
+        start: end.addingTimeInterval(-24 * 60 * 60),
+        end: end
+      ),
+      readings: readings
+    )
+  }()
 
   func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
     Self.exportingSnapshot

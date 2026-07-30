@@ -44,6 +44,10 @@ struct HomeAssistantHomeEnergyStream: HomeAssistantHomeEnergyLoading {
     try await loader.loadHomeEnergySnapshot()
   }
 
+  func loadHomeEnergyPriceHistory() async throws -> HomeEnergyPriceHistory {
+    try await loader.loadHomeEnergyPriceHistory()
+  }
+
   private static func homeEnergyUpdate(
     from update: HomeAssistantStateUpdate
   ) -> HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot> {

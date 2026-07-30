@@ -9,8 +9,7 @@ actor HomeAssistantSession {
   private let persistenceGate: HomeAssistantPersistenceGate
 
   private var credentials: HomeAssistantCredentials?
-  private var credentialGeneration = 0
-  private var authenticationSessionEpoch = 0
+  private var credentialGeneration = 0, authenticationSessionEpoch = 0
   private var rejectedCredentialGeneration: Int?, successfulRouteSourceGeneration: Int?
 
   init(
@@ -258,10 +257,14 @@ extension HomeAssistantSession {
     )
   }
 
-  func authenticatedGET(path: String) async throws -> Data {
+  func authenticatedGET(
+    path: String,
+    queryItems: [URLQueryItem] = []
+  ) async throws -> Data {
     try await refreshIfNeeded(force: false)
     return try await performRequest(
       path: path,
+      queryItems: queryItems,
       body: nil,
       canRefreshAfterUnauthorized: true
     )
@@ -278,6 +281,7 @@ extension HomeAssistantSession {
 
   private func performRequest(
     path: String,
+    queryItems: [URLQueryItem] = [],
     body: Data?,
     canRefreshAfterUnauthorized: Bool,
     routeSelection: RouteSelection = .ordered
@@ -290,6 +294,7 @@ extension HomeAssistantSession {
     do {
       let response = try await loadResponse(
         path: path,
+        queryItems: queryItems,
         body: body,
         credentials: credentials,
         routeSelection: routeSelection
@@ -318,6 +323,7 @@ extension HomeAssistantSession {
       }
       return try await performRequest(
         path: path,
+        queryItems: queryItems,
         body: body,
         canRefreshAfterUnauthorized: false,
         routeSelection: routeSelection
@@ -327,6 +333,7 @@ extension HomeAssistantSession {
 
   private func loadResponse(
     path: String,
+    queryItems: [URLQueryItem],
     body: Data?,
     credentials: HomeAssistantCredentials,
     routeSelection: RouteSelection
@@ -345,7 +352,11 @@ extension HomeAssistantSession {
         credentials: credentials
       )
     }
-    return try await transport.get(path: path, credentials: credentials)
+    return try await transport.get(
+      path: path,
+      queryItems: queryItems,
+      credentials: credentials
+    )
   }
 
   func authenticatedWebSocketAccesses() async throws -> [HomeAssistantWebSocketAccess] {
@@ -353,16 +364,11 @@ extension HomeAssistantSession {
     guard let credentials else {
       throw HomeAssistantAPIError.noCredentials
     }
-    return try HomeAssistantRequestRouter.candidates(for: credentials).map { baseURL in
-      HomeAssistantWebSocketAccess(
-        baseURL: baseURL,
-        url: try HomeAssistantRequestRouter.webSocketURL(baseURL: baseURL),
-        accessToken: credentials.accessToken,
-        credentialGeneration: credentialGeneration,
-        authenticationSessionEpoch: authenticationSessionEpoch,
-        serverIdentity: HomeAssistantServerIdentity(credentials)
-      )
-    }
+    return try HomeAssistantWebSocketAccess.candidates(
+      credentials: credentials,
+      credentialGeneration: credentialGeneration,
+      authenticationSessionEpoch: authenticationSessionEpoch
+    )
   }
 
   func rememberSuccessfulWebSocketAccess(

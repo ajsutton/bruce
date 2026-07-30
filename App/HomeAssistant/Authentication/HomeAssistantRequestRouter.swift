@@ -20,6 +20,7 @@ enum HomeAssistantRequestRouter {
   static func authenticatedRequest(
     baseURL: URL,
     path: String,
+    queryItems: [URLQueryItem] = [],
     token: String,
     method: String = "GET",
     body: Data? = nil
@@ -27,7 +28,15 @@ enum HomeAssistantRequestRouter {
     guard !path.hasPrefix("http://"), !path.hasPrefix("https://") else {
       throw HomeAssistantAPIError.invalidServerURL
     }
-    var request = URLRequest(url: baseURL.appending(path: path))
+    var components = URLComponents(
+      url: baseURL.appending(path: path),
+      resolvingAgainstBaseURL: false
+    )
+    components?.queryItems = queryItems.isEmpty ? nil : queryItems
+    guard let url = components?.url else {
+      throw HomeAssistantAPIError.invalidServerURL
+    }
+    var request = URLRequest(url: url)
     request.cachePolicy = .reloadIgnoringLocalCacheData
     request.httpMethod = method
     request.httpBody = body

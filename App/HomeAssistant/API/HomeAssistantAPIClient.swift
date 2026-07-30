@@ -1,30 +1,6 @@
 import Foundation
 import OSLog
 
-struct HomeAssistantAPIStatus: Decodable, Equatable, Sendable {
-  let message: String
-}
-
-struct HomeAssistantTemperatureSnapshot: Sendable {
-  let readings: [HomeAssistantTemperatureReading]
-  let unit: String
-  let climateMetadata: [String: HomeAssistantClimateMetadata]
-}
-
-struct HomeAssistantTemperatureContext: Sendable {
-  let unit: String
-  let climateMetadata: [String: HomeAssistantClimateMetadata]
-}
-
-protocol HomeAssistantClimateControlling: Sendable {
-  func setPower(entityID: String, isOn: Bool) async throws
-  func setTargetValue(_ value: Double, entityID: String) async throws
-  func setMode(
-    _ mode: HomeAssistantTemperatureReading.ClimateMode,
-    entityID: String
-  ) async throws
-}
-
 struct HomeAssistantAPIClient:
   HomeAssistantClimateControlling, HomeAssistantEVCharging,
   HomeAssistantHomeEnergyLoading, HomeAssistantGarageDoorControlling, Sendable
@@ -38,23 +14,30 @@ struct HomeAssistantAPIClient:
   private let climateMetadataLoader: any HomeAssistantClimateMetadataLoading
   private let climateMetadataTimeout: Duration
   private let climateMetadataCoordinator: ClimateMetadataLoadCoordinator
+  private let now: @Sendable () -> Date
 
-  init(session: HomeAssistantSession) {
+  init(
+    session: HomeAssistantSession,
+    now: @escaping @Sendable () -> Date = Date.init
+  ) {
     self.session = session
     climateMetadataLoader = HomeAssistantRegistryClient(session: session)
     climateMetadataTimeout = .seconds(2)
     climateMetadataCoordinator = ClimateMetadataLoadCoordinator()
+    self.now = now
   }
 
   init(
     session: HomeAssistantSession,
     climateMetadataLoader: any HomeAssistantClimateMetadataLoading,
-    climateMetadataTimeout: Duration = .seconds(2)
+    climateMetadataTimeout: Duration = .seconds(2),
+    now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.session = session
     self.climateMetadataLoader = climateMetadataLoader
     self.climateMetadataTimeout = climateMetadataTimeout
     climateMetadataCoordinator = ClimateMetadataLoadCoordinator()
+    self.now = now
   }
 
   func checkConnection() async throws -> HomeAssistantAPIStatus {
@@ -108,6 +91,31 @@ struct HomeAssistantAPIClient:
 
   func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
     HomeAssistantHomeEnergySnapshot(states: try await loadHomeAssistantStates())
+  }
+
+  func loadHomeEnergyPriceHistory() async throws -> HomeEnergyPriceHistory {
+    let end = now()
+    let start = end.addingTimeInterval(-24 * 60 * 60)
+    let timestampStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: false)
+    let data = try await session.authenticatedGET(
+      path: "api/history/period/\(start.formatted(timestampStyle))",
+      queryItems: [
+        URLQueryItem(name: "end_time", value: end.formatted(timestampStyle)),
+        URLQueryItem(
+          name: "filter_entity_id",
+          value: [
+            HomeAssistantHomeEnergySnapshot.generalPriceEntityID,
+            HomeAssistantHomeEnergySnapshot.feedInPriceEntityID,
+          ].joined(separator: ",")
+        ),
+        URLQueryItem(name: "minimal_response", value: nil),
+        URLQueryItem(name: "no_attributes", value: nil),
+      ]
+    )
+    return try HomeEnergyPriceHistory(
+      data: data,
+      interval: DateInterval(start: start, end: end)
+    )
   }
 
   func setEVChargingMode(

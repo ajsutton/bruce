@@ -1,4 +1,9 @@
 struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
+  static let generalPriceEntityID =
+    "sensor.01krmdgkh60wyckeepvgtbbgv3_general_price"
+  static let feedInPriceEntityID =
+    "sensor.01krmdgkh60wyckeepvgtbbgv3_feed_in_price"
+
   let pvPowerKilowatts: Double?
   let batteryStateOfCharge: Double?
   let homeConsumptionKilowatts: Double?
