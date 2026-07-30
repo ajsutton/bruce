@@ -4,7 +4,7 @@ struct BrucePanelsView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.colorScheme) private var colorScheme
   @AppStorage(BrucePanel.storageKey) private var selectedPanel = BrucePanel.climate
-  @State private var scrollTarget: BrucePanel?
+  @State private var scrollPosition = ScrollPosition(idType: BrucePanel.self)
   @State private var activeScrollRequest: BrucePanelScrollRequest?
   @State private var panelFrames: [BrucePanel: CGRect] = [:]
   @State private var panelViewportHeight: CGFloat = 0
@@ -71,7 +71,24 @@ struct BrucePanelsView: View {
       NavigationSplitView {
         List(BrucePanel.allCases, selection: sidebarSelection) { panel in
           Label(title(for: panel), systemImage: panel.systemImage)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
             .tag(panel)
+            .simultaneousGesture(
+              TapGesture().onEnded {
+                guard
+                  panel == selectedPanel,
+                  activeScrollRequest?.panel != panel
+                else {
+                  return
+                }
+                requestScroll(to: panel)
+              }
+            )
+            .accessibilityAction {
+              guard activeScrollRequest?.panel != panel else { return }
+              requestScroll(to: panel)
+            }
         }
         .navigationSplitViewColumnWidth(min: 170, ideal: 190)
       } detail: {
@@ -118,7 +135,7 @@ struct BrucePanelsView: View {
             }
             .scrollTargetLayout()
           }
-          .scrollPosition(id: scrollPosition, anchor: .top)
+          .scrollPosition($scrollPosition, anchor: .top)
           .coordinateSpace(name: BrucePanelScrollCoordinateSpace.name)
           .onAppear {
             panelViewportHeight = viewport.size.height
@@ -153,7 +170,7 @@ struct BrucePanelsView: View {
       activeScrollRequest = request
       selectedPanel = panel
       withAnimation(animated && !reduceMotion ? .default : nil) {
-        scrollTarget = panel
+        scrollPosition.scrollTo(id: panel, anchor: .top)
       } completion: {
         guard activeScrollRequest == request else { return }
         activeScrollRequest = nil
@@ -161,12 +178,6 @@ struct BrucePanelsView: View {
       }
     }
 
-    private var scrollPosition: Binding<BrucePanel?> {
-      Binding(
-        get: { scrollTarget },
-        set: { _ in }
-      )
-    }
   #else
     private var iOSPanels: some View {
       TabView(selection: $selectedPanel) {
@@ -257,7 +268,6 @@ struct BrucePanelsView: View {
       return
     }
     selectedPanel = mostVisiblePanel
-    scrollTarget = nil
   }
 
 }
