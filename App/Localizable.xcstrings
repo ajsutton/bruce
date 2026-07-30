@@ -19,13 +19,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Car"
+            "value" : "Garage"
           }
         },
         "en-AU" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The Wheels"
+            "value" : "The Garage"
           }
         }
       }
