@@ -34,7 +34,7 @@ actor HomeAssistantStateHub: HomeAssistantStateLoading {
       let refreshingUpdate = refreshingUpdate(from: latestUpdate)
       self.latestUpdate = refreshingUpdate
       continuations.values.forEach {
-        $0.yield(refreshingUpdate)
+        yield(refreshingUpdate, to: $0)
       }
     }
     sourceGeneration = UUID()
@@ -58,7 +58,7 @@ actor HomeAssistantStateHub: HomeAssistantStateLoading {
   private func add(_ continuation: Continuation, id: UUID) {
     continuations[id] = continuation
     if let latestUpdate {
-      continuation.yield(latestUpdate)
+      yield(latestUpdate, to: continuation)
     }
     startSourceIfNeeded()
   }
@@ -96,7 +96,13 @@ actor HomeAssistantStateHub: HomeAssistantStateLoading {
     let presentedUpdate = presentedUpdate(update)
     latestUpdate = presentedUpdate
     for continuation in continuations.values {
-      continuation.yield(presentedUpdate)
+      yield(presentedUpdate, to: continuation)
+    }
+  }
+
+  private func yield(_ update: Update, to continuation: Continuation) {
+    if case .dropped = continuation.yield(update) {
+      continuation.yield(update.requiringHistoryBackfill())
     }
   }
 

@@ -65,6 +65,7 @@ final class HomeAssistantHomeEnergyHistoryStoreTests: XCTestCase {
     XCTAssertEqual(store.priceHistoryStore.priceHistory, .empty)
     XCTAssertFalse(store.priceHistoryStore.hasUsableHistory)
     XCTAssertTrue(store.priceHistoryStore.isUnavailable)
+    XCTAssertEqual(store.priceHistoryStore.problem, .loadFailed)
     withExtendedLifetime(completion.subscription) {}
     await stop(synchronization, loader: loader)
   }
@@ -239,7 +240,7 @@ final class HomeAssistantHomeEnergyHistoryStoreTests: XCTestCase {
   ) -> [Double] {
     history.readings
       .filter { $0.tariff == tariff }
-      .map(\.dollarsPerKilowattHour)
+      .compactMap(\.dollarsPerKilowattHour)
   }
 
   private func credentials() -> HomeAssistantCredentials {

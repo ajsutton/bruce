@@ -12,18 +12,22 @@ extension HomeEnergyPriceHistory {
     var decodedReadings: [Reading.ID: Reading] = [:]
     for group in groups {
       guard
-        let entityID = group.lazy.compactMap(\.entityID).first,
+        let entityID = group.first?.entityID,
         let tariff = HistoryState.tariff(for: entityID)
       else {
         throw HomeAssistantAPIError.invalidResponse
       }
+      guard group.allSatisfy({ $0.entityID == nil || $0.entityID == entityID }) else {
+        throw HomeAssistantAPIError.invalidResponse
+      }
       for state in group {
         guard
-          let value = Double(state.state),
-          value.isFinite,
           state.lastChanged <= interval.end
         else {
           continue
+        }
+        let value = Double(state.state).flatMap {
+          $0.isFinite ? $0 : nil
         }
         let reading = Reading(
           tariff: tariff,

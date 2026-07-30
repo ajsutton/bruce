@@ -14,14 +14,14 @@ struct HomeEnergyPriceHistory: Equatable, Sendable {
   struct Reading: Equatable, Identifiable, Sendable {
     let tariff: Tariff
     let timestamp: Date
-    let dollarsPerKilowattHour: Double
+    let dollarsPerKilowattHour: Double?
 
     var id: ReadingIdentifier {
       ReadingIdentifier(tariff: tariff, timestamp: timestamp)
     }
 
-    var centsPerKilowattHour: Double {
-      dollarsPerKilowattHour * 100
+    var centsPerKilowattHour: Double? {
+      dollarsPerKilowattHour.map { $0 * 100 }
     }
   }
 
@@ -34,31 +34,38 @@ struct HomeEnergyPriceHistory: Equatable, Sendable {
   let readings: [Reading]
 
   var hasReadings: Bool {
-    !readings.isEmpty
+    readings.contains { $0.dollarsPerKilowattHour != nil }
   }
 
   var hasCompleteTariffs: Bool {
-    Set(readings.map(\.tariff)) == Set(Tariff.allCases)
+    Set(
+      readings.compactMap {
+        $0.dollarsPerKilowattHour == nil ? nil : $0.tariff
+      }
+    ) == Set(Tariff.allCases)
   }
 
-  var readingsExtendingToIntervalEnd: [Reading] {
-    var extendedReadings = readings
+  var availableReadingSegments: [Tariff: [[Reading]]] {
+    var segmentsByTariff: [Tariff: [[Reading]]] = [:]
     for tariff in Tariff.allCases {
-      guard
-        let latest = readings.last(where: { $0.tariff == tariff }),
-        latest.timestamp < interval.end
-      else {
-        continue
+      var segments: [[Reading]] = []
+      var currentSegment: [Reading] = []
+      for reading in readings where reading.tariff == tariff {
+        if reading.dollarsPerKilowattHour != nil {
+          currentSegment.append(reading)
+        } else if !currentSegment.isEmpty {
+          extend(&currentSegment, to: reading.timestamp)
+          segments.append(currentSegment)
+          currentSegment = []
+        }
       }
-      extendedReadings.append(
-        Reading(
-          tariff: tariff,
-          timestamp: interval.end,
-          dollarsPerKilowattHour: latest.dollarsPerKilowattHour
-        )
-      )
+      if !currentSegment.isEmpty {
+        extend(&currentSegment, to: interval.end)
+        segments.append(currentSegment)
+      }
+      segmentsByTariff[tariff] = segments
     }
-    return sorted(extendedReadings)
+    return segmentsByTariff
   }
 
   func recording(
@@ -90,7 +97,7 @@ struct HomeEnergyPriceHistory: Equatable, Sendable {
   ) -> HomeEnergyPriceHistory {
     let mergedEnd = max(
       interval.end,
-      liveHistory.readings.map(\.timestamp).max() ?? interval.end
+      liveHistory.interval.end
     )
     let mergedStart = mergedEnd.addingTimeInterval(-24 * 60 * 60)
     let liveReadings = liveHistory.readings.filter {
@@ -151,18 +158,46 @@ struct HomeEnergyPriceHistory: Equatable, Sendable {
     at timestamp: Date,
     to readings: inout [Reading]
   ) {
-    guard let value, value.isFinite else { return }
+    if let value, value.isFinite {
+      guard
+        readings.last(where: { $0.tariff == tariff })?.dollarsPerKilowattHour
+          != value
+      else {
+        return
+      }
+      readings.append(
+        Reading(
+          tariff: tariff,
+          timestamp: timestamp,
+          dollarsPerKilowattHour: value
+        )
+      )
+    } else if !readings.contains(where: { $0.tariff == tariff })
+      || readings.last(where: { $0.tariff == tariff })?.dollarsPerKilowattHour
+        != nil
+    {
+      readings.append(
+        Reading(
+          tariff: tariff,
+          timestamp: timestamp,
+          dollarsPerKilowattHour: nil
+        )
+      )
+    }
+  }
+
+  private func extend(_ readings: inout [Reading], to timestamp: Date) {
     guard
-      readings.last(where: { $0.tariff == tariff })?.dollarsPerKilowattHour
-        != value
+      let latest = readings.last,
+      latest.timestamp < timestamp
     else {
       return
     }
     readings.append(
       Reading(
-        tariff: tariff,
+        tariff: latest.tariff,
         timestamp: timestamp,
-        dollarsPerKilowattHour: value
+        dollarsPerKilowattHour: latest.dollarsPerKilowattHour
       )
     )
   }

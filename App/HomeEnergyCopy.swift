@@ -16,6 +16,14 @@ struct HomeEnergyCopy {
   var pvGenerationUnavailable: String { text(.pvGenerationUnavailable) }
   var battery: String { text(.battery) }
   var batteryUnavailable: String { text(.batteryUnavailable) }
+  var batteryHistory: String { text(.batteryHistory) }
+  var batteryHistoryPeriod: String { text(.batteryHistoryPeriod) }
+  var batteryHistoryLoading: String { text(.batteryHistoryLoading) }
+  var batteryHistoryLoadFailed: String { text(.batteryHistoryLoadFailed) }
+  var batteryHistoryUnavailable: String { text(.batteryHistoryUnavailable) }
+  var batteryHistoryTimeAxis: String { text(.batteryHistoryTimeAxis) }
+  var batteryHistoryChargeAxis: String { text(.batteryHistoryChargeAxis) }
+  var batteryHistorySeries: String { text(.batteryHistorySeries) }
   var usage: String { text(.usage) }
   var usageUnavailable: String { text(.usageUnavailable) }
   var grid: String { text(.grid) }
@@ -30,6 +38,7 @@ struct HomeEnergyCopy {
   var priceHistory: String { text(.priceHistory) }
   var priceHistoryPeriod: String { text(.priceHistoryPeriod) }
   var priceHistoryLoading: String { text(.priceHistoryLoading) }
+  var priceHistoryLoadFailed: String { text(.priceHistoryLoadFailed) }
   var priceHistoryUnavailable: String { text(.priceHistoryUnavailable) }
   var priceHistoryTimeAxis: String { text(.priceHistoryTimeAxis) }
   var priceHistoryPriceAxis: String { text(.priceHistoryPriceAxis) }
@@ -83,10 +92,14 @@ extension HomeEnergyCopy {
   fileprivate enum Key {
     case energyNow, manage, refresh, updating, updatingLastKnownStatus, lastKnown, unavailable
     case updatingLastKnown, pvGeneration, pvGenerationUnavailable, battery, batteryUnavailable
+    case batteryHistory, batteryHistoryPeriod, batteryHistoryLoading, batteryHistoryLoadFailed
+    case batteryHistoryUnavailable
+    case batteryHistoryTimeAxis, batteryHistoryChargeAxis, batteryHistorySeries
     case usage, usageUnavailable, grid, gridExport, gridImport, gridIdle
     case generalPrice, generalPriceUnavailable, feedInPrice, feedInCharge
     case feedInPriceUnavailable
-    case priceHistory, priceHistoryPeriod, priceHistoryLoading, priceHistoryUnavailable
+    case priceHistory, priceHistoryPeriod, priceHistoryLoading, priceHistoryLoadFailed
+    case priceHistoryUnavailable
     case priceHistoryTimeAxis, priceHistoryPriceAxis, priceHistorySeries
     case pvGenerationAccessibility, pvGenerationUnavailableAccessibility
     case batteryAccessibility, batteryUnavailableAccessibility
@@ -117,6 +130,22 @@ extension HomeEnergyCopy {
       case .battery: .localized("homeEnergy.battery")
       case .batteryUnavailable:
         .localized("homeEnergy.batteryUnavailable")
+      case .batteryHistory:
+        .localized("homeEnergy.batteryHistory")
+      case .batteryHistoryPeriod:
+        .localized("homeEnergy.batteryHistoryPeriod")
+      case .batteryHistoryLoading:
+        .localized("homeEnergy.batteryHistoryLoading")
+      case .batteryHistoryLoadFailed:
+        .localized("homeEnergy.batteryHistoryLoadFailed")
+      case .batteryHistoryUnavailable:
+        .localized("homeEnergy.batteryHistoryUnavailable")
+      case .batteryHistoryTimeAxis:
+        .localized("homeEnergy.batteryHistoryTimeAxis")
+      case .batteryHistoryChargeAxis:
+        .localized("homeEnergy.batteryHistoryChargeAxis")
+      case .batteryHistorySeries:
+        .localized("homeEnergy.batteryHistorySeries")
       case .usage: .localized("homeEnergy.usage")
       case .usageUnavailable:
         .localized("homeEnergy.usageUnavailable")
@@ -137,6 +166,8 @@ extension HomeEnergyCopy {
         .localized("homeEnergy.priceHistoryPeriod")
       case .priceHistoryLoading:
         .localized("homeEnergy.priceHistoryLoading")
+      case .priceHistoryLoadFailed:
+        .localized("homeEnergy.priceHistoryLoadFailed")
       case .priceHistoryUnavailable:
         .localized("homeEnergy.priceHistoryUnavailable")
       case .priceHistoryTimeAxis:

@@ -55,36 +55,16 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
 
     let start = try date("2026-07-29T06:00:00Z")
     XCTAssertEqual(history.interval, DateInterval(start: start, end: end))
-    XCTAssertEqual(
-      history.readings,
-      [
-        HomeEnergyPriceHistory.Reading(
-          tariff: .feedIn,
-          timestamp: start,
-          dollarsPerKilowattHour: 0.07
-        ),
-        HomeEnergyPriceHistory.Reading(
-          tariff: .general,
-          timestamp: start,
-          dollarsPerKilowattHour: 0.22
-        ),
-        HomeEnergyPriceHistory.Reading(
-          tariff: .general,
-          timestamp: try date("2026-07-29T10:00:00Z"),
-          dollarsPerKilowattHour: 0.41
-        ),
-        HomeEnergyPriceHistory.Reading(
-          tariff: .feedIn,
-          timestamp: try date("2026-07-29T12:00:00Z"),
-          dollarsPerKilowattHour: 0.13
-        ),
-      ]
-    )
+    XCTAssertEqual(history.readings, try expectedPriceHistory(start: start))
 
-    try assertPriceHistoryRequest(
+    try assertHistoryRequest(
       fixture.apiLoader.requests.first?.url,
       start: start,
-      end: end
+      end: end,
+      entityIDs: [
+        HomeAssistantHomeEnergySnapshot.generalPriceEntityID,
+        HomeAssistantHomeEnergySnapshot.feedInPriceEntityID,
+      ]
     )
   }
 
@@ -117,10 +97,11 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
     }
   }
 
-  private func assertPriceHistoryRequest(
+  private func assertHistoryRequest(
     _ requestURL: URL?,
     start: Date,
-    end: Date
+    end: Date,
+    entityIDs: [String]
   ) throws {
     let requestURL = try XCTUnwrap(requestURL)
     let timestampStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: false)
@@ -138,13 +119,39 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
     )
     XCTAssertEqual(
       queryItems.first(where: { $0.name == "filter_entity_id" })?.value,
-      [
-        HomeAssistantHomeEnergySnapshot.generalPriceEntityID,
-        HomeAssistantHomeEnergySnapshot.feedInPriceEntityID,
-      ].joined(separator: ",")
+      entityIDs.joined(separator: ",")
     )
     XCTAssertTrue(queryItems.contains { $0.name == "minimal_response" })
     XCTAssertTrue(queryItems.contains { $0.name == "no_attributes" })
+  }
+
+  private func expectedPriceHistory(
+    start: Date
+  ) throws -> [HomeEnergyPriceHistory.Reading] {
+    [
+      .init(tariff: .feedIn, timestamp: start, dollarsPerKilowattHour: 0.07),
+      .init(tariff: .general, timestamp: start, dollarsPerKilowattHour: 0.22),
+      .init(
+        tariff: .general,
+        timestamp: try date("2026-07-29T10:00:00Z"),
+        dollarsPerKilowattHour: 0.41
+      ),
+      .init(
+        tariff: .feedIn,
+        timestamp: try date("2026-07-29T12:00:00Z"),
+        dollarsPerKilowattHour: 0.13
+      ),
+      .init(
+        tariff: .general,
+        timestamp: try date("2026-07-29T14:00:00Z"),
+        dollarsPerKilowattHour: nil
+      ),
+      .init(
+        tariff: .feedIn,
+        timestamp: try date("2026-07-29T15:00:00Z"),
+        dollarsPerKilowattHour: nil
+      ),
+    ]
   }
 
   private var homeEnergyStates: Data {
@@ -180,6 +187,10 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
           {
             "state": "0.41",
             "last_changed": "2026-07-29T10:00:00Z"
+          },
+          {
+            "state": "unavailable",
+            "last_changed": "2026-07-29T14:00:00Z"
           }
         ],
         [
@@ -191,6 +202,10 @@ final class HomeAssistantHomeEnergyClientTests: XCTestCase {
           {
             "state": "0.13",
             "last_changed": "2026-07-29T12:00:00Z"
+          },
+          {
+            "state": "unknown",
+            "last_changed": "2026-07-29T15:00:00Z"
           }
         ]
       ]

@@ -15,7 +15,7 @@ extension HomeAssistantHomeEnergySnapshot {
       $0 >= 0 ? $0 : nil
     }
     batteryStateOfCharge = value(
-      "sensor.sigen_plant_battery_state_of_charge"
+      Self.batteryStateOfChargeEntityID
     ).flatMap {
       (0...100).contains($0) ? $0 : nil
     }
@@ -31,5 +31,6 @@ extension HomeAssistantHomeEnergySnapshot {
     feedInPriceDollarsPerKilowattHour = value(
       Self.feedInPriceEntityID
     )
+    requiresHistoryBackfill = false
   }
 }

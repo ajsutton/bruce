@@ -10,26 +10,54 @@ struct HomeAssistantStateUpdate: Sendable, Equatable {
   let phase: Phase
   let states: [HomeAssistantState]
   let generation: UUID
+  let requiresHistoryBackfill: Bool
 
   static func live(
     _ states: [HomeAssistantState],
-    generation: UUID = UUID()
+    generation: UUID = UUID(),
+    requiresHistoryBackfill: Bool = false
   ) -> Self {
-    Self(phase: .live, states: states, generation: generation)
+    Self(
+      phase: .live,
+      states: states,
+      generation: generation,
+      requiresHistoryBackfill: requiresHistoryBackfill
+    )
   }
 
   static func refreshing(
     _ states: [HomeAssistantState],
-    generation: UUID = UUID()
+    generation: UUID = UUID(),
+    requiresHistoryBackfill: Bool = false
   ) -> Self {
-    Self(phase: .refreshing, states: states, generation: generation)
+    Self(
+      phase: .refreshing,
+      states: states,
+      generation: generation,
+      requiresHistoryBackfill: requiresHistoryBackfill
+    )
   }
 
   static func reconnecting(
     _ states: [HomeAssistantState],
-    generation: UUID = UUID()
+    generation: UUID = UUID(),
+    requiresHistoryBackfill: Bool = false
   ) -> Self {
-    Self(phase: .reconnecting, states: states, generation: generation)
+    Self(
+      phase: .reconnecting,
+      states: states,
+      generation: generation,
+      requiresHistoryBackfill: requiresHistoryBackfill
+    )
+  }
+
+  func requiringHistoryBackfill() -> Self {
+    Self(
+      phase: phase,
+      states: states,
+      generation: generation,
+      requiresHistoryBackfill: true
+    )
   }
 }
 

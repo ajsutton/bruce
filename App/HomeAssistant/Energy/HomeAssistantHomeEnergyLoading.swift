@@ -5,11 +5,16 @@ protocol HomeAssistantHomeEnergyLoading: Sendable {
     HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>, any Error
   >
   func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot
+  func loadHomeEnergyBatteryHistory() async throws -> HomeEnergyBatteryHistory
   func loadHomeEnergyPriceHistory() async throws -> HomeEnergyPriceHistory
 }
 
 extension HomeAssistantHomeEnergyLoading {
   var providesContinuousEnergyUpdates: Bool { false }
+
+  func loadHomeEnergyBatteryHistory() async throws -> HomeEnergyBatteryHistory {
+    .empty
+  }
 
   func loadHomeEnergyPriceHistory() async throws -> HomeEnergyPriceHistory {
     .empty

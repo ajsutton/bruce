@@ -29,7 +29,7 @@ final class HomeEnergyPriceHistoryTests: XCTestCase {
       accuracy: 0.001
     )
     XCTAssertEqual(
-      nextDay.readings.map(\.dollarsPerKilowattHour),
+      nextDay.readings.compactMap(\.dollarsPerKilowattHour),
       [0.07, 0.22, 0.41]
     )
     XCTAssertEqual(
@@ -49,16 +49,17 @@ final class HomeEnergyPriceHistoryTests: XCTestCase {
       ]
     )
 
-    let rendered = history.readingsExtendingToIntervalEnd
+    let segments = history.availableReadingSegments
 
-    XCTAssertEqual(rendered.count, 4)
+    XCTAssertEqual(segments[.general]?.first?.map(\.timestamp), [start, end])
     XCTAssertEqual(
-      Set(rendered.suffix(2).map(\.timestamp)),
-      [end]
+      segments[.general]?.first?.compactMap(\.dollarsPerKilowattHour),
+      [0.22, 0.22]
     )
+    XCTAssertEqual(segments[.feedIn]?.first?.map(\.timestamp), [start, end])
     XCTAssertEqual(
-      rendered.suffix(2).map(\.dollarsPerKilowattHour),
-      [0.07, 0.22]
+      segments[.feedIn]?.first?.compactMap(\.dollarsPerKilowattHour),
+      [0.07, 0.07]
     )
   }
 
@@ -111,15 +112,99 @@ final class HomeEnergyPriceHistoryTests: XCTestCase {
 
     XCTAssertEqual(
       merged.readings.filter { $0.tariff == .general }
-        .map(\.dollarsPerKilowattHour),
+        .compactMap(\.dollarsPerKilowattHour),
       [0.22, 0.41, 0.31]
     )
     XCTAssertEqual(merged.interval.end, secondLiveUpdate)
   }
 
+  func testMergingUsesLatestObservationWhenPricesDoNotChange() {
+    let start = Date(timeIntervalSince1970: 100_000)
+    let remoteEnd = start.addingTimeInterval(23 * 60 * 60)
+    let firstLiveUpdate = remoteEnd.addingTimeInterval(10)
+    let latestObservation = remoteEnd.addingTimeInterval(20)
+    let remote = HomeEnergyPriceHistory(
+      interval: DateInterval(start: start, end: remoteEnd),
+      readings: [
+        reading(.general, at: start, value: 0.22),
+        reading(.feedIn, at: start, value: 0.07),
+      ]
+    )
+    let live = HomeEnergyPriceHistory.empty
+      .recording(
+        snapshot: snapshot(general: 0.41, feedIn: 0.09),
+        at: firstLiveUpdate
+      )
+      .recording(
+        snapshot: snapshot(general: 0.41, feedIn: 0.09),
+        at: latestObservation
+      )
+
+    let merged = remote.mergingLiveReadings(from: live)
+
+    XCTAssertEqual(
+      merged.readings.filter { $0.tariff == .general }
+        .compactMap(\.dollarsPerKilowattHour),
+      [0.22, 0.41]
+    )
+    XCTAssertEqual(merged.interval.end, latestObservation)
+  }
+
+  func testRenderingBreaksEachTariffLineWhileItIsUnavailable() {
+    let start = Date(timeIntervalSince1970: 100_000)
+    let unavailable = start.addingTimeInterval(60)
+    let availableAgain = unavailable.addingTimeInterval(60)
+    let end = availableAgain.addingTimeInterval(60)
+    let history = HomeEnergyPriceHistory(
+      interval: DateInterval(start: start, end: end),
+      readings: [
+        reading(.general, at: start, value: 0.22),
+        reading(.feedIn, at: start, value: 0.07),
+        reading(.general, at: unavailable, value: nil),
+        reading(.general, at: availableAgain, value: 0.41),
+      ]
+    )
+
+    let segments = history.availableReadingSegments
+
+    XCTAssertEqual(segments[.general]?.count, 2)
+    XCTAssertEqual(
+      segments[.general]?[0].map(\.timestamp),
+      [start, unavailable]
+    )
+    XCTAssertEqual(
+      segments[.general]?[1].map(\.timestamp),
+      [availableAgain, end]
+    )
+    XCTAssertEqual(segments[.feedIn]?.count, 1)
+  }
+
+  func testRecordingMarksPriceAvailabilityGaps() {
+    let start = Date(timeIntervalSince1970: 100_000)
+    let unavailable = start.addingTimeInterval(60)
+    let availableAgain = unavailable.addingTimeInterval(60)
+
+    let history = HomeEnergyPriceHistory.empty
+      .recording(snapshot: snapshot(general: 0.22, feedIn: 0.07), at: start)
+      .recording(snapshot: snapshot(general: nil, feedIn: 0.07), at: unavailable)
+      .recording(
+        snapshot: snapshot(general: 0.41, feedIn: 0.07),
+        at: availableAgain
+      )
+
+    XCTAssertEqual(
+      history.readings.filter { $0.tariff == .general },
+      [
+        reading(.general, at: start, value: 0.22),
+        reading(.general, at: unavailable, value: nil),
+        reading(.general, at: availableAgain, value: 0.41),
+      ]
+    )
+  }
+
   private func snapshot(
-    general: Double,
-    feedIn: Double
+    general: Double?,
+    feedIn: Double?
   ) -> HomeAssistantHomeEnergySnapshot {
     HomeAssistantHomeEnergySnapshot(
       pvPowerKilowatts: nil,
@@ -134,7 +219,7 @@ final class HomeEnergyPriceHistoryTests: XCTestCase {
   private func reading(
     _ tariff: HomeEnergyPriceHistory.Tariff,
     at timestamp: Date,
-    value: Double
+    value: Double?
   ) -> HomeEnergyPriceHistory.Reading {
     HomeEnergyPriceHistory.Reading(
       tariff: tariff,

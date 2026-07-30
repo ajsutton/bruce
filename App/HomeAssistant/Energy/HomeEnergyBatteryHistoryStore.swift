@@ -2,8 +2,8 @@ import Combine
 import Foundation
 
 @MainActor
-final class HomeEnergyPriceHistoryStore: ObservableObject {
-  @Published private(set) var priceHistory: HomeEnergyPriceHistory
+final class HomeEnergyBatteryHistoryStore: ObservableObject {
+  @Published private(set) var batteryHistory: HomeEnergyBatteryHistory
   @Published private(set) var hasUsableHistory: Bool
   @Published private(set) var isLoading = false
   @Published private(set) var isUnavailable = false
@@ -19,19 +19,19 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
   private var loadTask: Task<Void, Never>?
   private var progressTask: Task<Void, Never>?
   private var loadID = UUID()
-  private var pendingHistory = HomeEnergyPriceHistory.empty
+  private var pendingHistory = HomeEnergyBatteryHistory.empty
 
   init(
     loader: any HomeAssistantHomeEnergyLoading,
-    priceHistory: HomeEnergyPriceHistory = .empty,
+    batteryHistory: HomeEnergyBatteryHistory = .empty,
     progressDelay: Duration = .milliseconds(500),
     progressSleep: @escaping @Sendable (Duration) async -> Void = {
       try? await Task.sleep(for: $0)
     }
   ) {
     self.loader = loader
-    self.priceHistory = priceHistory
-    hasUsableHistory = priceHistory.hasCompleteTariffs
+    self.batteryHistory = batteryHistory
+    hasUsableHistory = batteryHistory.hasReadings
     self.progressDelay = progressDelay
     self.progressSleep = progressSleep
   }
@@ -55,7 +55,7 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
     loadTask = Task { [weak self, loader] in
       guard !Task.isCancelled else { return }
       do {
-        let history = try await loader.loadHomeEnergyPriceHistory()
+        let history = try await loader.loadHomeEnergyBatteryHistory()
         try Task.checkCancellation()
         self?.publish(history, for: requestID)
       } catch {
@@ -69,14 +69,14 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
       pendingHistory = pendingHistory.recording(snapshot: snapshot, at: timestamp)
     }
     if hasUsableHistory {
-      priceHistory = priceHistory.recording(snapshot: snapshot, at: timestamp)
+      batteryHistory = batteryHistory.recording(snapshot: snapshot, at: timestamp)
     }
   }
 
   @discardableResult
   func reset() -> Task<Void, Never>? {
     let cancelledTask = cancelLoad()
-    priceHistory = .empty
+    batteryHistory = .empty
     hasUsableHistory = false
     isUnavailable = true
     isStale = false
@@ -93,10 +93,10 @@ final class HomeEnergyPriceHistoryStore: ObservableObject {
     return cancelledTask
   }
 
-  private func publish(_ history: HomeEnergyPriceHistory, for requestID: UUID) {
+  private func publish(_ history: HomeEnergyBatteryHistory, for requestID: UUID) {
     guard loadID == requestID, !Task.isCancelled else { return }
-    if history.hasCompleteTariffs {
-      priceHistory = history.mergingLiveReadings(from: pendingHistory)
+    if history.hasReadings {
+      batteryHistory = history.mergingLiveReadings(from: pendingHistory)
       hasUsableHistory = true
       isStale = false
     } else if hasUsableHistory {

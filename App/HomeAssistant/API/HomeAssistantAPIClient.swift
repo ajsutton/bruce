@@ -10,11 +10,11 @@ struct HomeAssistantAPIClient:
     category: "HomeAssistantAPI"
   )
 
-  private let session: HomeAssistantSession
+  let session: HomeAssistantSession
   private let climateMetadataLoader: any HomeAssistantClimateMetadataLoading
   private let climateMetadataTimeout: Duration
   private let climateMetadataCoordinator: ClimateMetadataLoadCoordinator
-  private let now: @Sendable () -> Date
+  let now: @Sendable () -> Date
 
   init(
     session: HomeAssistantSession,
@@ -91,31 +91,6 @@ struct HomeAssistantAPIClient:
 
   func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
     HomeAssistantHomeEnergySnapshot(states: try await loadHomeAssistantStates())
-  }
-
-  func loadHomeEnergyPriceHistory() async throws -> HomeEnergyPriceHistory {
-    let end = now()
-    let start = end.addingTimeInterval(-24 * 60 * 60)
-    let timestampStyle = Date.ISO8601FormatStyle(includingFractionalSeconds: false)
-    let data = try await session.authenticatedGET(
-      path: "api/history/period/\(start.formatted(timestampStyle))",
-      queryItems: [
-        URLQueryItem(name: "end_time", value: end.formatted(timestampStyle)),
-        URLQueryItem(
-          name: "filter_entity_id",
-          value: [
-            HomeAssistantHomeEnergySnapshot.generalPriceEntityID,
-            HomeAssistantHomeEnergySnapshot.feedInPriceEntityID,
-          ].joined(separator: ",")
-        ),
-        URLQueryItem(name: "minimal_response", value: nil),
-        URLQueryItem(name: "no_attributes", value: nil),
-      ]
-    )
-    return try HomeEnergyPriceHistory(
-      data: data,
-      interval: DateInterval(start: start, end: end)
-    )
   }
 
   func setEVChargingMode(

@@ -81,7 +81,7 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
           publishedSnapshot = true
           latestSnapshot = .init(states: states, removals: removals)
           try await cache(latestSnapshot, for: observation.id, access: access)
-          continuation.yield(.live(states, generation: generation))
+          Self.yieldLive(states, generation: generation, to: continuation)
         }
       } catch is CancellationError {
         continuation.finish()
@@ -95,13 +95,12 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
         lastFailedURL = attemptedURL ?? lastFailedURL
         let delay = retryDelays[min(retryIndex, retryDelays.count - 1)]
         retryIndex = min(retryIndex + 1, retryDelays.count - 1)
-        Self.logger.error(
-          "Home Assistant state subscription disconnected: \(String(describing: error), privacy: .private)"
+        Self.reportDisconnect(
+          error,
+          update: .reconnecting(latestSnapshot.states, generation: generation),
+          to: continuation
         )
-        continuation.yield(.reconnecting(latestSnapshot.states, generation: generation))
-        do {
-          try await sleep(delay)
-        } catch {
+        guard await waitForRetry(delay) else {
           continuation.finish()
           return
         }
@@ -244,6 +243,51 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
       return try JSONDecoder().decode(type, from: data)
     } catch {
       throw HomeAssistantAPIError.invalidResponse
+    }
+  }
+}
+
+extension HomeAssistantStateStream {
+  fileprivate static func yield(
+    _ update: HomeAssistantStateUpdate,
+    to continuation: AsyncThrowingStream<
+      HomeAssistantStateUpdate, any Error
+    >.Continuation
+  ) {
+    if case .dropped = continuation.yield(update) {
+      continuation.yield(update.requiringHistoryBackfill())
+    }
+  }
+
+  fileprivate static func yieldLive(
+    _ states: [HomeAssistantState],
+    generation: UUID,
+    to continuation: AsyncThrowingStream<
+      HomeAssistantStateUpdate, any Error
+    >.Continuation
+  ) {
+    yield(.live(states, generation: generation), to: continuation)
+  }
+
+  fileprivate static func reportDisconnect(
+    _ error: any Error,
+    update: HomeAssistantStateUpdate,
+    to continuation: AsyncThrowingStream<
+      HomeAssistantStateUpdate, any Error
+    >.Continuation
+  ) {
+    logger.error(
+      "Home Assistant state subscription disconnected: \(String(describing: error), privacy: .private)"
+    )
+    yield(update, to: continuation)
+  }
+
+  fileprivate func waitForRetry(_ delay: Duration) async -> Bool {
+    do {
+      try await sleep(delay)
+      return true
+    } catch {
+      return false
     }
   }
 }

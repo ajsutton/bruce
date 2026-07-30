@@ -3793,6 +3793,134 @@
         }
       }
     },
+    "homeEnergy.batteryHistory" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery charge"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How the Battery’s Been Travelling"
+          }
+        }
+      }
+    },
+    "homeEnergy.batteryHistoryChargeAxis" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery state of charge in percent"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery state of charge in percent"
+          }
+        }
+      }
+    },
+    "homeEnergy.batteryHistoryLoading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading battery charge history"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digging up the battery’s last day"
+          }
+        }
+      }
+    },
+    "homeEnergy.batteryHistoryLoadFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load battery charge history."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t dig up the battery’s last day."
+          }
+        }
+      }
+    },
+    "homeEnergy.batteryHistoryPeriod" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 24 hours · %"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last day, start to finish · %"
+          }
+        }
+      }
+    },
+    "homeEnergy.batteryHistorySeries" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Availability period"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Availability period"
+          }
+        }
+      }
+    },
+    "homeEnergy.batteryHistoryTimeAxis" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time"
+          }
+        }
+      }
+    },
+    "homeEnergy.batteryHistoryUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery charge history isn’t available."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The battery’s last day has gone walkabout."
+          }
+        }
+      }
+    },
     "homeEnergy.batteryUnavailable" : {
       "localizations" : {
         "en" : {
@@ -4237,6 +4365,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Digging up the last day’s prices"
+          }
+        }
+      }
+    },
+    "homeEnergy.priceHistoryLoadFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load price history."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t dig up the grid’s last day."
           }
         }
       }

@@ -9,6 +9,7 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
   @Published private(set) var showsProgress = false
   @Published private(set) var problem: Problem?
 
+  let batteryHistoryStore: HomeEnergyBatteryHistoryStore
   let priceHistoryStore: HomeEnergyPriceHistoryStore
 
   private let loader: any HomeAssistantHomeEnergyLoading
@@ -18,12 +19,13 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
   private let progressSleep: @Sendable (Duration) async -> Void
   private var loadGeneration = UUID()
   private var progressTask: Task<Void, Never>?
-  private var needsPriceHistoryBackfill = false
+  private var needsHistoryBackfill = false
 
   init(
     loader: any HomeAssistantHomeEnergyLoading,
     snapshot: HomeAssistantHomeEnergySnapshot = .unavailable,
     isLive: Bool = false,
+    batteryHistory: HomeEnergyBatteryHistory = .empty,
     priceHistory: HomeEnergyPriceHistory = .empty,
     progressDelay: Duration = .milliseconds(500),
     progressSleep: @escaping @Sendable (Duration) async -> Void = {
@@ -35,6 +37,12 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     self.loader = loader
     self.snapshot = snapshot
     self.isLive = isLive
+    batteryHistoryStore = HomeEnergyBatteryHistoryStore(
+      loader: loader,
+      batteryHistory: batteryHistory,
+      progressDelay: progressDelay,
+      progressSleep: progressSleep
+    )
     priceHistoryStore = HomeEnergyPriceHistoryStore(
       loader: loader,
       priceHistory: priceHistory,
@@ -45,8 +53,11 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     self.progressSleep = progressSleep
     self.onAuthenticationRequired = onAuthenticationRequired
     self.now = now
+    batteryHistoryStore.authenticationFailureHandler = { [weak self] in
+      self?.handleHistoryAuthenticationFailure()
+    }
     priceHistoryStore.authenticationFailureHandler = { [weak self] in
-      self?.handlePriceHistoryAuthenticationFailure()
+      self?.handleHistoryAuthenticationFailure()
     }
   }
 
@@ -59,7 +70,7 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     case .connected:
       let generation = UUID()
       beginObservation(generation: generation)
-      priceHistoryStore.reload()
+      reloadHistory()
       await observeUpdates(generation: generation)
     case .disconnected:
       reset()
@@ -92,7 +103,6 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
         return
       }
       self.snapshot = snapshot
-      problem = nil
       finishLoad(isLive: true)
     } catch is CancellationError {
       guard loadGeneration == generation else { return }
@@ -124,25 +134,25 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       if loader.providesContinuousEnergyUpdates {
         finishLoad(isLive: false)
         problem = .connectionUnavailable
-        priceHistoryStore.invalidate()
+        invalidateHistory()
       } else {
         finishProgress()
       }
     } catch is CancellationError {
       guard loadGeneration == generation else { return }
-      priceHistoryStore.invalidate()
+      invalidateHistory()
       finishLoad(isLive: false)
     } catch {
       guard loadGeneration == generation else { return }
       guard !Task.isCancelled, !Self.isCancellation(error) else {
-        priceHistoryStore.invalidate()
+        invalidateHistory()
         finishLoad(isLive: false)
         return
       }
       let loadProblem = Self.problem(for: error)
       problem = loadProblem
       finishLoad(isLive: false)
-      priceHistoryStore.invalidate()
+      invalidateHistory()
       if loadProblem == .signInRequired {
         onAuthenticationRequired()
       }
@@ -172,11 +182,11 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       }
       self.snapshot = snapshot
       let timestamp = now()
-      if needsPriceHistoryBackfill {
-        needsPriceHistoryBackfill = false
-        priceHistoryStore.reload()
+      if needsHistoryBackfill || snapshot.requiresHistoryBackfill {
+        needsHistoryBackfill = false
+        reloadHistory()
       }
-      priceHistoryStore.record(snapshot: snapshot, at: timestamp)
+      recordHistory(snapshot: snapshot, at: timestamp)
       problem = nil
       isRefreshing = false
       finishLoad(isLive: true)
@@ -189,8 +199,8 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       isLive = false
       isRefreshing = true
       finishProgress()
-      priceHistoryStore.invalidate()
-      needsPriceHistoryBackfill = true
+      invalidateHistory()
+      needsHistoryBackfill = true
     case .reconnecting(let snapshot):
       if snapshot.hasReadings {
         self.snapshot = snapshot
@@ -198,8 +208,8 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       problem = .reconnecting
       isRefreshing = false
       finishLoad(isLive: false)
-      priceHistoryStore.invalidate()
-      needsPriceHistoryBackfill = true
+      invalidateHistory()
+      needsHistoryBackfill = true
     }
   }
 
@@ -212,8 +222,8 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     isRefreshing = false
     finishProgress()
     problem = nil
-    needsPriceHistoryBackfill = false
-    return priceHistoryStore.reset()
+    needsHistoryBackfill = false
+    return resetHistory()
   }
 
   @discardableResult
@@ -223,8 +233,8 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     isLive = false
     isRefreshing = false
     finishProgress()
-    needsPriceHistoryBackfill = false
-    return priceHistoryStore.invalidate()
+    needsHistoryBackfill = false
+    return invalidateHistory()
   }
 
   private func scheduleProgress(for generation: UUID) {
@@ -251,9 +261,12 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     showsProgress = false
   }
 
-  private func handlePriceHistoryAuthenticationFailure() {
+  private func handleHistoryAuthenticationFailure() {
+    guard problem != .signInRequired else { return }
+    invalidateHistory()
     problem = .signInRequired
     finishLoad(isLive: false)
     onAuthenticationRequired()
   }
+
 }

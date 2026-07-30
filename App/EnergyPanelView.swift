@@ -51,6 +51,10 @@ struct EnergyPanelView: View {
         store: homeEnergyStore.priceHistoryStore,
         mode: mode
       )
+      HomeAssistantHomeEnergyBatteryChart(
+        store: homeEnergyStore.batteryHistoryStore,
+        mode: mode
+      )
     }
     .padding()
     .frame(maxWidth: 720)
@@ -64,6 +68,7 @@ struct EnergyPanelView: View {
       loader: PreviewHomeEnergyLoader(),
       snapshot: PreviewHomeEnergyLoader.exportingSnapshot,
       isLive: true,
+      batteryHistory: PreviewHomeEnergyLoader.batteryHistory,
       priceHistory: PreviewHomeEnergyLoader.priceHistory
     ),
     mode: .standard,
@@ -79,6 +84,7 @@ struct EnergyPanelView: View {
       loader: PreviewHomeEnergyLoader(),
       snapshot: PreviewHomeEnergyLoader.importingSnapshot,
       isLive: true,
+      batteryHistory: PreviewHomeEnergyLoader.batteryHistory,
       priceHistory: PreviewHomeEnergyLoader.priceHistory
     ),
     mode: .full,
@@ -88,12 +94,28 @@ struct EnergyPanelView: View {
   .tint(BruceMode.full.accentColor)
 }
 
+#Preview("Battery chart") {
+  HomeAssistantHomeEnergyBatteryChart(
+    store: HomeAssistantHomeEnergyStore(
+      loader: PreviewHomeEnergyLoader(),
+      snapshot: PreviewHomeEnergyLoader.exportingSnapshot,
+      isLive: true,
+      batteryHistory: PreviewHomeEnergyLoader.batteryHistory,
+      priceHistory: PreviewHomeEnergyLoader.priceHistory
+    ).batteryHistoryStore,
+    mode: .standard
+  )
+  .padding()
+  .frame(width: 720)
+}
+
 #Preview("Price chart") {
   HomeAssistantHomeEnergyPriceChart(
     store: HomeAssistantHomeEnergyStore(
       loader: PreviewHomeEnergyLoader(),
       snapshot: PreviewHomeEnergyLoader.exportingSnapshot,
       isLive: true,
+      batteryHistory: PreviewHomeEnergyLoader.batteryHistory,
       priceHistory: PreviewHomeEnergyLoader.priceHistory
     ).priceHistoryStore,
     mode: .standard
@@ -120,6 +142,24 @@ private struct PreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
     generalPriceDollarsPerKilowattHour: 0.584,
     feedInPriceDollarsPerKilowattHour: -0.051
   )
+
+  static let batteryHistory: HomeEnergyBatteryHistory = {
+    let end = Date(timeIntervalSince1970: 1_785_408_000)
+    let values = [34.0, 29, 26, 24, 31, 48, 67, 79, 76]
+    let readings = values.enumerated().map { index, value in
+      HomeEnergyBatteryHistory.Reading(
+        timestamp: end.addingTimeInterval(TimeInterval(index - 8) * 3 * 60 * 60),
+        stateOfCharge: value
+      )
+    }
+    return HomeEnergyBatteryHistory(
+      interval: DateInterval(
+        start: end.addingTimeInterval(-24 * 60 * 60),
+        end: end
+      ),
+      readings: readings
+    )
+  }()
 
   static let priceHistory: HomeEnergyPriceHistory = {
     let end = Date(timeIntervalSince1970: 1_785_408_000)

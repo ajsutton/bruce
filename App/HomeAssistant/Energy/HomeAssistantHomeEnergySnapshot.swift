@@ -1,4 +1,6 @@
 struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
+  static let batteryStateOfChargeEntityID =
+    "sensor.sigen_plant_battery_state_of_charge"
   static let generalPriceEntityID =
     "sensor.01krmdgkh60wyckeepvgtbbgv3_general_price"
   static let feedInPriceEntityID =
@@ -10,6 +12,7 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
   let gridPowerKilowatts: Double?
   let generalPriceDollarsPerKilowattHour: Double?
   let feedInPriceDollarsPerKilowattHour: Double?
+  var requiresHistoryBackfill = false
 
   static let unavailable = HomeAssistantHomeEnergySnapshot(
     pvPowerKilowatts: nil,
@@ -27,5 +30,11 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
       || gridPowerKilowatts != nil
       || generalPriceDollarsPerKilowattHour != nil
       || feedInPriceDollarsPerKilowattHour != nil
+  }
+
+  func requiringHistoryBackfill() -> Self {
+    var snapshot = self
+    snapshot.requiresHistoryBackfill = true
+    return snapshot
   }
 }

@@ -6,7 +6,7 @@ struct HomeAssistantHomeEnergyPriceChart: View {
   @ObservedObject var store: HomeEnergyPriceHistoryStore
   let mode: BruceMode
 
-  private var copy: HomeEnergyCopy {
+  var copy: HomeEnergyCopy {
     HomeEnergyCopy(mode: mode)
   }
 
@@ -16,10 +16,24 @@ struct HomeAssistantHomeEnergyPriceChart: View {
 
       if store.hasUsableHistory {
         priceChart
+        if store.problem != nil {
+          Label(
+            copy.priceHistoryLoadFailed,
+            systemImage: "exclamationmark.triangle"
+          )
+          .font(.caption)
+          .foregroundStyle(secondaryForeground)
+        }
       } else if store.showsProgress {
         ProgressView()
           .frame(maxWidth: .infinity, minHeight: 220)
           .accessibilityLabel(copy.priceHistoryLoading)
+      } else if store.problem != nil {
+        ContentUnavailableView(
+          copy.priceHistoryLoadFailed,
+          systemImage: "exclamationmark.triangle"
+        )
+        .frame(maxWidth: .infinity, minHeight: 220)
       } else if store.isUnavailable || !store.isLoading {
         ContentUnavailableView(
           copy.priceHistoryUnavailable,
@@ -112,23 +126,24 @@ struct HomeAssistantHomeEnergyPriceChart: View {
   }
 
   private var priceChart: some View {
-    Chart(store.priceHistory.readingsExtendingToIntervalEnd) { reading in
-      LineMark(
-        x: .value(copy.priceHistoryTimeAxis, reading.timestamp),
-        y: .value(
-          copy.priceHistoryPriceAxis,
-          reading.centsPerKilowattHour
-        ),
-        series: .value(copy.priceHistorySeries, seriesName(for: reading.tariff))
-      )
-      .foregroundStyle(
-        by: .value(
-          copy.priceHistorySeries,
-          seriesName(for: reading.tariff)
-        )
-      )
-      .interpolationMethod(.stepEnd)
-      .lineStyle(lineStyle(for: reading.tariff, width: 2.5))
+    Chart {
+      ForEach(HomeEnergyPriceHistory.Tariff.allCases, id: \.self) { tariff in
+        ForEach(
+          Array(
+            (store.priceHistory.availableReadingSegments[tariff] ?? [])
+              .enumerated()
+          ),
+          id: \.offset
+        ) { segmentIndex, segment in
+          ForEach(segment) { reading in
+            priceLine(
+              reading,
+              tariff: tariff,
+              segmentIndex: segmentIndex
+            )
+          }
+        }
+      }
     }
     .chartXScale(domain: store.priceHistory.interval.start...store.priceHistory.interval.end)
     .chartYScale(domain: priceYDomain)
@@ -158,12 +173,32 @@ struct HomeAssistantHomeEnergyPriceChart: View {
       }
     }
     .frame(minHeight: 220)
+    .accessibilityChartDescriptor(priceAccessibilityDescriptor)
   }
 
-  private var priceYDomain: ClosedRange<Double> {
-    let values = store.priceHistory.readingsExtendingToIntervalEnd.map(
-      \.centsPerKilowattHour
-    )
+  @ChartContentBuilder
+  private func priceLine(
+    _ reading: HomeEnergyPriceHistory.Reading,
+    tariff: HomeEnergyPriceHistory.Tariff,
+    segmentIndex: Int
+  ) -> some ChartContent {
+    if let cents = reading.centsPerKilowattHour {
+      let seriesID = "\(tariff.rawValue)-\(segmentIndex)"
+      LineMark(
+        x: .value(copy.priceHistoryTimeAxis, reading.timestamp),
+        y: .value(copy.priceHistoryPriceAxis, cents),
+        series: .value(copy.priceHistorySeries, seriesID)
+      )
+      .foregroundStyle(
+        by: .value(copy.priceHistorySeries, seriesName(for: tariff))
+      )
+      .interpolationMethod(.stepEnd)
+      .lineStyle(lineStyle(for: tariff, width: 2.5))
+    }
+  }
+
+  var priceYDomain: ClosedRange<Double> {
+    let values = store.priceHistory.readings.compactMap(\.centsPerKilowattHour)
     guard
       let minimum = values.min(),
       let maximum = values.max()
@@ -176,7 +211,7 @@ struct HomeAssistantHomeEnergyPriceChart: View {
     return lowerBound...upperBound
   }
 
-  private func seriesName(
+  func seriesName(
     for tariff: HomeEnergyPriceHistory.Tariff
   ) -> String {
     switch tariff {
@@ -199,9 +234,9 @@ struct HomeAssistantHomeEnergyPriceChart: View {
     }
   }
 
-  private var freshnessLabel: String? {
+  var freshnessLabel: String? {
     if store.isLoading, store.hasUsableHistory {
-      return copy.updating
+      return copy.updatingLastKnownStatus
     }
     if store.isStale, store.hasUsableHistory {
       return copy.lastKnown

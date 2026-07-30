@@ -90,6 +90,7 @@ final class PriceHistoryStoreLifecycleTests: XCTestCase {
     XCTAssertEqual(store.priceHistoryStore.priceHistory, .empty)
     XCTAssertFalse(store.priceHistoryStore.hasUsableHistory)
     XCTAssertTrue(store.priceHistoryStore.isUnavailable)
+    XCTAssertNil(store.priceHistoryStore.problem)
     await stop(synchronization, loader: loader)
   }
 
@@ -117,6 +118,7 @@ final class PriceHistoryStoreLifecycleTests: XCTestCase {
     XCTAssertEqual(store.problem, .signInRequired)
     XCTAssertTrue(requiresAuthentication)
     XCTAssertTrue(store.priceHistoryStore.isUnavailable)
+    XCTAssertNil(store.priceHistoryStore.problem)
     withExtendedLifetime(completion.subscription) {}
     await stop(synchronization, loader: loader)
   }
@@ -182,6 +184,7 @@ final class PriceHistoryStoreLifecycleTests: XCTestCase {
     let completion = historyCompletion(for: store)
     loader.failHistory(request, with: HistoryLifecycleTestError.failed)
     await fulfillment(of: [completion.expectation], timeout: 1)
+    XCTAssertEqual(store.priceHistoryStore.problem, .loadFailed)
     withExtendedLifetime(completion.subscription) {}
   }
 
