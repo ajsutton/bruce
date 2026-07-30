@@ -9,96 +9,107 @@ struct CarPanelView: View {
   var showsConnectionProblems = true
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
+  var isEmbedded = false
 
   private var copy: GarageDoorCopy {
     GarageDoorCopy(mode: mode)
   }
 
   var body: some View {
-    NavigationStack {
-      ScrollView {
-        VStack(spacing: 16) {
-          if chargingStore.mode != nil {
-            HomeAssistantEVChargingCard(
-              store: chargingStore,
-              mode: mode,
-              showsConnectionProblems: showsConnectionProblems,
-              manageConnection: manageConnection,
-              requestRefresh: requestRefresh
+    Group {
+      if isEmbedded {
+        panelContent
+      } else {
+        NavigationStack {
+          ScrollView {
+            panelContent
+          }
+          .navigationTitle(copy.navigationTitle)
+          #if os(iOS)
+            .toolbarTitleDisplayMode(
+              dynamicTypeSize.isAccessibilitySize ? .large : .inline
             )
-          }
-
-          if !garageDoorStore.doors.isEmpty {
-            ForEach(garageDoorStore.doors) { door in
-              HomeAssistantGarageDoorCard(
-                door: door,
-                isLive: garageDoorStore.isLive,
-                isRefreshing: garageDoorStore.isRefreshing,
-                mode: mode,
-                isLightChanging: garageDoorStore.isControlling(
-                  .light,
-                  for: door.id
-                ),
-                isLockChanging: garageDoorStore.isControlling(
-                  .lock,
-                  for: door.id
-                ),
-                pendingDoorCommand: garageDoorStore.pendingDoorCommands[door.id],
-                toggleLight: {
-                  Task {
-                    await garageDoorStore.toggleLight(for: door)
-                  }
-                },
-                toggleLock: {
-                  Task {
-                    await garageDoorStore.toggleLock(for: door)
-                  }
-                },
-                sendDoorCommand: { command in
-                  Task {
-                    await garageDoorStore.send(command, to: door)
-                  }
-                }
-              )
-            }
-          }
-
-          if chargingStore.mode == nil,
-            let problem = chargingStore.problem,
-            showsConnectionProblems || problem.isFeatureSpecific
-          {
-            chargingProblemView(problem)
-          }
-
-          if let problem = garageDoorStore.problem,
-            showsConnectionProblems || problem.isFeatureSpecific
-          {
-            garageProblemView(problem)
-          }
-
-          if chargingStore.mode == nil,
-            garageDoorStore.doors.isEmpty,
-            chargingStore.problem == nil,
-            garageDoorStore.problem == nil
-          {
-            carDevicesUnavailableView
-          }
+          #else
+            .toolbarTitleDisplayMode(.inline)
+          #endif
         }
-        .padding()
-        .frame(maxWidth: 720)
-        .frame(maxWidth: .infinity)
       }
-      .background(mode.panelBackgroundColor(for: colorScheme))
-      .navigationTitle(copy.navigationTitle)
-      #if os(iOS)
-        .toolbarTitleDisplayMode(
-          dynamicTypeSize.isAccessibilitySize ? .large : .inline
-        )
-      #else
-        .toolbarTitleDisplayMode(.inline)
-      #endif
     }
+    .background(mode.panelBackgroundColor(for: colorScheme))
     .preferredColorScheme(mode.isFullBruce ? .dark : nil)
+  }
+
+  private var panelContent: some View {
+    VStack(spacing: 16) {
+      if chargingStore.mode != nil {
+        HomeAssistantEVChargingCard(
+          store: chargingStore,
+          mode: mode,
+          showsConnectionProblems: showsConnectionProblems,
+          manageConnection: manageConnection,
+          requestRefresh: requestRefresh
+        )
+      }
+
+      if !garageDoorStore.doors.isEmpty {
+        ForEach(garageDoorStore.doors) { door in
+          HomeAssistantGarageDoorCard(
+            door: door,
+            isLive: garageDoorStore.isLive,
+            isRefreshing: garageDoorStore.isRefreshing,
+            mode: mode,
+            isLightChanging: garageDoorStore.isControlling(
+              .light,
+              for: door.id
+            ),
+            isLockChanging: garageDoorStore.isControlling(
+              .lock,
+              for: door.id
+            ),
+            pendingDoorCommand: garageDoorStore.pendingDoorCommands[door.id],
+            toggleLight: {
+              Task {
+                await garageDoorStore.toggleLight(for: door)
+              }
+            },
+            toggleLock: {
+              Task {
+                await garageDoorStore.toggleLock(for: door)
+              }
+            },
+            sendDoorCommand: { command in
+              Task {
+                await garageDoorStore.send(command, to: door)
+              }
+            }
+          )
+        }
+      }
+
+      if chargingStore.mode == nil,
+        let problem = chargingStore.problem,
+        showsConnectionProblems || problem.isFeatureSpecific
+      {
+        chargingProblemView(problem)
+      }
+
+      if let problem = garageDoorStore.problem,
+        showsConnectionProblems || problem.isFeatureSpecific
+      {
+        garageProblemView(problem)
+      }
+
+      if chargingStore.mode == nil,
+        garageDoorStore.doors.isEmpty,
+        chargingStore.problem == nil,
+        garageDoorStore.problem == nil
+      {
+        carDevicesUnavailableView
+      }
+    }
+    .padding()
+    .frame(maxWidth: 720)
+    .frame(maxWidth: .infinity)
   }
 
   @ViewBuilder

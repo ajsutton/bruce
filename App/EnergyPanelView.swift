@@ -8,38 +8,49 @@ struct EnergyPanelView: View {
   var showsConnectionProblems = true
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
+  var isEmbedded = false
 
   private var copy: EnergyPanelCopy {
     EnergyPanelCopy(mode: mode)
   }
 
   var body: some View {
-    NavigationStack {
-      ScrollView {
-        VStack(spacing: 16) {
-          HomeAssistantHomeEnergyCard(
-            store: homeEnergyStore,
-            mode: mode,
-            showsConnectionProblems: showsConnectionProblems,
-            manageConnection: manageConnection,
-            requestRefresh: requestRefresh
-          )
+    Group {
+      if isEmbedded {
+        panelContent
+      } else {
+        NavigationStack {
+          ScrollView {
+            panelContent
+          }
+          .navigationTitle(copy.navigationTitle)
+          #if os(iOS)
+            .toolbarTitleDisplayMode(
+              dynamicTypeSize.isAccessibilitySize ? .large : .inline
+            )
+          #else
+            .toolbarTitleDisplayMode(.inline)
+          #endif
         }
-        .padding()
-        .frame(maxWidth: 720)
-        .frame(maxWidth: .infinity)
       }
-      .background(mode.panelBackgroundColor(for: colorScheme))
-      .navigationTitle(copy.navigationTitle)
-      #if os(iOS)
-        .toolbarTitleDisplayMode(
-          dynamicTypeSize.isAccessibilitySize ? .large : .inline
-        )
-      #else
-        .toolbarTitleDisplayMode(.inline)
-      #endif
     }
+    .background(mode.panelBackgroundColor(for: colorScheme))
     .preferredColorScheme(mode.isFullBruce ? .dark : nil)
+  }
+
+  private var panelContent: some View {
+    VStack(spacing: 16) {
+      HomeAssistantHomeEnergyCard(
+        store: homeEnergyStore,
+        mode: mode,
+        showsConnectionProblems: showsConnectionProblems,
+        manageConnection: manageConnection,
+        requestRefresh: requestRefresh
+      )
+    }
+    .padding()
+    .frame(maxWidth: 720)
+    .frame(maxWidth: .infinity)
   }
 }
 

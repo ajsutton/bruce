@@ -7,6 +7,7 @@ struct HomeAssistantTemperatureView: View {
   let isConnecting: Bool
   let showsConnectionProblems: Bool
   let requestRefresh: () -> Void
+  var isEmbedded = false
 
   private var copy: TemperatureCopy {
     TemperatureCopy(mode: mode)
@@ -43,34 +44,44 @@ struct HomeAssistantTemperatureView: View {
   }
 
   var body: some View {
-    NavigationStack {
-      VStack(spacing: 0) {
-        if let displayedProblem {
-          problemBanner(displayedProblem)
+    Group {
+      if isEmbedded {
+        panelContent
+      } else {
+        NavigationStack {
+          panelContent
+            .navigationTitle(copy.navigationTitle)
+            .toolbarTitleDisplayMode(.inline)
+            .modifier(TemperatureNavigationStyle(mode: mode))
         }
-        temperatureContent
-      }
-      .background(screenBackground)
-      .navigationTitle(copy.navigationTitle)
-      .toolbarTitleDisplayMode(.inline)
-      .tint(mode.accentColor)
-      .modifier(TemperatureNavigationStyle(mode: mode))
-      .alert(
-        copy.controlFailedTitle,
-        isPresented: Binding(
-          get: { store.controlProblem != nil },
-          set: { isPresented in
-            if !isPresented {
-              store.dismissControlProblem()
-            }
-          }
-        )
-      ) {
-        Button(copy.dismiss, role: .cancel) {}
-      } message: {
-        Text(store.controlProblem.map { copy.controlFailed(name: $0.name) } ?? "")
       }
     }
+    .tint(mode.accentColor)
+    .alert(
+      copy.controlFailedTitle,
+      isPresented: Binding(
+        get: { store.controlProblem != nil },
+        set: { isPresented in
+          if !isPresented {
+            store.dismissControlProblem()
+          }
+        }
+      )
+    ) {
+      Button(copy.dismiss, role: .cancel) {}
+    } message: {
+      Text(store.controlProblem.map { copy.controlFailed(name: $0.name) } ?? "")
+    }
+  }
+
+  private var panelContent: some View {
+    VStack(spacing: 0) {
+      if let displayedProblem {
+        problemBanner(displayedProblem)
+      }
+      temperatureContent
+    }
+    .background(screenBackground)
   }
 
   @ViewBuilder
@@ -87,65 +98,73 @@ struct HomeAssistantTemperatureView: View {
             .padding(.horizontal)
             .padding(.top, 8)
         }
-        ScrollView {
-          LazyVStack(spacing: 14) {
-            ForEach(summary.airConditioners) { reading in
-              HomeAssistantAirConditionerCard(
-                reading: reading,
-                averageValue: summary.averageRoomTemperature,
-                mode: mode,
-                showsName: summary.airConditioners.count > 1,
-                showsControls: store.supportsControl,
-                isControlEnabled: store.canControl(reading),
-                isControlling: store.isControlling(entityID: reading.id),
-                isLastKnown: isDisplayingLastKnown,
-                targetValueFractionLength: summary.targetValueFractionLength,
-                setPower: { isOn in
-                  Task {
-                    await store.setPower(for: reading, isOn: isOn)
-                  }
-                },
-                setMode: { climateMode in
-                  Task {
-                    await store.setMode(climateMode, for: reading)
-                  }
-                }
-              )
-              .padding(.bottom, 4)
-            }
-
-            ForEach(summary.rooms) { reading in
-              HomeAssistantTemperatureCard(
-                reading: reading,
-                mode: mode,
-                showsControl: reading.kind == .zone && store.supportsControl,
-                isControlEnabled: store.canControl(reading),
-                isControlling: store.isControllingClimateState(entityID: reading.id),
-                isTargetControlling: store.isAdjustingTarget(entityID: reading.id),
-                isLastKnown: isDisplayingLastKnown,
-                showsTargetControl: reading.kind == .zone
-                  && reading.targetValue != nil
-                  && store.supportsControl,
-                targetValueFractionLength: summary.targetValueFractionLength,
-                setPower: { isOn in
-                  Task {
-                    await store.setPower(for: reading, isOn: isOn)
-                  }
-                },
-                setTargetValue: { value in
-                  MainActor.assumeIsolated {
-                    store.setTargetValue(value, for: reading)
-                  }
-                }
-              )
-            }
+        if isEmbedded {
+          temperatureReadings
+        } else {
+          ScrollView {
+            temperatureReadings
           }
-          .padding()
-          .frame(maxWidth: 720)
-          .frame(maxWidth: .infinity)
         }
       }
     }
+  }
+
+  private var temperatureReadings: some View {
+    LazyVStack(spacing: 14) {
+      ForEach(summary.airConditioners) { reading in
+        HomeAssistantAirConditionerCard(
+          reading: reading,
+          averageValue: summary.averageRoomTemperature,
+          mode: mode,
+          showsName: summary.airConditioners.count > 1,
+          showsControls: store.supportsControl,
+          isControlEnabled: store.canControl(reading),
+          isControlling: store.isControlling(entityID: reading.id),
+          isLastKnown: isDisplayingLastKnown,
+          targetValueFractionLength: summary.targetValueFractionLength,
+          setPower: { isOn in
+            Task {
+              await store.setPower(for: reading, isOn: isOn)
+            }
+          },
+          setMode: { climateMode in
+            Task {
+              await store.setMode(climateMode, for: reading)
+            }
+          }
+        )
+        .padding(.bottom, 4)
+      }
+
+      ForEach(summary.rooms) { reading in
+        HomeAssistantTemperatureCard(
+          reading: reading,
+          mode: mode,
+          showsControl: reading.kind == .zone && store.supportsControl,
+          isControlEnabled: store.canControl(reading),
+          isControlling: store.isControllingClimateState(entityID: reading.id),
+          isTargetControlling: store.isAdjustingTarget(entityID: reading.id),
+          isLastKnown: isDisplayingLastKnown,
+          showsTargetControl: reading.kind == .zone
+            && reading.targetValue != nil
+            && store.supportsControl,
+          targetValueFractionLength: summary.targetValueFractionLength,
+          setPower: { isOn in
+            Task {
+              await store.setPower(for: reading, isOn: isOn)
+            }
+          },
+          setTargetValue: { value in
+            MainActor.assumeIsolated {
+              store.setTargetValue(value, for: reading)
+            }
+          }
+        )
+      }
+    }
+    .padding()
+    .frame(maxWidth: 720)
+    .frame(maxWidth: .infinity)
   }
 
   private var showsActivity: Bool {
