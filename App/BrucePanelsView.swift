@@ -4,9 +4,10 @@ struct BrucePanelsView: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.colorScheme) private var colorScheme
   @AppStorage(BrucePanel.storageKey) private var selectedPanel = BrucePanel.climate
-  @State private var scrollRequest = BrucePanelScrollRequest(panel: .climate)
+  @State private var scrollTarget: BrucePanel?
   @State private var activeScrollRequest: BrucePanelScrollRequest?
   @State private var panelFrames: [BrucePanel: CGRect] = [:]
+  @State private var panelViewportHeight: CGFloat = 0
   @State private var energyPanelHeight: CGFloat = 0
   @ObservedObject var temperatureStore: HomeAssistantTemperatureStore
   @ObservedObject var chargingStore: HomeAssistantEVChargingStore
@@ -75,73 +76,57 @@ struct BrucePanelsView: View {
         .navigationSplitViewColumnWidth(min: 170, ideal: 190)
       } detail: {
         GeometryReader { viewport in
-          ScrollViewReader { proxy in
-            ScrollView {
-              LazyVStack(spacing: 0) {
-                panelSection(.climate, viewportHeight: viewport.size.height) {
-                  HomeAssistantTemperatureView(
-                    store: temperatureStore,
-                    mode: mode,
-                    isConnecting: isConnecting,
-                    showsConnectionProblems: connectionBanner == nil,
-                    requestRefresh: requestHomeRefresh,
-                    isEmbedded: true
-                  )
-                }
-
-                panelSection(.car, viewportHeight: viewport.size.height) {
-                  CarPanelView(
-                    chargingStore: chargingStore,
-                    garageDoorStore: garageDoorStore,
-                    mode: mode,
-                    showsConnectionProblems: connectionBanner == nil,
-                    manageConnection: manageConnection,
-                    requestRefresh: requestHomeRefresh,
-                    isEmbedded: true
-                  )
-                }
-
-                panelSection(.energy, viewportHeight: viewport.size.height) {
-                  EnergyPanelView(
-                    homeEnergyStore: homeEnergyStore,
-                    mode: mode,
-                    showsConnectionProblems: connectionBanner == nil,
-                    manageConnection: manageConnection,
-                    requestRefresh: requestHomeRefresh,
-                    isEmbedded: true
-                  )
-                }
-
-                Color.clear
-                  .frame(height: max(viewport.size.height - energyPanelHeight, 0))
-                  .accessibilityHidden(true)
+          ScrollView {
+            VStack(spacing: 0) {
+              panelSection(.climate, viewportHeight: viewport.size.height) {
+                HomeAssistantTemperatureView(
+                  store: temperatureStore,
+                  mode: mode,
+                  isConnecting: isConnecting,
+                  showsConnectionProblems: connectionBanner == nil,
+                  requestRefresh: requestHomeRefresh,
+                  isEmbedded: true
+                )
               }
-            }
-            .coordinateSpace(name: BrucePanelScrollCoordinateSpace.name)
-            .onChange(of: scrollRequest) { _, request in
-              activeScrollRequest = request
-              withAnimation(reduceMotion ? nil : .default) {
-                proxy.scrollTo(request.panel, anchor: .top)
-              } completion: {
-                guard activeScrollRequest == request else { return }
-                activeScrollRequest = nil
-                updateSelectedPanel(viewportHeight: viewport.size.height)
+
+              panelSection(.car, viewportHeight: viewport.size.height) {
+                CarPanelView(
+                  chargingStore: chargingStore,
+                  garageDoorStore: garageDoorStore,
+                  mode: mode,
+                  showsConnectionProblems: connectionBanner == nil,
+                  manageConnection: manageConnection,
+                  requestRefresh: requestHomeRefresh,
+                  isEmbedded: true
+                )
               }
-            }
-            .onAppear {
-              let request = BrucePanelScrollRequest(panel: selectedPanel)
-              activeScrollRequest = request
-              withAnimation(nil) {
-                proxy.scrollTo(request.panel, anchor: .top)
-              } completion: {
-                guard activeScrollRequest == request else { return }
-                activeScrollRequest = nil
-                updateSelectedPanel(viewportHeight: viewport.size.height)
+
+              panelSection(.energy, viewportHeight: viewport.size.height) {
+                EnergyPanelView(
+                  homeEnergyStore: homeEnergyStore,
+                  mode: mode,
+                  showsConnectionProblems: connectionBanner == nil,
+                  manageConnection: manageConnection,
+                  requestRefresh: requestHomeRefresh,
+                  isEmbedded: true
+                )
               }
+
+              Color.clear
+                .frame(height: max(viewport.size.height - energyPanelHeight, 0))
+                .accessibilityHidden(true)
             }
-            .onChange(of: viewport.size.height) { _, height in
-              updateSelectedPanel(viewportHeight: height)
-            }
+            .scrollTargetLayout()
+          }
+          .scrollPosition(id: scrollPosition, anchor: .top)
+          .coordinateSpace(name: BrucePanelScrollCoordinateSpace.name)
+          .onAppear {
+            panelViewportHeight = viewport.size.height
+            requestScroll(to: selectedPanel, animated: false)
+          }
+          .onChange(of: viewport.size.height) { _, height in
+            panelViewportHeight = height
+            updateSelectedPanel(viewportHeight: height)
           }
         }
         .navigationTitle(title(for: selectedPanel))
@@ -160,8 +145,27 @@ struct BrucePanelsView: View {
     }
 
     private func requestScroll(to panel: BrucePanel) {
+      requestScroll(to: panel, animated: true)
+    }
+
+    private func requestScroll(to panel: BrucePanel, animated: Bool) {
+      let request = BrucePanelScrollRequest(panel: panel)
+      activeScrollRequest = request
       selectedPanel = panel
-      scrollRequest = BrucePanelScrollRequest(panel: panel)
+      withAnimation(animated && !reduceMotion ? .default : nil) {
+        scrollTarget = panel
+      } completion: {
+        guard activeScrollRequest == request else { return }
+        activeScrollRequest = nil
+        updateSelectedPanel(viewportHeight: panelViewportHeight)
+      }
+    }
+
+    private var scrollPosition: Binding<BrucePanel?> {
+      Binding(
+        get: { scrollTarget },
+        set: { _ in }
+      )
     }
   #else
     private var iOSPanels: some View {
@@ -223,6 +227,9 @@ struct BrucePanelsView: View {
       if panel == .energy {
         energyPanelHeight = frame.height
       }
+      if activeScrollRequest?.panel == panel, abs(frame.minY) < 1 {
+        activeScrollRequest = nil
+      }
       updateSelectedPanel(viewportHeight: viewportHeight)
     }
   }
@@ -250,6 +257,7 @@ struct BrucePanelsView: View {
       return
     }
     selectedPanel = mostVisiblePanel
+    scrollTarget = nil
   }
 
 }
