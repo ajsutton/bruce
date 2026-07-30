@@ -50,9 +50,6 @@ struct BrucePanelsView: View {
 
       #if os(macOS)
         macOSPanels
-        if connectionBanner == nil, showsServerStatus {
-          serverStatusView
-        }
       #else
         iOSPanels
       #endif
@@ -74,6 +71,11 @@ struct BrucePanelsView: View {
       NavigationSplitView {
         panelSidebar
           .navigationSplitViewColumnWidth(min: 170, ideal: 190)
+          .safeAreaBar(edge: .bottom, alignment: .leading) {
+            if connectionBanner == nil, showsServerStatus {
+              serverStatusView.padding()
+            }
+          }
       } detail: {
         panelScrollView
           .navigationTitle(title(for: selectedPanel))
@@ -82,22 +84,21 @@ struct BrucePanelsView: View {
     }
 
   #else
+    @ViewBuilder
     private var iOSPanels: some View {
-      Group {
-        if horizontalSizeClass == .regular {
-          iPadPanels
-        } else {
-          compactIOSPanels
-        }
+      if horizontalSizeClass == .regular {
+        iPadPanels
+      } else {
+        compactIOSPanels
       }
     }
 
     private var compactIOSPanels: some View {
       panelScrollView
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-          VStack(spacing: 0) {
+        .safeAreaBar(edge: .bottom, spacing: 0) {
+          VStack(alignment: .leading, spacing: 8) {
             if connectionBanner == nil, showsServerStatus {
-              serverStatusView
+              serverStatusView.padding(.horizontal)
             }
             BrucePanelTabBar(
               selectedPanel: selectedPanel,
@@ -107,22 +108,21 @@ struct BrucePanelsView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 49)
           }
-          .background(.bar)
         }
     }
 
     private var iPadPanels: some View {
-      VStack(spacing: 0) {
-        NavigationSplitView {
-          panelSidebar
-        } detail: {
-          panelScrollView
-            .navigationTitle(title(for: selectedPanel))
-            .toolbarTitleDisplayMode(.inline)
-        }
-        if connectionBanner == nil, showsServerStatus {
-          serverStatusView
-        }
+      NavigationSplitView {
+        panelSidebar
+          .safeAreaBar(edge: .bottom, alignment: .leading) {
+            if connectionBanner == nil, showsServerStatus {
+              serverStatusView.padding()
+            }
+          }
+      } detail: {
+        panelScrollView
+          .navigationTitle(title(for: selectedPanel))
+          .toolbarTitleDisplayMode(.inline)
       }
     }
   #endif

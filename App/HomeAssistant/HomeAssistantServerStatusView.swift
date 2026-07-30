@@ -27,35 +27,17 @@ struct HomeAssistantServerStatusView: View {
           .accessibilityHidden(true)
           .frame(width: 12, height: 12)
 
-        ZStack(alignment: .leading) {
-          statusText(at: context.date)
-          footerHeightReference
-            .hidden()
-        }
-        .font(.caption)
-        .foregroundStyle(foregroundStyle)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        statusText(at: context.date)
+          .font(.caption)
+          .foregroundStyle(foregroundStyle)
       }
+      .padding(.horizontal)
+      .padding(.vertical, 6)
+      .glassEffect()
       .accessibilityElement(children: .ignore)
       .accessibilityLabel(accessibilityStatusText(at: context.date))
-    }
-    .padding(.horizontal)
-    .padding(.vertical, 6)
-  }
-
-  private var footerHeightReference: some View {
-    ZStack(alignment: .leading) {
-      statusReferenceText(copy.serverConnecting)
-      statusReferenceText(copy.serverUpdating)
-      Text(copy.disconnecting)
-    }
-  }
-
-  private func statusReferenceText(_ title: String) -> some View {
-    HStack(spacing: 4) {
-      Text(title)
-      Text("·")
-      lastUpdatedText(.now.addingTimeInterval(-HomeAssistantServerStatus.recentUpdateInterval))
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .allowsHitTesting(false)
     }
   }
 
