@@ -87,6 +87,27 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce
           CODE_SIGN_ENTITLEMENTS: App/Bruce.entitlements
 
+  BruceUITestHost_iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes:
+          - BruceApp.swift
+          - Info-iOS.plist
+          - Info-macOS.plist
+          - Assets-macOS.xcassets
+          - Settings.bundle
+      - path: UITestHost
+    settings:
+      base:
+        PRODUCT_NAME: BruceUITestHost
+        PRODUCT_MODULE_NAME: BruceUITestHost
+        PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.ui-test-host
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
+
   BruceTests_iOS:
     type: bundle.unit-test
     platform: iOS
@@ -145,6 +166,21 @@ targets:
     dependencies:
       - target: Bruce_macOS
 
+  BruceUITests_iOS:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+      - path: App/BruceAccessibilityIdentifier.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.ui-tests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
+    dependencies:
+      - target: BruceUITestHost_iOS
+
 schemes:
   Bruce:
     build:
@@ -171,3 +207,12 @@ schemes:
       config: Testing
       targets:
         - BruceTests_macOS
+
+  Bruce-UI-Tests:
+    build:
+      targets:
+        BruceUITestHost_iOS: all
+    test:
+      config: Testing
+      targets:
+        - BruceUITests_iOS

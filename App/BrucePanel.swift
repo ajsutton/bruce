@@ -17,4 +17,26 @@ enum BrucePanel: String, CaseIterable, Identifiable {
       "bolt"
     }
   }
+
+  var tabAccessibilityIdentifier: String? {
+    switch self {
+    case .climate:
+      BruceAccessibilityIdentifier.climatePanelTab
+    case .car:
+      nil
+    case .energy:
+      BruceAccessibilityIdentifier.energyPanelTab
+    }
+  }
+
+  var sectionAccessibilityIdentifier: String? {
+    switch self {
+    case .climate:
+      BruceAccessibilityIdentifier.climatePanelSection
+    case .car:
+      nil
+    case .energy:
+      BruceAccessibilityIdentifier.energyPanelSection
+    }
+  }
 }

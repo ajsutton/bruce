@@ -13,7 +13,7 @@ generate:
 format:
     #!/usr/bin/env bash
     set -euo pipefail
-    find App Tests -type f -name '*.swift' -print0 \
+    find App Tests UITestHost UITests -type f -name '*.swift' -print0 \
         | xargs -0 swift-format format -i --configuration .swift-format
     swiftlint lint --fix --quiet
 
@@ -28,7 +28,7 @@ format-check:
                 "$file" <(swift-format format --configuration .swift-format "$file") || true
             fail=1
         fi
-    done < <(find App Tests -type f -name '*.swift' -print0)
+    done < <(find App Tests UITestHost UITests -type f -name '*.swift' -print0)
     if [ "$fail" -ne 0 ]; then
         exit 1
     fi
@@ -100,6 +100,9 @@ test-mac *FILTERS: generate
 
 test-ios *FILTERS: generate
     bash scripts/test.sh ios {{ FILTERS }}
+
+test-ui *FILTERS: generate
+    bash scripts/test-ui.sh {{ FILTERS }}
 
 clean:
     #!/usr/bin/env bash

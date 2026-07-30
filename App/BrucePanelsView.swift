@@ -6,7 +6,8 @@ struct BrucePanelsView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @AppStorage(BrucePanel.storageKey) private var selectedPanel = BrucePanel.climate
   @State private var scrollPosition = ScrollPosition(idType: BrucePanel.self)
-  @State private var activeScrollRequest: BrucePanelScrollRequest?
+  @State private var scrollPhase = ScrollPhase.idle
+  @State private var scrollCoordinator = BrucePanelScrollCoordinator()
   @State private var panelFrames: [BrucePanel: CGRect] = [:]
   @State private var energyPanelHeight: CGFloat = 0
   let temperatureStore: HomeAssistantTemperatureStore
@@ -99,7 +100,7 @@ struct BrucePanelsView: View {
           BrucePanelTabBar(
             selectedPanel: selectedPanel,
             titles: BrucePanel.allCases.map(title),
-            selectPanel: { requestScroll(to: $0, animated: true) }
+            selectPanel: requestScroll
           )
           .frame(maxWidth: .infinity)
           .frame(height: 49)
@@ -133,8 +134,8 @@ struct BrucePanelsView: View {
     BrucePanelSidebar(
       selectedPanel: selectedPanel,
       titles: BrucePanel.allCases.map(title),
-      activePanel: activeScrollRequest?.panel,
-      selectPanel: { requestScroll(to: $0, animated: true) }
+      activePanel: scrollCoordinator.activePanel,
+      selectPanel: requestScroll
     )
   }
 
@@ -185,37 +186,30 @@ struct BrucePanelsView: View {
       .scrollPosition($scrollPosition, anchor: .top)
       .coordinateSpace(name: BrucePanelScrollCoordinateSpace.name)
       .onAppear {
-        requestScroll(to: selectedPanel, animated: false)
+        guard selectedPanel != .climate else { return }
+        let request = scrollCoordinator.activate(from: .climate, to: selectedPanel)
+        performScroll(scrollCoordinator.begin(request, animated: false))
+      }
+      .onChange(of: scrollCoordinator.pendingRequest) { _, request in
+        guard let request else { return }
+        performScroll(scrollCoordinator.begin(request, animated: true))
       }
       .onChange(of: viewport.size.height) { _, height in
         updateSelectedPanel(viewportHeight: height)
       }
       .onScrollPhaseChange { _, newPhase, context in
-        guard newPhase == .idle, activeScrollRequest != nil else { return }
-        activeScrollRequest = nil
-        updateSelectedPanel(viewportHeight: context.geometry.visibleRect.height)
-      }
-    }
-  }
-
-  private func requestScroll(to panel: BrucePanel, animated: Bool) {
-    let request = BrucePanelScrollRequest(panel: panel)
-    activeScrollRequest = request
-    selectedPanel = panel
-    if panelFrames[panel].map({ abs($0.minY) < 1 }) == true {
-      activeScrollRequest = nil
-      return
-    }
-    if animated, !reduceMotion {
-      withAnimation(.default) {
-        scrollPosition.scrollTo(id: panel, anchor: .top)
-      }
-    } else {
-      withAnimation(nil, completionCriteria: .removed) {
-        scrollPosition.scrollTo(id: panel, anchor: .top)
-      } completion: {
-        guard activeScrollRequest == request else { return }
-        activeScrollRequest = nil
+        scrollPhase = newPhase
+        if newPhase == .tracking || newPhase == .interacting {
+          scrollCoordinator.cancel()
+        }
+        guard newPhase == .idle else { return }
+        let viewportHeight = context.geometry.visibleRect.height
+        Task { @MainActor in
+          await Task.yield()
+          guard scrollPhase == .idle else { return }
+          scrollCoordinator.cancel()
+          updateSelectedPanel(viewportHeight: viewportHeight)
+        }
       }
     }
   }
@@ -230,6 +224,11 @@ struct BrucePanelsView: View {
         .font(.title2)
         .fontWeight(.semibold)
         .padding([.horizontal, .top])
+        .modifier(
+          BruceAccessibilityIdentifierModifier(
+            identifier: panel.sectionAccessibilityIdentifier
+          )
+        )
         .accessibilityHeading(.unspecified)
 
       content()
@@ -239,6 +238,7 @@ struct BrucePanelsView: View {
       geometry.frame(in: .named(BrucePanelScrollCoordinateSpace.name))
     } action: { frame in
       panelFrames[panel] = frame
+      completeScrollStep(panel, frame: frame)
       if panel == .energy {
         energyPanelHeight = frame.height
       }
@@ -259,7 +259,7 @@ struct BrucePanelsView: View {
 
   private func updateSelectedPanel(viewportHeight: CGFloat) {
     guard
-      activeScrollRequest == nil,
+      scrollCoordinator.activePanel == nil,
       let mostVisiblePanel = BrucePanelVisibility.mostVisiblePanel(
         in: panelFrames,
         viewportHeight: viewportHeight
@@ -271,120 +271,37 @@ struct BrucePanelsView: View {
     selectedPanel = mostVisiblePanel
   }
 }
-#Preview("Panels") {
-  BrucePanelsPreview.view
-}
 
-private enum BrucePanelsPreview {
-  @MainActor
-  static var view: some View {
-    let store = HomeAssistantTemperatureStore(loader: BrucePanelsPreviewLoader())
-    let chargingStore = HomeAssistantEVChargingStore(
-      client: BrucePanelsPreviewEVChargingClient(),
-      mode: .smart
+extension BrucePanelsView {
+  fileprivate func requestScroll(to panel: BrucePanel) {
+    let sourcePanel = selectedPanel
+    selectedPanel = panel
+    scrollCoordinator.request(
+      from: sourcePanel,
+      to: panel,
+      panelIsAtTop: panelFrames[panel].map({ abs($0.minY) < 1 }) == true
     )
-    let homeEnergyStore = HomeAssistantHomeEnergyStore(
-      loader: BrucePanelsPreviewHomeEnergyLoader(),
-      snapshot: HomeAssistantHomeEnergySnapshot(
-        pvPowerKilowatts: 8.4,
-        batteryStateOfCharge: 76,
-        homeConsumptionKilowatts: 3.1,
-        gridPowerKilowatts: -2.7,
-        generalPriceDollarsPerKilowattHour: 0.341,
-        feedInPriceDollarsPerKilowattHour: 0.127
-      ),
-      isLive: true
-    )
-    let garageDoorStore = HomeAssistantGarageDoorStore(
-      loader: BrucePanelsPreviewGarageDoorLoader(),
-      doors: [
-        HomeAssistantGarageDoorSnapshot(
-          id: "cover.garage",
-          name: "Garage Door",
-          doorState: .closed,
-          lightState: .off,
-          lockState: .locked
-        )
-      ],
-      isLive: true
-    )
-    return BrucePanelsView(
-      temperatureStore: store,
-      chargingStore: chargingStore,
-      garageDoorStore: garageDoorStore,
-      homeEnergyStore: homeEnergyStore,
-      mode: .standard,
-      isConnecting: false,
-      connectionProblem: nil,
-      serverStatus: HomeAssistantServerStatus(
-        phase: .live,
-        lastSuccessfulUpdate: .now
-      ),
-      manageConnection: {},
-      requestHomeRefresh: {},
-      isRemovingConnection: false
-    )
-    .tint(BruceMode.standard.accentColor)
-    .task {
-      await store.load()
+  }
+
+  fileprivate func performScroll(_ command: BrucePanelScrollCoordinator.Command?) {
+    guard let command else { return }
+    if command.animated, !reduceMotion {
+      withAnimation(.default) {
+        scrollPosition.scrollTo(id: command.panel, anchor: .top)
+      }
+    } else {
+      withAnimation(nil) {
+        scrollPosition.scrollTo(id: command.panel, anchor: .top)
+      }
     }
   }
-}
 
-private struct BrucePanelScrollRequest: Equatable {
-  let id = UUID()
-  let panel: BrucePanel
+  fileprivate func completeScrollStep(_ panel: BrucePanel, frame: CGRect) {
+    guard abs(frame.minY) < 1 else { return }
+    performScroll(scrollCoordinator.complete(panel))
+  }
 }
 
 private enum BrucePanelScrollCoordinateSpace {
   static let name = "bruce-panels-scroll"
-}
-
-private struct BrucePanelsPreviewGarageDoorLoader: HomeAssistantGarageDoorLoading {
-  func loadGarageDoors() async throws -> [HomeAssistantGarageDoorSnapshot] {
-    []
-  }
-}
-
-private struct BrucePanelsPreviewEVChargingClient: HomeAssistantEVCharging {
-  func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {
-    .smart
-  }
-
-  func setEVChargingMode(
-    _ mode: HomeAssistantEVChargingMode
-  ) async throws -> HomeAssistantEVChargingMode {
-    mode
-  }
-}
-
-private struct BrucePanelsPreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
-  func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
-    .unavailable
-  }
-}
-
-private struct BrucePanelsPreviewLoader: HomeAssistantTemperatureLoading {
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
-      continuation.yield(
-        .live([
-          HomeAssistantTemperatureReading(
-            id: "climate.living_room",
-            name: "Living Room",
-            value: 23.4,
-            targetValue: 22,
-            unit: "°C",
-            powerState: .poweredOn,
-            kind: .zone,
-            operatingMode: .cooling,
-            icon: "mdi:sofa"
-          )
-        ])
-      )
-      continuation.finish()
-    }
-  }
 }

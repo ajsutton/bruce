@@ -36,11 +36,15 @@
 
     private func updateItems(in tabBar: UITabBar) {
       tabBar.items = zip(BrucePanel.allCases, titles).enumerated().map { index, pair in
-        UITabBarItem(
+        let item = UITabBarItem(
           title: pair.1,
           image: UIImage(systemName: pair.0.systemImage),
           tag: index
         )
+        if let identifier = pair.0.tabAccessibilityIdentifier {
+          item.accessibilityIdentifier = identifier
+        }
+        return item
       }
     }
 
