@@ -1,18 +1,15 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "app.climateTab" : {
+    "·" : {
+
+    },
+    "%@, %@ %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Climate"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Air-con"
+            "state" : "new",
+            "value" : "%1$@, %2$@ %3$@"
           }
         }
       }
@@ -29,6 +26,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The Wheels"
+          }
+        }
+      }
+    },
+    "app.climateTab" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Climate"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Air-con"
           }
         }
       }
@@ -993,6 +1006,22 @@
         }
       }
     },
+    "garageDoor.closeDoor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close garage door"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bring the Garage Door Down"
+          }
+        }
+      }
+    },
     "garageDoor.closing" : {
       "localizations" : {
         "en" : {
@@ -1037,6 +1066,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Home Assistant isn’t answering for the garage."
+          }
+        }
+      }
+    },
+    "garageDoor.hideDoorControls" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide garage door controls"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Put the Garage Door Controls Away"
           }
         }
       }
@@ -1217,150 +1262,6 @@
         }
       }
     },
-    "garageDoor.opening" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Opening"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Going up"
-          }
-        }
-      }
-    },
-    "garageDoor.reconnecting" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reconnecting to the garage status…"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Getting the garage back on the blower…"
-          }
-        }
-      }
-    },
-    "garageDoor.refresh" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refresh"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Have Another Go"
-          }
-        }
-      }
-    },
-    "garageDoor.signInRequired" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in to Home Assistant again to check the garage."
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Home Assistant needs you to sign in again before Bruce can check the garage."
-          }
-        }
-      }
-    },
-    "garageDoor.unavailable" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unavailable"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No word"
-          }
-        }
-      }
-    },
-    "garageDoor.unlocked" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unlocked"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unlocked and easy"
-          }
-        }
-      }
-    },
-    "garageDoor.unlocking" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unlocking"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Letting the lock loose"
-          }
-        }
-      }
-    },
-    "garageDoor.updating" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Updating"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Getting the latest"
-          }
-        }
-      }
-    },
-    "garageDoor.closeDoor" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close garage door"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bring the Garage Door Down"
-          }
-        }
-      }
-    },
     "garageDoor.openDoor" : {
       "localizations" : {
         "en" : {
@@ -1393,6 +1294,22 @@
         }
       }
     },
+    "garageDoor.opening" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Going up"
+          }
+        }
+      }
+    },
     "garageDoor.partlyOpen" : {
       "localizations" : {
         "en" : {
@@ -1405,6 +1322,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Halfway There"
+          }
+        }
+      }
+    },
+    "garageDoor.reconnecting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnecting to the garage status…"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getting the garage back on the blower…"
+          }
+        }
+      }
+    },
+    "garageDoor.refresh" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Have Another Go"
           }
         }
       }
@@ -1457,22 +1406,6 @@
         }
       }
     },
-    "garageDoor.hideDoorControls" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide garage door controls"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Put the Garage Door Controls Away"
-          }
-        }
-      }
-    },
     "garageDoor.showDoorControls" : {
       "localizations" : {
         "en" : {
@@ -1485,6 +1418,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Give the Garage Door a Nudge"
+          }
+        }
+      }
+    },
+    "garageDoor.signInRequired" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to Home Assistant again to check the garage."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Assistant needs you to sign in again before Bruce can check the garage."
           }
         }
       }
@@ -1521,6 +1470,54 @@
         }
       }
     },
+    "garageDoor.unavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No word"
+          }
+        }
+      }
+    },
+    "garageDoor.unlocked" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlocked"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlocked and easy"
+          }
+        }
+      }
+    },
+    "garageDoor.unlocking" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlocking"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letting the lock loose"
+          }
+        }
+      }
+    },
     "garageDoor.updateFailed" : {
       "localizations" : {
         "en" : {
@@ -1533,6 +1530,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The garage didn’t give Bruce the nod on that one."
+          }
+        }
+      }
+    },
+    "garageDoor.updating" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getting the latest"
           }
         }
       }
@@ -2737,22 +2750,6 @@
         }
       }
     },
-    "homeAssistantInterface.serverStatus.lastChecked" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Last updated"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Last word was"
-          }
-        }
-      }
-    },
     "homeAssistantInterface.serverStatus.connecting" : {
       "localizations" : {
         "en" : {
@@ -2765,6 +2762,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Getting Home Assistant on the line"
+          }
+        }
+      }
+    },
+    "homeAssistantInterface.serverStatus.lastChecked" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last updated"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last word was"
           }
         }
       }
