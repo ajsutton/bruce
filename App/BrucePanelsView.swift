@@ -159,15 +159,18 @@ struct BrucePanelsView: View {
     }
 
     private func sidebarLabel(for panel: BrucePanel) -> some View {
-      Button {
-        requestScroll(to: panel)
-      } label: {
-        Label(title(for: panel), systemImage: panel.systemImage)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .contentShape(Rectangle())
-      }
-      .buttonStyle(.plain)
-      .tag(panel)
+      Label(title(for: panel), systemImage: panel.systemImage)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .tag(panel)
+        .highPriorityGesture(
+          TapGesture().onEnded {
+            requestScroll(to: panel)
+          }
+        )
+        .accessibilityAction {
+          requestScroll(to: panel)
+        }
     }
 
     private func requestScroll(to panel: BrucePanel) {
