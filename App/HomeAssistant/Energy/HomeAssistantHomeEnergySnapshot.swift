@@ -1,5 +1,11 @@
 import Foundation
 
+enum HomeAssistantDailyEnergyMetricStatus: Equatable, Sendable {
+  case current
+  case refreshing
+  case failed
+}
+
 struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
   static let pvPowerEntityID = "sensor.sigen_plant_pv_power"
   static let batteryStateOfChargeEntityID =
@@ -11,6 +17,10 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
     "sensor.01krmdgkh60wyckeepvgtbbgv3_general_price"
   static let feedInPriceEntityID =
     "sensor.01krmdgkh60wyckeepvgtbbgv3_feed_in_price"
+  static let importCostEntityID =
+    "sensor.sigen_plant_total_imported_energy_cost"
+  static let feedInEarningsEntityID =
+    "sensor.sigen_plant_total_exported_energy_compensation"
 
   let pvPowerKilowatts: Double?
   let batteryStateOfCharge: Double?
@@ -19,6 +29,14 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
   let gridPowerKilowatts: Double?
   let generalPriceDollarsPerKilowattHour: Double?
   let feedInPriceDollarsPerKilowattHour: Double?
+  let importCostTodayDollars: Double?
+  let feedInEarningsTodayDollars: Double?
+  let importCostCounterDollars: Double?
+  let feedInEarningsCounterDollars: Double?
+  let importCostCounterLastReset: Date?
+  let feedInEarningsCounterLastReset: Date?
+  let importCostTodayStatus: HomeAssistantDailyEnergyMetricStatus
+  let feedInEarningsTodayStatus: HomeAssistantDailyEnergyMetricStatus
 
   init(
     pvPowerKilowatts: Double?,
@@ -27,7 +45,15 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
     homeConsumptionKilowatts: Double?,
     gridPowerKilowatts: Double?,
     generalPriceDollarsPerKilowattHour: Double?,
-    feedInPriceDollarsPerKilowattHour: Double?
+    feedInPriceDollarsPerKilowattHour: Double?,
+    importCostTodayDollars: Double? = nil,
+    feedInEarningsTodayDollars: Double? = nil,
+    importCostCounterDollars: Double? = nil,
+    feedInEarningsCounterDollars: Double? = nil,
+    importCostCounterLastReset: Date? = nil,
+    feedInEarningsCounterLastReset: Date? = nil,
+    importCostTodayStatus: HomeAssistantDailyEnergyMetricStatus = .current,
+    feedInEarningsTodayStatus: HomeAssistantDailyEnergyMetricStatus = .current
   ) {
     self.pvPowerKilowatts = pvPowerKilowatts
     self.batteryStateOfCharge = batteryStateOfCharge
@@ -36,6 +62,14 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
     self.gridPowerKilowatts = gridPowerKilowatts
     self.generalPriceDollarsPerKilowattHour = generalPriceDollarsPerKilowattHour
     self.feedInPriceDollarsPerKilowattHour = feedInPriceDollarsPerKilowattHour
+    self.importCostTodayDollars = importCostTodayDollars
+    self.feedInEarningsTodayDollars = feedInEarningsTodayDollars
+    self.importCostCounterDollars = importCostCounterDollars
+    self.feedInEarningsCounterDollars = feedInEarningsCounterDollars
+    self.importCostCounterLastReset = importCostCounterLastReset
+    self.feedInEarningsCounterLastReset = feedInEarningsCounterLastReset
+    self.importCostTodayStatus = importCostTodayStatus
+    self.feedInEarningsTodayStatus = feedInEarningsTodayStatus
   }
 
   static let unavailable = HomeAssistantHomeEnergySnapshot(
@@ -45,7 +79,9 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
     homeConsumptionKilowatts: nil,
     gridPowerKilowatts: nil,
     generalPriceDollarsPerKilowattHour: nil,
-    feedInPriceDollarsPerKilowattHour: nil
+    feedInPriceDollarsPerKilowattHour: nil,
+    importCostTodayDollars: nil,
+    feedInEarningsTodayDollars: nil
   )
 
   var hasReadings: Bool {
@@ -56,6 +92,8 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
       || gridPowerKilowatts != nil
       || generalPriceDollarsPerKilowattHour != nil
       || feedInPriceDollarsPerKilowattHour != nil
+      || importCostTodayDollars != nil
+      || feedInEarningsTodayDollars != nil
   }
 
   func hasAvailabilityTransition(from previous: Self) -> Bool {
@@ -67,6 +105,8 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
       gridPowerKilowatts != nil,
       generalPriceDollarsPerKilowattHour != nil,
       feedInPriceDollarsPerKilowattHour != nil,
+      importCostTodayDollars != nil,
+      feedInEarningsTodayDollars != nil,
     ] != [
       previous.pvPowerKilowatts != nil,
       previous.batteryStateOfCharge != nil,
@@ -75,6 +115,8 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
       previous.gridPowerKilowatts != nil,
       previous.generalPriceDollarsPerKilowattHour != nil,
       previous.feedInPriceDollarsPerKilowattHour != nil,
+      previous.importCostTodayDollars != nil,
+      previous.feedInEarningsTodayDollars != nil,
     ]
   }
 
@@ -91,6 +133,37 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
         == Self.pricePresentation(other.generalPriceDollarsPerKilowattHour)
       && Self.feedInPresentation(feedInPriceDollarsPerKilowattHour)
         == Self.feedInPresentation(other.feedInPriceDollarsPerKilowattHour)
+      && Self.quantize(importCostTodayDollars, scale: 100)
+        == Self.quantize(other.importCostTodayDollars, scale: 100)
+      && Self.quantize(feedInEarningsTodayDollars, scale: 100)
+        == Self.quantize(other.feedInEarningsTodayDollars, scale: 100)
+      && importCostTodayStatus == other.importCostTodayStatus
+      && feedInEarningsTodayStatus == other.feedInEarningsTodayStatus
+  }
+
+  func replacingDailyTotals(
+    _ totals: HomeAssistantDailyEnergyTotals?,
+    importStatus: HomeAssistantDailyEnergyMetricStatus? = nil,
+    feedInStatus: HomeAssistantDailyEnergyMetricStatus? = nil
+  ) -> Self {
+    Self(
+      pvPowerKilowatts: pvPowerKilowatts,
+      batteryStateOfCharge: batteryStateOfCharge,
+      batteryPowerKilowatts: batteryPowerKilowatts,
+      homeConsumptionKilowatts: homeConsumptionKilowatts,
+      gridPowerKilowatts: gridPowerKilowatts,
+      generalPriceDollarsPerKilowattHour: generalPriceDollarsPerKilowattHour,
+      feedInPriceDollarsPerKilowattHour: feedInPriceDollarsPerKilowattHour,
+      importCostTodayDollars: totals?.importCostDollars,
+      feedInEarningsTodayDollars: totals?.feedInEarningsDollars,
+      importCostCounterDollars: importCostCounterDollars,
+      feedInEarningsCounterDollars: feedInEarningsCounterDollars,
+      importCostCounterLastReset: importCostCounterLastReset,
+      feedInEarningsCounterLastReset: feedInEarningsCounterLastReset,
+      importCostTodayStatus: importStatus ?? importCostTodayStatus,
+      feedInEarningsTodayStatus:
+        feedInStatus ?? feedInEarningsTodayStatus
+    )
   }
 
   private static func quantize(_ value: Double?, scale: Double) -> Double? {

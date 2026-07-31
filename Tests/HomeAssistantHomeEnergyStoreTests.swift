@@ -93,6 +93,30 @@ final class HomeAssistantHomeEnergyStoreTests: XCTestCase {
     )
   }
 
+  func testSnapshotPresentationEquivalencePublishesVisibleCurrencyChangesOnly() {
+    let snapshot = presentationSnapshot(
+      importCostToday: 0.201,
+      feedInEarningsToday: 0.911
+    )
+
+    XCTAssertTrue(
+      snapshot.hasSamePresentation(
+        as: presentationSnapshot(
+          importCostToday: 0.204,
+          feedInEarningsToday: 0.914
+        )
+      )
+    )
+    XCTAssertFalse(
+      snapshot.hasSamePresentation(
+        as: presentationSnapshot(
+          importCostToday: 0.206,
+          feedInEarningsToday: 0.916
+        )
+      )
+    )
+  }
+
   func testSuccessfulLoadPublishesLiveSnapshot() async {
     let snapshot = makeSnapshot(solarPower: 8.4)
     let store = HomeAssistantHomeEnergyStore(
@@ -233,7 +257,9 @@ final class HomeAssistantHomeEnergyStoreTests: XCTestCase {
     consumption: Double = 3.25,
     grid: Double = -2.25,
     generalPrice: Double = 0.340_5,
-    feedInPrice: Double = 0.127_5
+    feedInPrice: Double = 0.127_5,
+    importCostToday: Double? = nil,
+    feedInEarningsToday: Double? = nil
   ) -> HomeAssistantHomeEnergySnapshot {
     HomeAssistantHomeEnergySnapshot(
       pvPowerKilowatts: solarPower,
@@ -241,7 +267,9 @@ final class HomeAssistantHomeEnergyStoreTests: XCTestCase {
       homeConsumptionKilowatts: consumption,
       gridPowerKilowatts: grid,
       generalPriceDollarsPerKilowattHour: generalPrice,
-      feedInPriceDollarsPerKilowattHour: feedInPrice
+      feedInPriceDollarsPerKilowattHour: feedInPrice,
+      importCostTodayDollars: importCostToday,
+      feedInEarningsTodayDollars: feedInEarningsToday
     )
   }
 }

@@ -66,6 +66,14 @@ final class TemperatureSubscriptionConnection:
     }
   }
 
+  var sentMessageJSON: [[String: Any]] {
+    lock.withLock {
+      sentMessages.compactMap {
+        try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
+      }
+    }
+  }
+
   var isCancelled: Bool {
     lock.withLock { cancellationRequested }
   }

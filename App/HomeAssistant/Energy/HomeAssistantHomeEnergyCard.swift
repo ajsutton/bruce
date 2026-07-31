@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeAssistantHomeEnergyCard: View {
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @ScaledMetric(relativeTo: .title3) private var metricIconWidth = 28
   @ObservedObject var store: HomeAssistantHomeEnergyStore
   let mode: BruceMode
   var showsConnectionProblems = true
@@ -116,6 +117,20 @@ struct HomeAssistantHomeEnergyCard: View {
         mode: mode
       )
     )
+    metric(
+      .costToday(
+        dollars: store.snapshot.importCostTodayDollars,
+        status: store.snapshot.importCostTodayStatus,
+        mode: mode
+      )
+    )
+    metric(
+      .feedInEarningsToday(
+        dollars: store.snapshot.feedInEarningsTodayDollars,
+        status: store.snapshot.feedInEarningsTodayStatus,
+        mode: mode
+      )
+    )
   }
 
   private func metric(
@@ -125,7 +140,7 @@ struct HomeAssistantHomeEnergyCard: View {
       Image(systemName: presentation.icon)
         .font(.title3)
         .foregroundStyle(metricColor(presentation.color))
-        .frame(width: 28)
+        .frame(width: metricIconWidth)
         .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 2) {
@@ -135,6 +150,12 @@ struct HomeAssistantHomeEnergyCard: View {
         Text(presentation.value)
           .font(.title3.weight(.semibold))
           .foregroundStyle(primaryForeground)
+        if let statusText = presentation.statusText {
+          Text(statusText)
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(secondaryForeground)
+            .fixedSize(horizontal: false, vertical: true)
+        }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -149,6 +170,16 @@ struct HomeAssistantHomeEnergyCard: View {
   private func accessibilityValue(
     for presentation: HomeEnergyMetricPresentation
   ) -> String {
+    if presentation.isUpdating {
+      return presentation.value == copy.updating
+        ? copy.updating
+        : copy.updating(lastKnown: presentation.value)
+    }
+    if presentation.updateFailed {
+      return presentation.value == copy.dailyTotalsLoadFailed
+        ? copy.dailyTotalsLoadFailed
+        : copy.dailyTotalsUpdateFailed(lastKnown: presentation.value)
+    }
     if store.showsProgress || store.isRefreshing {
       return presentation.value == copy.unavailable
         ? "\(copy.updating). \(copy.unavailable)"

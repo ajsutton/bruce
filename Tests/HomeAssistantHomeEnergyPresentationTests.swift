@@ -143,6 +143,102 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
     )
   }
 
+  func testDailyMoneyPresentationUsesAustralianCurrency() {
+    let cost = HomeEnergyMetricPresentation.costToday(
+      dollars: 4.829,
+      mode: .standard,
+      locale: locale
+    )
+    let earnings = HomeEnergyMetricPresentation.feedInEarningsToday(
+      dollars: 0.9086,
+      mode: .standard,
+      locale: locale
+    )
+
+    XCTAssertEqual(cost.title, "Cost today")
+    XCTAssertEqual(cost.value, "$4.83")
+    XCTAssertEqual(earnings.title, "Feed-in earnings")
+    XCTAssertEqual(earnings.value, "$0.91")
+  }
+
+  func testFullBruceDailyMoneyPresentationGoesTheFullBruce() {
+    let cost = HomeEnergyMetricPresentation.costToday(
+      dollars: 4.83,
+      mode: .full,
+      locale: locale
+    )
+    let earnings = HomeEnergyMetricPresentation.feedInEarningsToday(
+      dollars: 0.91,
+      mode: .full,
+      locale: locale
+    )
+
+    XCTAssertEqual(cost.title, "Today’s Wallet Barbecue")
+    XCTAssertEqual(earnings.title, "Sunshine Cash Haul")
+  }
+
+  func testPendingDailyMoneyUsesModeSpecificUpdatingCopy() {
+    let standard = HomeEnergyMetricPresentation.costToday(
+      dollars: nil,
+      status: .refreshing,
+      mode: .standard,
+      locale: locale
+    )
+    let fullBruce = HomeEnergyMetricPresentation.feedInEarningsToday(
+      dollars: nil,
+      status: .refreshing,
+      mode: .full,
+      locale: locale
+    )
+
+    XCTAssertEqual(standard.value, "Updating")
+    XCTAssertTrue(standard.isUpdating)
+    XCTAssertEqual(fullBruce.value, "Getting the latest")
+    XCTAssertTrue(fullBruce.isUpdating)
+
+    let lastKnown = HomeEnergyMetricPresentation.costToday(
+      dollars: 4.83,
+      status: .refreshing,
+      mode: .full,
+      locale: locale
+    )
+    XCTAssertEqual(
+      lastKnown.statusText,
+      "Last word Bruce got · Getting the latest"
+    )
+  }
+
+  func testFailedDailyMoneyUsesBoldFullBruceCopy() {
+    let standard = HomeEnergyMetricPresentation.costToday(
+      dollars: nil,
+      status: .failed,
+      mode: .standard,
+      locale: locale
+    )
+    let fullBruce = HomeEnergyMetricPresentation.feedInEarningsToday(
+      dollars: nil,
+      status: .failed,
+      mode: .full,
+      locale: locale
+    )
+
+    XCTAssertEqual(standard.value, "Update failed")
+    XCTAssertTrue(standard.updateFailed)
+    XCTAssertEqual(fullBruce.value, "Wallet radar carked it")
+    XCTAssertTrue(fullBruce.updateFailed)
+
+    let lastKnown = HomeEnergyMetricPresentation.costToday(
+      dollars: 4.83,
+      status: .failed,
+      mode: .full,
+      locale: locale
+    )
+    XCTAssertEqual(
+      lastKnown.statusText,
+      "Last haul · Wallet radar carked it"
+    )
+  }
+
   func testUnavailablePresentationRetainsFullBruceVoice() {
     XCTAssertEqual(
       HomeEnergyMetricPresentation.pv(

@@ -152,7 +152,9 @@ private struct PreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
     homeConsumptionKilowatts: 3.1,
     gridPowerKilowatts: -2.7,
     generalPriceDollarsPerKilowattHour: 0.341,
-    feedInPriceDollarsPerKilowattHour: 0.127
+    feedInPriceDollarsPerKilowattHour: 0.127,
+    importCostTodayDollars: 0.20,
+    feedInEarningsTodayDollars: 0.91
   )
 
   static let importingSnapshot = HomeAssistantHomeEnergySnapshot(
@@ -162,7 +164,9 @@ private struct PreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoading {
     homeConsumptionKilowatts: 4.6,
     gridPowerKilowatts: 3.9,
     generalPriceDollarsPerKilowattHour: 0.584,
-    feedInPriceDollarsPerKilowattHour: -0.051
+    feedInPriceDollarsPerKilowattHour: -0.051,
+    importCostTodayDollars: 4.83,
+    feedInEarningsTodayDollars: 0.12
   )
 
   static let flowHistory: HomeEnergyFlowHistory = {

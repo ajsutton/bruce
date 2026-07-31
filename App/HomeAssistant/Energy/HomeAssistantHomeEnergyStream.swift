@@ -1,33 +1,59 @@
+import Foundation
+
 struct HomeAssistantHomeEnergyStream: HomeAssistantHomeEnergyLoading {
   let providesContinuousEnergyUpdates = true
 
   private let states: any HomeAssistantStateLoading
   private let loader: any HomeAssistantHomeEnergyLoading
+  private let dailyTotalsLoader: (any HomeAssistantDailyEnergyTotalsLoading)?
+  private let now: @Sendable () -> Date
+  private let dailyRefreshSleep: @Sendable (Date) async throws -> Void
+  private let dailyRequestTimeout: Duration
 
   init(
     states: any HomeAssistantStateLoading,
-    loader: any HomeAssistantHomeEnergyLoading
+    loader: any HomeAssistantHomeEnergyLoading,
+    dailyTotalsLoader: (any HomeAssistantDailyEnergyTotalsLoading)? = nil,
+    now: @escaping @Sendable () -> Date = Date.init,
+    dailyRefreshSleep: (@Sendable (Date) async throws -> Void)? = nil,
+    dailyRequestTimeout: Duration = .seconds(15)
   ) {
     self.states = states
     self.loader = loader
+    self.dailyTotalsLoader = dailyTotalsLoader
+    self.now = now
+    self.dailyRefreshSleep =
+      dailyRefreshSleep
+      ?? { deadline in
+        let delay = max(deadline.timeIntervalSince(now()), 0)
+        try await Task.sleep(for: .seconds(delay))
+      }
+    self.dailyRequestTimeout = dailyRequestTimeout
   }
 
   func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
     HomeAssistantHomeEnergyUpdateStream { continuation in
       let task = Task {
+        let stateUpdates = await states.stateUpdates()
+        let coordinator = DailyEnergyStreamCoordinator(
+          loader: dailyTotalsLoader,
+          now: now,
+          sleepUntil: dailyRefreshSleep,
+          requestTimeout: dailyRequestTimeout,
+          yield: { continuation.yield($0) },
+          finish: { continuation.finish(throwing: $0) },
+          cancelStates: { stateUpdates.cancel() }
+        )
         do {
-          let stateUpdates = await states.stateUpdates()
-          defer { stateUpdates.cancel() }
           for try await stateUpdate in stateUpdates {
             try Task.checkCancellation()
-            let update = Self.homeEnergyUpdate(from: stateUpdate)
-            continuation.yield(update)
+            await coordinator.handle(stateUpdate)
           }
-          continuation.finish()
+          await coordinator.finish()
         } catch is CancellationError {
-          continuation.finish()
+          await coordinator.finish()
         } catch {
-          continuation.finish(throwing: error)
+          await coordinator.finish(throwing: error)
         }
       }
       continuation.onTermination = { _ in
@@ -51,21 +77,6 @@ struct HomeAssistantHomeEnergyStream: HomeAssistantHomeEnergyLoading {
   func loadHomeEnergyPriceHistory() async throws -> HomeEnergyPriceHistory {
     try await loader.loadHomeEnergyPriceHistory()
   }
-
-  private static func homeEnergyUpdate(
-    from update: HomeAssistantStateUpdate
-  ) -> HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot> {
-    let snapshot = HomeAssistantHomeEnergySnapshot(states: update.states)
-    return switch update.phase {
-    case .live:
-      .live(snapshot)
-    case .refreshing:
-      .refreshing(snapshot)
-    case .reconnecting:
-      .reconnecting(snapshot)
-    }
-  }
-
 }
 
 extension HomeAssistantLiveUpdate {

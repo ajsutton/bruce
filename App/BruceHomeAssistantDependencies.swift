@@ -22,7 +22,10 @@ struct BruceHomeAssistantDependencies {
     let homeEnergyStore = HomeAssistantHomeEnergyStore(
       loader: HomeAssistantHomeEnergyStream(
         states: context.states,
-        loader: context.apiClient
+        loader: context.apiClient,
+        dailyTotalsLoader: HomeAssistantDailyEnergyTotalsClient(
+          session: context.session
+        )
       ),
       onAuthenticationRequired: context.requireReauthentication
     )

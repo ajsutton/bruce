@@ -3991,6 +3991,86 @@
         }
       }
     },
+    "homeEnergy.dailyTotalsLoadFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update failed"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wallet radar carked it"
+          }
+        }
+      }
+    },
+    "homeEnergy.dailyTotalsUpdateFailedLastKnown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update failed. Last known: %@"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wallet radar carked it. Last haul: %@"
+          }
+        }
+      }
+    },
+    "homeEnergy.dailyTotalsUpdateFailedLastKnownStatus" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last known · Update failed"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last haul · Wallet radar carked it"
+          }
+        }
+      }
+    },
+    "homeEnergy.costToday" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cost today"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today’s Wallet Barbecue"
+          }
+        }
+      }
+    },
+    "homeEnergy.costTodayAccessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electricity import cost today"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electricity import cost today — today’s wallet barbecue"
+          }
+        }
+      }
+    },
     "homeEnergy.energyNow" : {
       "localizations" : {
         "en" : {
@@ -4035,6 +4115,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Electricity export charge — paying to flick it back"
+          }
+        }
+      }
+    },
+    "homeEnergy.feedInEarningsToday" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feed-in earnings"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunshine Cash Haul"
+          }
+        }
+      }
+    },
+    "homeEnergy.feedInEarningsTodayAccessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electricity feed-in earnings today"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electricity feed-in earnings today — sunshine cash haul"
           }
         }
       }

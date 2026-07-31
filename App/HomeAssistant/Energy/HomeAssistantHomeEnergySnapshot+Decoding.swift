@@ -1,8 +1,12 @@
 extension HomeAssistantHomeEnergySnapshot {
   init(states: [HomeAssistantState]) {
+    func entity(_ entityID: String) -> HomeAssistantState? {
+      states.first(where: { $0.entityID == entityID })
+    }
+
     func value(_ entityID: String) -> Double? {
       guard
-        let state = states.first(where: { $0.entityID == entityID })?.state,
+        let state = entity(entityID)?.state,
         let value = Double(state),
         value.isFinite
       else {
@@ -32,5 +36,14 @@ extension HomeAssistantHomeEnergySnapshot {
     feedInPriceDollarsPerKilowattHour = value(
       Self.feedInPriceEntityID
     )
+    importCostTodayDollars = nil
+    feedInEarningsTodayDollars = nil
+    importCostCounterDollars = value(Self.importCostEntityID)
+    feedInEarningsCounterDollars = value(Self.feedInEarningsEntityID)
+    importCostCounterLastReset = entity(Self.importCostEntityID)?.lastReset
+    feedInEarningsCounterLastReset =
+      entity(Self.feedInEarningsEntityID)?.lastReset
+    importCostTodayStatus = .current
+    feedInEarningsTodayStatus = .current
   }
 }

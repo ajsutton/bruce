@@ -20,7 +20,9 @@ private enum BrucePanelsPreview {
         homeConsumptionKilowatts: 3.1,
         gridPowerKilowatts: -2.7,
         generalPriceDollarsPerKilowattHour: 0.341,
-        feedInPriceDollarsPerKilowattHour: 0.127
+        feedInPriceDollarsPerKilowattHour: 0.127,
+        importCostTodayDollars: 0.20,
+        feedInEarningsTodayDollars: 0.91
       ),
       isLive: true
     )

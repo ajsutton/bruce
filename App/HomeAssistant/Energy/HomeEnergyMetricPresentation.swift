@@ -6,6 +6,29 @@ struct HomeEnergyMetricPresentation {
   let icon: String
   let color: Color
   let accessibilityLabel: String
+  let statusText: String?
+  let isUpdating: Bool
+  let updateFailed: Bool
+
+  init(
+    title: String,
+    value: String,
+    icon: String,
+    color: Color,
+    accessibilityLabel: String,
+    statusText: String? = nil,
+    isUpdating: Bool = false,
+    updateFailed: Bool = false
+  ) {
+    self.title = title
+    self.value = value
+    self.icon = icon
+    self.color = color
+    self.accessibilityLabel = accessibilityLabel
+    self.statusText = statusText
+    self.isUpdating = isUpdating
+    self.updateFailed = updateFailed
+  }
 
   static func pv(
     kilowatts: Double?,

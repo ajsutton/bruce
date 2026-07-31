@@ -12,6 +12,15 @@ struct HomeAssistantState: Decodable, Equatable, Sendable {
   var options: [String] { attributes.options ?? [] }
   var unitOfMeasurement: String? { attributes.unitOfMeasurement }
   var currentPosition: Double? { attributes.currentPosition }
+  var lastReset: Date? {
+    attributes.lastReset
+      .flatMap(Self.date(from:))
+      .map {
+        Date(
+          timeIntervalSince1970: ($0.timeIntervalSince1970 * 1_000).rounded(.down) / 1_000
+        )
+      }
+  }
   var supportedFeatures: Int { attributes.supportedFeatures ?? 0 }
   var isAvailable: Bool {
     state != "unavailable" && state != "unknown"
@@ -150,6 +159,7 @@ private struct HomeAssistantStateAttributes: Decodable, Equatable, Sendable {
   let unitOfMeasurement: String?
   let currentPosition: Double?
   let supportedFeatures: Int?
+  let lastReset: String?
 
   enum CodingKeys: String, CodingKey {
     case currentTemperature = "current_temperature"
@@ -166,5 +176,6 @@ private struct HomeAssistantStateAttributes: Decodable, Equatable, Sendable {
     case unitOfMeasurement = "unit_of_measurement"
     case currentPosition = "current_position"
     case supportedFeatures = "supported_features"
+    case lastReset = "last_reset"
   }
 }
