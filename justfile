@@ -104,6 +104,37 @@ test-ios *FILTERS: generate
 test-ui *FILTERS: generate
     bash scripts/test-ui.sh {{ FILTERS }}
 
+test-release-scripts:
+    bash scripts/tests/test-release-common.sh
+
+validate-ios: generate
+    bundle exec fastlane ios validate
+
+testflight: generate
+    bundle exec fastlane ios beta
+
+bump-version version:
+    sed -i '' 's/MARKETING_VERSION: .*/MARKETING_VERSION: "{{ version }}"/' project.yml
+    just generate
+
+release-preflight:
+    bash scripts/release-preflight.sh
+
+release-next-version kind:
+    bash scripts/release-next-version.sh {{ kind }}
+
+release-create-rc VERSION NOTES_FILE:
+    bash scripts/release-create-rc.sh {{ VERSION }} {{ NOTES_FILE }}
+
+release-create-final VERSION RC_TAG NOTES_FILE:
+    bash scripts/release-create-final.sh {{ VERSION }} {{ RC_TAG }} {{ NOTES_FILE }}
+
+release-wait tag:
+    bash scripts/release-wait.sh {{ tag }}
+
+release-status tag:
+    bash scripts/release-status.sh {{ tag }}
+
 clean:
     #!/usr/bin/env bash
     set -euo pipefail

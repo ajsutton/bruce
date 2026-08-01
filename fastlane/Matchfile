@@ -1,0 +1,8 @@
+git_url(ENV["MATCH_GIT_URL"])
+
+storage_mode("git")
+
+type("appstore")
+
+app_identifier("net.symphonious.bruce")
+team_id(ENV["DEVELOPMENT_TEAM"])

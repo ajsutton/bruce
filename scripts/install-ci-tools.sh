@@ -21,6 +21,17 @@ tool_version() {
   esac
 }
 
+selected() {
+  [[ "$#" -eq 1 ]] && return 0
+  local candidate="$1"
+  shift
+  local requested
+  for requested in "$@"; do
+    [[ "$requested" == "$candidate" ]] && return 0
+  done
+  return 1
+}
+
 install_bottle() {
   local name="$1"
   local version="$2"
@@ -57,6 +68,7 @@ command -v just >/dev/null 2>&1 || HOMEBREW_NO_AUTO_UPDATE=1 brew install just
 
 for entry in "${PINNED_TOOLS[@]}"; do
   IFS='|' read -r name version expected_sha <<<"$entry"
+  selected "$name" "$@" || continue
   binary_directory="$(install_bottle "$name" "$version" "$expected_sha")"
   actual_version="$(tool_version "$name" "$binary_directory/$name")"
   if [[ "$actual_version" != "$version" ]]; then

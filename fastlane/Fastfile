@@ -1,0 +1,212 @@
+default_platform(:ios)
+opt_out_usage
+
+before_all do
+  sh("cd .. && just generate")
+end
+
+def app_store_api_key
+  app_store_connect_api_key(
+    key_id: ENV["ASC_KEY_ID"],
+    issuer_id: ENV["ASC_ISSUER_ID"],
+    key_content: ENV["ASC_KEY_CONTENT"],
+    is_key_content_base64: true
+  )
+end
+
+def bake_profile(environment_variable, profile_name)
+  ENV[environment_variable] = profile_name
+  sh("cd .. && just generate")
+end
+
+platform :ios do
+  before_all do
+    setup_ci
+  end
+
+  desc "Sync certificates and profiles for iOS"
+  lane :certificates do
+    match(
+      type: "appstore",
+      app_identifier: "net.symphonious.bruce",
+      api_key: app_store_api_key,
+      readonly: is_ci
+    )
+  end
+
+  desc "Force-regenerate the iOS profile after a portal capability change"
+  lane :force_certificates do
+    match(
+      type: "appstore",
+      app_identifier: "net.symphonious.bruce",
+      api_key: app_store_api_key,
+      force: true
+    )
+  end
+
+  desc "Build and validate an iOS App Store archive"
+  lane :validate do
+    certificates
+    api_key = app_store_api_key
+    bake_profile(
+      "IOS_PROVISIONING_PROFILE",
+      ENV["sigh_net.symphonious.bruce_appstore_profile-name"]
+    )
+
+    increment_build_number(
+      build_number: latest_testflight_build_number(api_key: api_key) + 1
+    )
+
+    build_app(
+      scheme: "Bruce-iOS",
+      export_method: "app-store",
+      output_directory: "./build",
+      output_name: "Bruce.ipa"
+    )
+
+    pilot(
+      api_key: api_key,
+      ipa: "./build/Bruce.ipa",
+      skip_submission: true,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Build and upload the iOS app to TestFlight"
+  lane :beta do
+    certificates
+    api_key = app_store_api_key
+    bake_profile(
+      "IOS_PROVISIONING_PROFILE",
+      ENV["sigh_net.symphonious.bruce_appstore_profile-name"]
+    )
+
+    increment_build_number(
+      build_number: latest_testflight_build_number(api_key: api_key) + 1
+    )
+
+    build_app(
+      scheme: "Bruce-iOS",
+      export_method: "app-store",
+      output_directory: "./build",
+      output_name: "Bruce.ipa"
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Submit an existing TestFlight build for review and release it after approval"
+  lane :submit_review do |options|
+    build_number = options[:build_number] or UI.user_error!("missing :build_number")
+    version = options[:version] or UI.user_error!("missing :version")
+
+    deliver(
+      api_key: app_store_api_key,
+      app_version: version,
+      build_number: build_number.to_s,
+      submit_for_review: true,
+      automatic_release: true,
+      force: true,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_screenshots: true,
+      precheck_include_in_app_purchases: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        export_compliance_uses_encryption: false,
+        export_compliance_encryption_updated: false
+      }
+    )
+
+    UI.success("Submitted build #{build_number} (#{version}) for App Store review")
+  end
+end
+
+platform :mac do
+  before_all do
+    setup_ci
+  end
+
+  desc "Sync Developer ID certificates and profiles for direct Mac distribution"
+  lane :certificates do
+    match(
+      type: "developer_id",
+      app_identifier: "net.symphonious.bruce",
+      platform: "macos",
+      api_key: app_store_api_key,
+      readonly: is_ci
+    )
+  end
+
+  desc "Force-regenerate the Mac Developer ID profile after a portal capability change"
+  lane :force_certificates do
+    match(
+      type: "developer_id",
+      app_identifier: "net.symphonious.bruce",
+      platform: "macos",
+      api_key: app_store_api_key,
+      force: true
+    )
+  end
+
+  desc "Build, sign, notarise, verify, and zip the Mac app"
+  lane :zip do |options|
+    version = options[:version] or UI.user_error!("missing :version")
+    build_number = options[:build_number] or UI.user_error!("missing :build_number")
+
+    certificates
+    api_key = app_store_api_key
+    bake_profile(
+      "MAC_PROVISIONING_PROFILE",
+      ENV["sigh_net.symphonious.bruce_developer_id_macos_profile-name"]
+    )
+    increment_build_number(build_number: build_number)
+
+    build_directory = File.expand_path("../build", __dir__)
+    app_path = File.join(build_directory, "Bruce.app")
+    notarization_zip = File.join(build_directory, "Bruce.app.notarize.zip")
+    distribution_zip = File.join(build_directory, "Bruce-#{version}.zip")
+
+    build_app(
+      scheme: "Bruce-macOS",
+      configuration: "Release",
+      export_method: "developer-id",
+      output_directory: build_directory,
+      output_name: "Bruce"
+    )
+    UI.user_error!("Bruce.app not found at #{app_path}") unless File.directory?(app_path)
+
+    require "base64"
+    require "tempfile"
+    key_content = api_key[:key]
+    key_content = Base64.decode64(key_content) if api_key[:is_key_content_base64]
+    key_file = Tempfile.new(["asc_api_key", ".p8"])
+
+    begin
+      key_file.write(key_content)
+      key_file.flush
+      key_file.close
+
+      sh "rm -f '#{notarization_zip}' '#{distribution_zip}'"
+      sh "ditto -c -k --keepParent '#{app_path}' '#{notarization_zip}'"
+      sh "xcrun notarytool submit '#{notarization_zip}' " \
+         "--key '#{key_file.path}' " \
+         "--key-id '#{api_key[:key_id]}' " \
+         "--issuer '#{api_key[:issuer_id]}' " \
+         "--wait"
+      sh "xcrun stapler staple '#{app_path}'"
+      sh "xcrun stapler validate '#{app_path}'"
+      sh "codesign --verify --deep --strict --verbose=2 '#{app_path}'"
+      sh "spctl --assess --type execute --verbose=2 '#{app_path}'"
+      sh "ditto -c -k --keepParent '#{app_path}' '#{distribution_zip}'"
+    ensure
+      File.unlink(notarization_zip) if File.exist?(notarization_zip)
+      key_file.unlink
+    end
+
+    UI.success("Notarised zip ready at #{distribution_zip}")
+  end
+end

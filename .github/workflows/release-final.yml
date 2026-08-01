@@ -1,0 +1,207 @@
+name: Release Final
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+  pull-requests: write
+  attestations: read
+
+concurrency:
+  group: bruce-release-final
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote tested RC
+    runs-on: xcode-27
+    timeout-minutes: 30
+    environment: production-release
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+
+      - name: Install tools
+        run: bash scripts/install-ci-tools.sh xcodegen
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@e65c17d16e57e481586a6a5a0282698790062f92 # v1.300.0
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Resolve RC pairing
+        id: pair
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Invalid final tag: $TAG" >&2
+              exit 1
+          fi
+          VERSION="${TAG#v}"
+          RC_TAG=$(git tag -l "v${VERSION}-rc.*" | sort -V | tail -1)
+          if [[ -z "$RC_TAG" ]]; then
+              echo "No RC tag found for $VERSION" >&2
+              exit 1
+          fi
+          FINAL_SHA=$(git rev-list -n 1 "$TAG")
+          RC_SHA=$(git rev-list -n 1 "$RC_TAG")
+          scripts/validate-final-pair.sh \
+              "$VERSION" "$RC_TAG" "$RC_TAG" "$FINAL_SHA" "$RC_SHA"
+          {
+              echo "rc_tag=$RC_TAG"
+              echo "version=$VERSION"
+              echo "commit=$FINAL_SHA"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download RC assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p build
+          gh release download "${{ steps.pair.outputs.rc_tag }}" \
+              --pattern "Bruce-${{ steps.pair.outputs.version }}.zip" \
+              --pattern build-number.txt \
+              --pattern release-manifest.json \
+              --dir build
+
+      - name: Verify RC attestations and manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.pair.outputs.version }}
+          RC_TAG: ${{ steps.pair.outputs.rc_tag }}
+          COMMIT_SHA: ${{ steps.pair.outputs.commit }}
+        run: |
+          SIGNER_WORKFLOW="${GITHUB_SERVER_URL#https://}/${GITHUB_REPOSITORY}/.github/workflows/release-rc.yml"
+          gh attestation verify "build/Bruce-${VERSION}.zip" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$SIGNER_WORKFLOW" \
+              --source-digest "$COMMIT_SHA"
+          gh attestation verify build/release-manifest.json \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$SIGNER_WORKFLOW" \
+              --source-digest "$COMMIT_SHA"
+
+          scripts/verify-release-manifest.sh \
+              build/release-manifest.json \
+              build/build-number.txt \
+              "build/Bruce-${VERSION}.zip" \
+              "$RC_TAG" \
+              "$COMMIT_SHA" \
+              "$VERSION" \
+              > build/mac-sha256.txt
+
+      - name: Submit existing TestFlight build for review
+        id: submit
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --json assets \
+              --jq 'any(.assets[]; .name == "app-store-submission.json")' | grep -qx true; then
+              gh release download "$GITHUB_REF_NAME" \
+                  --pattern app-store-submission.json \
+                  --dir build/submission-marker
+              jq -e \
+                  --arg version "${{ steps.pair.outputs.version }}" \
+                  --arg build_number "$(cat build/build-number.txt)" \
+                  '.version == $version and .build_number == $build_number' \
+                  build/submission-marker/app-store-submission.json
+              echo "Submission marker already exists; skipping duplicate submission."
+              exit 0
+          fi
+
+          bundle exec fastlane ios submit_review \
+              version:${{ steps.pair.outputs.version }} \
+              build_number:"$(cat build/build-number.txt)"
+          jq -n \
+              --arg version "${{ steps.pair.outputs.version }}" \
+              --arg build_number "$(cat build/build-number.txt)" \
+              --arg rc_tag "${{ steps.pair.outputs.rc_tag }}" \
+              '{version: $version, build_number: $build_number, rc_tag: $rc_tag}' \
+              > build/app-store-submission.json
+          gh release upload "$GITHUB_REF_NAME" build/app-store-submission.json
+
+      - name: Copy verified Mac zip to final release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          final_dir=$(mktemp -d)
+          if gh release view "$GITHUB_REF_NAME" --json assets \
+              --jq 'any(.assets[]; .name == "Bruce-${{ steps.pair.outputs.version }}.zip")' \
+              | grep -qx true; then
+              gh release download "$GITHUB_REF_NAME" \
+                  --pattern "Bruce-${{ steps.pair.outputs.version }}.zip" \
+                  --dir "$final_dir"
+          else
+              gh release upload "$GITHUB_REF_NAME" \
+                  "build/Bruce-${{ steps.pair.outputs.version }}.zip"
+              gh release download "$GITHUB_REF_NAME" \
+                  --pattern "Bruce-${{ steps.pair.outputs.version }}.zip" \
+                  --dir "$final_dir"
+          fi
+          FINAL_SHA=$(shasum -a 256 "$final_dir/Bruce-${{ steps.pair.outputs.version }}.zip" | cut -d' ' -f1)
+          [[ "$FINAL_SHA" == "$(cat build/mac-sha256.txt)" ]]
+
+      - name: Open and merge post-release version bump
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.pair.outputs.version }}
+        run: |
+          IFS=. read -r MAJOR MINOR _ <<< "$VERSION"
+          NEXT="${MAJOR}.$((MINOR + 1)).0"
+          BRANCH="release/post-v${VERSION}-bump"
+
+          git config user.name "bruce-release-bot"
+          git config user.email "release-bot@users.noreply.github.com"
+          git fetch origin main
+          CURRENT=$(git show origin/main:project.yml \
+              | grep -E '^[[:space:]]*MARKETING_VERSION:' \
+              | head -1 \
+              | sed 's/.*"\([^"]*\)".*/\1/')
+          if [[ "$CURRENT" == "$NEXT" ]]; then
+              echo "Marketing version is already $NEXT on main; bump is complete."
+              exit 0
+          fi
+          if [[ "$CURRENT" != "$VERSION" ]]; then
+              echo "Expected marketing version $VERSION on main, found $CURRENT" >&2
+              exit 1
+          fi
+          git checkout -B "$BRANCH" origin/main
+          sed -i '' "s/MARKETING_VERSION: .*/MARKETING_VERSION: \"${NEXT}\"/" project.yml
+
+          changed=$(git diff --name-only)
+          [[ "$changed" == "project.yml" ]]
+          [[ "$(git diff --numstat | awk '{ print $1 ":" $2 }')" == "1:1" ]]
+
+          git add project.yml
+          git commit -m "Bump marketing version to ${NEXT} after v${VERSION}"
+          git push --force-with-lease origin "$BRANCH"
+
+          if existing=$(gh pr view "$BRANCH" --json number --jq .number 2>/dev/null) && [[ -n "$existing" ]]; then
+              PR_NUMBER="$existing"
+          else
+              PR_URL=$(gh pr create \
+                  --base main \
+                  --head "$BRANCH" \
+                  --title "Bump marketing version to ${NEXT}" \
+                  --body "Mechanical marketing-version bump after v${VERSION}.")
+              PR_NUMBER="${PR_URL##*/}"
+          fi
+
+          HEAD_SHA=$(git rev-parse HEAD)
+          gh pr merge "$PR_NUMBER" --squash --match-head-commit "$HEAD_SHA"
+          MERGE_SHA=$(gh pr view "$PR_NUMBER" --json mergeCommit --jq .mergeCommit.oid)
+          git fetch origin main
+          git diff-tree --no-commit-id --name-only -r "$MERGE_SHA" | grep -qx project.yml
+          [[ "$(git show --numstat --format= "$MERGE_SHA" | awk '{ print $1 ":" $2 }')" == "1:1" ]]

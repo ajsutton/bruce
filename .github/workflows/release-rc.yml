@@ -1,0 +1,151 @@
+name: Release RC
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: bruce-release-rc
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and upload RC artifacts
+    runs-on: xcode-27
+    timeout-minutes: 60
+    environment: rc-release
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+
+      - name: Install tools
+        run: bash scripts/install-ci-tools.sh xcodegen
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@e65c17d16e57e481586a6a5a0282698790062f92 # v1.300.0
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Validate tag and extract version
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
+              echo "Invalid RC tag: $TAG" >&2
+              exit 1
+          fi
+          BASE_VERSION="${TAG#v}"
+          BASE_VERSION="${BASE_VERSION%%-rc.*}"
+          {
+              echo "base=$BASE_VERSION"
+              echo "tag=$TAG"
+          } >> "$GITHUB_OUTPUT"
+          sed -i '' "s/MARKETING_VERSION: .*/MARKETING_VERSION: \"${BASE_VERSION}\"/" project.yml
+
+      - name: Ensure RC assets do not already exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.base }}
+        run: |
+          existing=$(gh release view "$TAG" --json assets \
+              --jq ".assets[] | select(.name == \"Bruce-${VERSION}.zip\" or .name == \"build-number.txt\" or .name == \"release-manifest.json\") | .name")
+          if [[ -n "$existing" ]]; then
+              echo "RC release already contains immutable assets:" >&2
+              echo "$existing" >&2
+              echo "Cut a new RC instead of replacing them." >&2
+              exit 1
+          fi
+
+      - name: Build and upload iOS to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
+        run: bundle exec fastlane ios beta
+
+      - name: Capture shared build number
+        run: |
+          BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION' Bruce.xcodeproj/project.pbxproj \
+              | sed 's/.*= \([0-9]*\);/\1/')
+          if [[ ! "$BUILD" =~ ^[1-9][0-9]*$ ]]; then
+              echo "Could not read a valid build number from Bruce.xcodeproj" >&2
+              exit 1
+          fi
+          mkdir -p build
+          echo "$BUILD" > build/build-number.txt
+          echo "Build number: $BUILD"
+
+      - name: Build and notarise Mac zip
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
+        run: |
+          bundle exec fastlane mac zip \
+              version:${{ steps.version.outputs.base }} \
+              build_number:"$(cat build/build-number.txt)"
+
+      - name: Create release manifest
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.base }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          ZIP_NAME="Bruce-${VERSION}.zip"
+          ZIP_SHA=$(shasum -a 256 "build/${ZIP_NAME}" | cut -d' ' -f1)
+          jq -n \
+              --arg tag "$TAG" \
+              --arg commit "$COMMIT_SHA" \
+              --arg version "$VERSION" \
+              --arg build_number "$(cat build/build-number.txt)" \
+              --arg mac_filename "$ZIP_NAME" \
+              --arg mac_sha256 "$ZIP_SHA" \
+              '{schema_version: 1, tag: $tag, commit: $commit, marketing_version: $version, build_number: $build_number, mac_filename: $mac_filename, mac_sha256: $mac_sha256}' \
+              > build/release-manifest.json
+          jq -e . build/release-manifest.json
+
+      - name: Attest Mac zip
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: build/Bruce-${{ steps.version.outputs.base }}.zip
+
+      - name: Attest release manifest
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: build/release-manifest.json
+
+      - name: Attach immutable RC assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ steps.version.outputs.tag }}" \
+              "build/Bruce-${{ steps.version.outputs.base }}.zip" \
+              build/build-number.txt \
+              build/release-manifest.json
+
+      - name: Upload IPA workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Bruce-${{ steps.version.outputs.tag }}.ipa
+          path: build/Bruce.ipa
+          retention-days: 14

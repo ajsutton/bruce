@@ -34,6 +34,10 @@ targets:
   Bruce_iOS:
     type: application
     platform: iOS
+    preBuildScripts:
+      - script: "${SRCROOT}/scripts/check-release-build-number.sh"
+        name: Verify Release build number
+        basedOnDependencyAnalysis: false
     sources:
       - path: App
         excludes:
@@ -57,11 +61,18 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.tests-host
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Apple Distribution
           CODE_SIGN_ENTITLEMENTS: App/Bruce.entitlements
+          PROVISIONING_PROFILE_SPECIFIER: ${IOS_PROVISIONING_PROFILE}
 
   Bruce_macOS:
     type: application
     platform: macOS
+    preBuildScripts:
+      - script: "${SRCROOT}/scripts/check-release-build-number.sh"
+        name: Verify Release build number
+        basedOnDependencyAnalysis: false
     sources:
       - path: App
         excludes:
@@ -85,7 +96,11 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.tests-host
         Release:
           PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Developer ID Application
           CODE_SIGN_ENTITLEMENTS: App/Bruce.entitlements
+          PROVISIONING_PROFILE_SPECIFIER: ${MAC_PROVISIONING_PROFILE}
+          ENABLE_HARDENED_RUNTIME: YES
 
   BruceUITestHost_iOS:
     type: application
