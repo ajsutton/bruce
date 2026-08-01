@@ -46,6 +46,42 @@ import SwiftUI
   .background(BruceMode.full.backgroundColor)
 }
 
+#Preview("Climate Presets") {
+  let summary = HomeAssistantTemperatureSummary(
+    readings: HomeAssistantTemperaturePreview.previewTemperatureReadings
+  )
+  HomeAssistantAirConditionerCard(
+    reading: HomeAssistantTemperaturePreview.airConditioner,
+    averageValue: summary.averageRoomTemperature,
+    mode: .standard,
+    showsControls: true,
+    isControlEnabled: true,
+    climatePresets: summary.climatePresets,
+    selectedClimatePresetID: summary.selectedClimatePresetID,
+    canApplyClimatePreset: true
+  )
+  .frame(width: 900)
+  .padding()
+}
+
+#Preview("Narrow Climate Presets") {
+  let summary = HomeAssistantTemperatureSummary(
+    readings: HomeAssistantTemperaturePreview.previewTemperatureReadings
+  )
+  HomeAssistantAirConditionerCard(
+    reading: HomeAssistantTemperaturePreview.airConditioner,
+    averageValue: summary.averageRoomTemperature,
+    mode: .standard,
+    showsControls: true,
+    isControlEnabled: true,
+    climatePresets: summary.climatePresets,
+    selectedClimatePresetID: summary.selectedClimatePresetID,
+    canApplyClimatePreset: true
+  )
+  .frame(width: 360)
+  .padding()
+}
+
 #Preview("Bruce Zone Controls") {
   VStack(spacing: 14) {
     HomeAssistantAirConditionerCard(
@@ -129,12 +165,18 @@ private enum HomeAssistantTemperaturePreview {
     icon: "mdi:sofa",
     minimumTargetValue: 16,
     maximumTargetValue: 30,
-    targetValueStep: 0.5
+    targetValueStep: 0.5,
+    floor: HomeAssistantClimateFloor(id: "downstairs", name: "Downstairs", level: 0)
   )
 
-  private static let previewTemperatureReadings = [
+  static let bedroomsPreset = HomeAssistantClimatePresetLabel(
+    id: "climate_preset_bedrooms",
+    name: "Bedrooms"
+  )
+
+  static let previewTemperatureReadings = [
     airConditioner,
-    livingRoom,
+    livingRoom.replacingClimateState(powerState: .off, operatingMode: .off),
     HomeAssistantTemperatureReading(
       id: "climate.bedroom",
       name: "Master Bedroom",
@@ -147,7 +189,25 @@ private enum HomeAssistantTemperaturePreview {
       icon: "mdi:bed",
       minimumTargetValue: 16,
       maximumTargetValue: 30,
-      targetValueStep: 0.5
+      targetValueStep: 0.5,
+      floor: HomeAssistantClimateFloor(id: "upstairs", name: "Upstairs", level: 1),
+      presetLabels: [bedroomsPreset]
+    ),
+    HomeAssistantTemperatureReading(
+      id: "climate.ella",
+      name: "Ella's Bedroom",
+      value: 22.2,
+      targetValue: 22,
+      unit: "°C",
+      powerState: .poweredOn,
+      kind: .zone,
+      operatingMode: .fanOnly,
+      icon: "mdi:bed",
+      minimumTargetValue: 16,
+      maximumTargetValue: 30,
+      targetValueStep: 0.5,
+      floor: HomeAssistantClimateFloor(id: "upstairs", name: "Upstairs", level: 1),
+      presetLabels: [bedroomsPreset]
     ),
     HomeAssistantTemperatureReading(
       id: "climate.study",
@@ -158,7 +218,8 @@ private enum HomeAssistantTemperaturePreview {
       powerState: .off,
       kind: .zone,
       operatingMode: .off,
-      icon: "mdi:desk"
+      icon: "mdi:desk",
+      floor: HomeAssistantClimateFloor(id: "upstairs", name: "Upstairs", level: 1)
     ),
     HomeAssistantTemperatureReading(
       id: "climate.dining_room",
@@ -166,10 +227,11 @@ private enum HomeAssistantTemperaturePreview {
       value: 24.1,
       targetValue: 24.5,
       unit: "°C",
-      powerState: .unavailable,
+      powerState: .off,
       kind: .zone,
-      operatingMode: .unavailable,
-      icon: "mdi:table-chair"
+      operatingMode: .off,
+      icon: "mdi:table-chair",
+      floor: HomeAssistantClimateFloor(id: "downstairs", name: "Downstairs", level: 0)
     ),
   ]
 }
@@ -187,13 +249,13 @@ private struct PreviewHomeAssistantClimateController: HomeAssistantClimateContro
 
 private struct PreviewHomeAssistantTemperatureLoader: HomeAssistantTemperatureLoading {
   let readings: [HomeAssistantTemperatureReading]
+  let providesContinuousTemperatureUpdates = true
 
   func temperatureUpdates() -> AsyncThrowingStream<
     HomeAssistantTemperatureUpdate, any Error
   > {
     AsyncThrowingStream { continuation in
       continuation.yield(.live(readings))
-      continuation.finish()
     }
   }
 }

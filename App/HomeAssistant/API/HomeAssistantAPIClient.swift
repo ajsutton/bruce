@@ -1,15 +1,9 @@
 import Foundation
-import OSLog
 
 struct HomeAssistantAPIClient:
   HomeAssistantClimateControlling, HomeAssistantEVCharging,
   HomeAssistantHomeEnergyLoading, HomeAssistantGarageDoorControlling, Sendable
 {
-  private static let logger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "net.symphonious.bruce",
-    category: "HomeAssistantAPI"
-  )
-
   let session: HomeAssistantSession
   private let climateMetadataLoader: any HomeAssistantClimateMetadataLoading
   private let climateMetadataTimeout: Duration
@@ -239,16 +233,7 @@ struct HomeAssistantAPIClient:
 
   private func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata] {
     try await climateMetadataCoordinator.load(timeout: climateMetadataTimeout) {
-      do {
-        return try await climateMetadataLoader.loadClimateMetadata()
-      } catch is CancellationError {
-        throw CancellationError()
-      } catch {
-        Self.logger.error(
-          "Couldn’t load Home Assistant climate metadata: \(String(describing: error), privacy: .private)"
-        )
-        return [:]
-      }
+      try await climateMetadataLoader.loadClimateMetadata()
     }
   }
 

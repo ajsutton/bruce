@@ -68,5 +68,7 @@ enum HomeAssistantTemperaturePresentation {
       && current.minimumTargetValue == candidate.minimumTargetValue
       && current.maximumTargetValue == candidate.maximumTargetValue
       && current.targetValueStep == candidate.targetValueStep
+      && current.floor == candidate.floor
+      && current.presetLabels == candidate.presetLabels
   }
 }

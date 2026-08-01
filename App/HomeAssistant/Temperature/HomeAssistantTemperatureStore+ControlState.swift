@@ -1,5 +1,11 @@
 extension HomeAssistantTemperatureStore {
   func canControl(_ reading: HomeAssistantTemperatureReading) -> Bool {
+    canControlDuringPreset(reading)
+      && presetControlTask == nil
+      && presetTransaction == nil
+  }
+
+  func canControlDuringPreset(_ reading: HomeAssistantTemperatureReading) -> Bool {
     controller != nil && isLive && reading.powerState != .unavailable
   }
 

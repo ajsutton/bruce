@@ -36,6 +36,17 @@ struct HomeAssistantTemperatureView: View {
     HomeAssistantTemperatureSummary(readings: store.readings)
   }
 
+  private var isControllingClimatePreset: Bool {
+    summary.rooms.contains {
+      $0.kind == .zone && store.isControlling(entityID: $0.id)
+    }
+  }
+
+  private var canApplyClimatePreset: Bool {
+    let zones = summary.rooms.filter { $0.kind == .zone }
+    return !zones.isEmpty && !isControllingClimatePreset && zones.allSatisfy(store.canControl)
+  }
+
   private var screenBackground: Color {
     mode.panelBackgroundColor(for: colorScheme)
   }
@@ -132,6 +143,10 @@ struct HomeAssistantTemperatureView: View {
           isControlling: store.isControlling(entityID: reading.id),
           isLastKnown: isDisplayingLastKnown,
           targetValueFractionLength: summary.targetValueFractionLength,
+          climatePresets: reading.id == summary.airConditioners.first?.id
+            ? summary.climatePresets : [],
+          selectedClimatePresetID: summary.selectedClimatePresetID,
+          canApplyClimatePreset: canApplyClimatePreset,
           setPower: { isOn in
             Task {
               await store.setPower(for: reading, isOn: isOn)
@@ -141,6 +156,9 @@ struct HomeAssistantTemperatureView: View {
             Task {
               await store.setMode(climateMode, for: reading)
             }
+          },
+          applyClimatePreset: { preset in
+            store.apply(preset)
           }
         )
         .equatable()

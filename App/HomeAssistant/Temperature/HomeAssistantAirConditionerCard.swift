@@ -15,8 +15,12 @@ struct HomeAssistantAirConditionerCard: View {
   let isControlling: Bool
   let isLastKnown: Bool
   let targetValueFractionLength: Int
+  let climatePresets: [HomeAssistantClimatePreset]
+  let selectedClimatePresetID: HomeAssistantClimatePreset.Identifier?
+  let canApplyClimatePreset: Bool
   let setPower: (Bool) -> Void
   let setMode: (HomeAssistantTemperatureReading.ClimateMode) -> Void
+  let applyClimatePreset: (HomeAssistantClimatePreset) -> Void
 
   init(
     reading: HomeAssistantTemperatureReading,
@@ -28,8 +32,12 @@ struct HomeAssistantAirConditionerCard: View {
     isControlling: Bool = false,
     isLastKnown: Bool = false,
     targetValueFractionLength: Int = 1,
+    climatePresets: [HomeAssistantClimatePreset] = [],
+    selectedClimatePresetID: HomeAssistantClimatePreset.Identifier? = nil,
+    canApplyClimatePreset: Bool = false,
     setPower: @escaping (Bool) -> Void = { _ in },
-    setMode: @escaping (HomeAssistantTemperatureReading.ClimateMode) -> Void = { _ in }
+    setMode: @escaping (HomeAssistantTemperatureReading.ClimateMode) -> Void = { _ in },
+    applyClimatePreset: @escaping (HomeAssistantClimatePreset) -> Void = { _ in }
   ) {
     self.reading = reading
     self.averageValue = averageValue
@@ -40,8 +48,12 @@ struct HomeAssistantAirConditionerCard: View {
     self.isControlling = isControlling
     self.isLastKnown = isLastKnown
     self.targetValueFractionLength = targetValueFractionLength
+    self.climatePresets = climatePresets
+    self.selectedClimatePresetID = selectedClimatePresetID
+    self.canApplyClimatePreset = canApplyClimatePreset
     self.setPower = setPower
     self.setMode = setMode
+    self.applyClimatePreset = applyClimatePreset
   }
 
   private var style: AirConditionerCardStyle {
@@ -62,25 +74,34 @@ struct HomeAssistantAirConditionerCard: View {
   }
 
   var body: some View {
-    Group {
-      if dynamicTypeSize.isAccessibilitySize {
-        stackedLayout
-      } else if horizontalSizeClass == .compact {
-        #if os(iOS)
-          rowLayout(.condensed)
-        #else
+    VStack(spacing: 0) {
+      Group {
+        if dynamicTypeSize.isAccessibilitySize {
+          stackedLayout
+        } else if horizontalSizeClass == .compact {
+          #if os(iOS)
+            rowLayout(.condensed)
+          #else
+            ViewThatFits(in: .horizontal) {
+              rowLayout(.condensed)
+              stackedLayout
+            }
+          #endif
+        } else {
           ViewThatFits(in: .horizontal) {
+            rowLayout(.spacious)
             rowLayout(.condensed)
             stackedLayout
           }
-        #endif
-      } else {
-        ViewThatFits(in: .horizontal) {
-          rowLayout(.spacious)
-          rowLayout(.condensed)
-          stackedLayout
         }
       }
+      ClimatePresetRow(
+        presets: climatePresets,
+        selectedPresetID: selectedClimatePresetID,
+        isEnabled: canApplyClimatePreset,
+        mode: mode,
+        apply: applyClimatePreset
+      )
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(16)
@@ -222,8 +243,11 @@ struct HomeAssistantAirConditionerCard: View {
     }
   }
 
+}
+
+extension HomeAssistantAirConditionerCard {
   @ViewBuilder
-  private func modeControl(isCondensed: Bool) -> some View {
+  fileprivate func modeControl(isCondensed: Bool) -> some View {
     if showsControls, !reading.availableModes.isEmpty {
       Button {
         isShowingModePicker.toggle()
@@ -253,15 +277,13 @@ struct HomeAssistantAirConditionerCard: View {
       .accessibilityLabel(
         isControlling ? copy.updating(name: reading.name) : copy.mode(name: reading.name)
       )
-      .accessibilityValue(
-        modeControlAccessibilityValue
-      )
+      .accessibilityValue(modeControlAccessibilityValue)
     } else {
       modeText(isCondensed: isCondensed)
     }
   }
 
-  private func modeText(isCondensed: Bool) -> some View {
+  fileprivate func modeText(isCondensed: Bool) -> some View {
     Text(modePresentation.label)
       .font(modeFont(isCondensed: isCondensed))
       .foregroundStyle(modePresentation.foreground)
@@ -269,9 +291,6 @@ struct HomeAssistantAirConditionerCard: View {
       .minimumScaleFactor(0.8)
   }
 
-}
-
-extension HomeAssistantAirConditionerCard {
   fileprivate var modeControlAccessibilityValue: String {
     let value = isControlling ? copy.inProgress : modePresentation.accessibilityLabel
     return isLastKnown ? copy.lastKnown(value) : value

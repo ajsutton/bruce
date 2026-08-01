@@ -81,6 +81,16 @@ final class TemperatureSubscriptionConnection:
   func send(_ data: Data) async throws {
     lock.withLock {
       sentMessages.append(data)
+      guard
+        let message = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        message["type"] as? String == "subscribe_events",
+        let id = message["id"] as? Int,
+        id > 1
+      else { return }
+      messages.insert(
+        .success(#"{"id":\#(id),"type":"result","success":true,"result":null}"#),
+        at: 0
+      )
     }
   }
 

@@ -5047,6 +5047,38 @@
         }
       }
     },
+    "temperature.all" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        }
+      }
+    },
+    "temperature.allClimateZones" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All climate zones"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All climate zones"
+          }
+        }
+      }
+    },
     "temperature.automatic" : {
       "localizations" : {
         "en" : {
@@ -5571,6 +5603,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bruce had a proper squiz, but none of the air-cons coughed up a fresh temperature."
+          }
+        }
+      }
+    },
+    "temperature.none" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "temperature.noClimateZones" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No climate zones"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No climate zones"
+          }
+        }
+      }
+    },
+    "temperature.namedClimatePreset" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ climate preset"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ climate preset"
           }
         }
       }

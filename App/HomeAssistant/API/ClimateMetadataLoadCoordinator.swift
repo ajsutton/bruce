@@ -9,6 +9,7 @@ final class ClimateMetadataLoadCoordinator: @unchecked Sendable {
   private var activeLoad: Task<Void, Never>?
   private var waiters: [UUID: ClimateMetadataLoadWaiter] = [:]
   private var isDraining = false
+  private var cachedOutput: Output?
 
   func load(
     timeout: Duration,
@@ -29,9 +30,9 @@ final class ClimateMetadataLoadCoordinator: @unchecked Sendable {
     timeout: Duration,
     operation: @escaping @Sendable () async throws -> Output
   ) {
-    let shouldUseFallback = lock.withLock {
+    let registration = lock.withLock {
       guard !isDraining else {
-        return true
+        return (shouldRegister: false, fallback: cachedOutput)
       }
       waiters[waiter.id] = waiter
       if activeLoad == nil {
@@ -43,17 +44,19 @@ final class ClimateMetadataLoadCoordinator: @unchecked Sendable {
           }
         }
       }
-      return false
+      return (shouldRegister: true, fallback: Optional<Output>.none)
     }
-    guard !shouldUseFallback else {
-      waiter.resolve(.success([:]))
+    guard registration.shouldRegister else {
+      waiter.resolve(
+        registration.fallback.map(LoadResult.success) ?? .failure(URLError(.timedOut))
+      )
       return
     }
     waiter.startTimeout(after: timeout) { [weak self, weak waiter] in
       guard let self, let waiter else {
         return
       }
-      complete(waiter, with: .success([:]))
+      complete(waiter, with: timeoutResult())
     }
   }
 
@@ -73,17 +76,49 @@ final class ClimateMetadataLoadCoordinator: @unchecked Sendable {
   }
 
   private func finish(with result: LoadResult) {
-    let waiters = lock.withLock {
+    let completion = lock.withLock {
       activeLoad = nil
       isDraining = false
+      let result = resolved(result)
       let waiters = Array(self.waiters.values)
       self.waiters.removeAll()
-      return waiters
+      return (waiters, result)
     }
-    waiters.forEach {
-      $0.resolve(result)
+    completion.0.forEach {
+      $0.resolve(completion.1)
     }
   }
+
+  private func timeoutResult() -> LoadResult {
+    lock.withLock {
+      cachedOutput.map(LoadResult.success) ?? .failure(URLError(.timedOut))
+    }
+  }
+
+  private func resolved(_ result: LoadResult) -> LoadResult {
+    switch result {
+    case .success(let output):
+      cachedOutput = output
+      return result
+    case .failure(let error):
+      guard Self.canUseCachedOutput(after: error), let cachedOutput else {
+        return result
+      }
+      return .success(cachedOutput)
+    }
+  }
+
+  private static func canUseCachedOutput(after error: any Error) -> Bool {
+    if HomeAssistantRequestRouter.isConnectivityFailure(error) {
+      return true
+    }
+    guard let apiError = error as? HomeAssistantAPIError else { return false }
+    if case .server = apiError {
+      return true
+    }
+    return false
+  }
+
 }
 
 private final class ClimateMetadataLoadWaiter: @unchecked Sendable {

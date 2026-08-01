@@ -45,6 +45,8 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
   let minimumTargetValue: Double?
   let maximumTargetValue: Double?
   let targetValueStep: Double?
+  let floor: HomeAssistantClimateFloor?
+  let presetLabels: [HomeAssistantClimatePresetLabel]
 
   init(
     id: String,
@@ -59,7 +61,9 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     icon: String? = nil,
     minimumTargetValue: Double? = nil,
     maximumTargetValue: Double? = nil,
-    targetValueStep: Double? = nil
+    targetValueStep: Double? = nil,
+    floor: HomeAssistantClimateFloor? = nil,
+    presetLabels: [HomeAssistantClimatePresetLabel] = []
   ) {
     self.id = id
     self.name = name
@@ -74,6 +78,8 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     self.minimumTargetValue = minimumTargetValue
     self.maximumTargetValue = maximumTargetValue
     self.targetValueStep = targetValueStep
+    self.floor = floor
+    self.presetLabels = presetLabels
   }
 
   func replacingClimateState(
@@ -93,7 +99,9 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
       icon: icon,
       minimumTargetValue: minimumTargetValue,
       maximumTargetValue: maximumTargetValue,
-      targetValueStep: targetValueStep
+      targetValueStep: targetValueStep,
+      floor: floor,
+      presetLabels: presetLabels
     )
   }
 
@@ -111,7 +119,9 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
       icon: icon,
       minimumTargetValue: minimumTargetValue,
       maximumTargetValue: maximumTargetValue,
-      targetValueStep: targetValueStep
+      targetValueStep: targetValueStep,
+      floor: floor,
+      presetLabels: presetLabels
     )
   }
 

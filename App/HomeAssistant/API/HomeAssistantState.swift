@@ -76,7 +76,9 @@ struct HomeAssistantState: Decodable, Equatable, Sendable {
       icon: attributes.icon ?? metadata?.icon,
       minimumTargetValue: attributes.minimumTemperature,
       maximumTargetValue: attributes.maximumTemperature,
-      targetValueStep: attributes.targetTemperatureStep ?? attributes.temperaturePrecision
+      targetValueStep: attributes.targetTemperatureStep ?? attributes.temperaturePrecision,
+      floor: metadata?.floor,
+      presetLabels: metadata?.presetLabels ?? []
     )
   }
 

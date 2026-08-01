@@ -204,12 +204,11 @@ extension HomeAssistantAPIClientTests {
     )
   }
 
-  func testTemperatureLoadingContinuesWhenClimateMetadataIsUnavailable() async throws {
+  func testTemperatureLoadingPropagatesInvalidClimateMetadata() async throws {
     let fixture = SessionFixture()
     let session = fixture.makeSession(
       apiResponses: [
-        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
-        .success(temperatureStatesData, statusCode: 200),
+        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200)
       ]
     )
     try await session.install(fixture.credentials())
@@ -218,18 +217,20 @@ extension HomeAssistantAPIClientTests {
       climateMetadataLoader: StubClimateMetadataLoader(fails: true)
     )
 
-    let temperatures = try await client.loadTemperatures()
-
-    XCTAssertEqual(temperatures.count, 2)
-    XCTAssertNil(temperatures.first(where: { $0.id == "climate.bedroom" })?.icon)
+    do {
+      _ = try await client.loadTemperatures()
+      XCTFail("Expected invalid registry metadata to fail the load.")
+    } catch HomeAssistantAPIError.invalidResponse {
+    } catch {
+      XCTFail("Unexpected error: \(error)")
+    }
   }
 
-  func testTemperatureLoadingDoesNotWaitForBlockedClimateMetadata() async throws {
+  func testTemperatureLoadingTimesOutBlockedClimateMetadata() async throws {
     let fixture = SessionFixture()
     let session = fixture.makeSession(
       apiResponses: [
-        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
-        .success(temperatureStatesData, statusCode: 200),
+        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200)
       ]
     )
     try await session.install(fixture.credentials())
@@ -244,9 +245,14 @@ extension HomeAssistantAPIClientTests {
       try await client.loadTemperatures()
     }
     await fulfillment(of: [metadataLoader.started], timeout: 1)
-    let temperatures = try await load.value
-
-    XCTAssertEqual(temperatures.count, 2)
+    do {
+      _ = try await load.value
+      XCTFail("Expected climate metadata loading to time out.")
+    } catch let error as URLError {
+      XCTAssertEqual(error.code, .timedOut)
+    } catch {
+      XCTFail("Unexpected error: \(error)")
+    }
     XCTAssertTrue(metadataLoader.wasCancelled)
     metadataLoader.finish()
   }
@@ -255,9 +261,7 @@ extension HomeAssistantAPIClientTests {
     let fixture = SessionFixture()
     let session = fixture.makeSession(
       apiResponses: [
-        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
-        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
-        .success(temperatureStatesData, statusCode: 200),
+        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200)
       ]
     )
     try await session.install(fixture.credentials())
@@ -282,8 +286,6 @@ extension HomeAssistantAPIClientTests {
       XCTFail("Unexpected error: \(error)")
     }
     XCTAssertTrue(metadataLoader.wasCancelled)
-    let replacementTemperatures = try await client.loadTemperatures()
-    XCTAssertEqual(replacementTemperatures.count, 2)
     XCTAssertEqual(metadataLoader.loadCount, 1)
     metadataLoader.finish()
   }

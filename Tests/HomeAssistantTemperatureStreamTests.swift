@@ -52,7 +52,7 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
     XCTAssertEqual(live.map(\.operatingMode), [.automatic])
     XCTAssertEqual(live.first?.icon, "mdi:bed")
     XCTAssertThrowsError(try probe.value(at: 2))
-    XCTAssertEqual(connection.sentMessageTypes, ["auth", "subscribe_events"])
+    assertEventSubscriptions(connection)
   }
 
   func testSubscriptionRemovesClimateEntityWithoutCurrentTemperature() async throws {
@@ -158,4 +158,100 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
     XCTAssertTrue(connection.isCancelled)
   }
 
+  func testRegistryUpdateReloadsClimatePresetLabels() async throws {
+    let fixture = SessionFixture()
+    let session = fixture.makeSession(
+      apiResponses: [
+        .success(temperatureStates(value: 21), statusCode: 200),
+        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
+        .success(Data(#"{"unit_system":{"temperature":"°C"}}"#.utf8), statusCode: 200),
+      ]
+    )
+    try await session.install(fixture.credentials())
+    let connection = TemperatureSubscriptionConnection(
+      messages: [
+        .success(#"{"type":"auth_required"}"#),
+        .success(#"{"type":"auth_ok"}"#),
+        .success(#"{"id":1,"type":"result","success":true,"result":null}"#),
+      ]
+    )
+    let metadataLoader = UpdatingTemperatureMetadataLoader()
+    let apiClient = HomeAssistantAPIClient(
+      session: session,
+      climateMetadataLoader: metadataLoader
+    )
+    let stream = HomeAssistantTemperatureStream(
+      session: session,
+      apiClient: apiClient,
+      connector: TemperatureSubscriptionConnector(connections: [connection]),
+      retryDelays: []
+    )
+    let probe = AsyncThrowingStreamTestProbe(stream.temperatureUpdates())
+    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+
+    connection.succeed(with: registryUpdatedEvent(type: "label_registry_updated"))
+    await fulfillment(of: [metadataLoader.reloaded], timeout: 1)
+    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    connection.cancel()
+
+    let refreshed = try snapshot(from: probe.value(at: 1))
+    XCTAssertEqual(refreshed.first?.presetLabels.map(\.name), ["Bedrooms"])
+  }
+
+}
+
+private final class UpdatingTemperatureMetadataLoader:
+  HomeAssistantClimateMetadataLoading, @unchecked Sendable
+{
+  let reloaded = XCTestExpectation(description: "Climate metadata reloaded")
+
+  private let lock = NSLock()
+  private var loadCount = 0
+
+  func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata] {
+    let count = lock.withLock {
+      loadCount += 1
+      return loadCount
+    }
+    guard count > 1 else { return [:] }
+    reloaded.fulfill()
+    return [
+      "climate.bedroom": HomeAssistantClimateMetadata(
+        icon: nil,
+        kind: .zone,
+        presetLabels: [.init(id: "bedrooms", name: "Bedrooms")]
+      )
+    ]
+  }
+}
+
+private func registryUpdatedEvent(type: String) -> String {
+  let id = type == "label_registry_updated" ? 6 : 1
+  return #"{"id":\#(id),"type":"event","event":{"event_type":"\#(type)","data":{}}}"#
+}
+
+private func assertEventSubscriptions(
+  _ connection: TemperatureSubscriptionConnection,
+  file: StaticString = #filePath,
+  line: UInt = #line
+) {
+  XCTAssertEqual(
+    connection.sentMessageTypes,
+    ["auth"] + Array(repeating: "subscribe_events", count: 6),
+    file: file,
+    line: line
+  )
+  XCTAssertEqual(
+    connection.sentMessageJSON.compactMap { $0["event_type"] as? String },
+    [
+      "state_changed",
+      "entity_registry_updated",
+      "device_registry_updated",
+      "area_registry_updated",
+      "floor_registry_updated",
+      "label_registry_updated",
+    ],
+    file: file,
+    line: line
+  )
 }

@@ -21,7 +21,8 @@ enum ClimateControlIntent {
   func applying(
     to reading: HomeAssistantTemperatureReading
   ) -> HomeAssistantTemperatureReading {
-    switch self {
+    guard reading.powerState != .unavailable else { return reading }
+    return switch self {
     case .power(isOn: true):
       reading.replacingClimateState(powerState: .poweredOn, operatingMode: .active)
     case .power(isOn: false):

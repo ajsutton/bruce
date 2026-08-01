@@ -38,5 +38,8 @@ extension HomeAssistantAirConditionerCard: Equatable {
       && lhs.isControlling == rhs.isControlling
       && lhs.isLastKnown == rhs.isLastKnown
       && lhs.targetValueFractionLength == rhs.targetValueFractionLength
+      && lhs.climatePresets == rhs.climatePresets
+      && lhs.selectedClimatePresetID == rhs.selectedClimatePresetID
+      && lhs.canApplyClimatePreset == rhs.canApplyClimatePreset
   }
 }

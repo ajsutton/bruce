@@ -5,6 +5,108 @@ import XCTest
 
 @MainActor
 final class HomeAssistantClimateControlStoreTests: XCTestCase {
+  func testPresetTurnsOffNonMembersBeforeTurningOnMembers() async {
+    let loader = ControlledTemperatureLoader(requestCount: 1)
+    let controller = OrderedClimateController(commandCount: 2)
+    let store = HomeAssistantTemperatureStore(loader: loader, controller: controller)
+    let upstairs = zoneReading(id: "climate.upstairs", powerState: .off)
+    let downstairs = zoneReading(id: "climate.downstairs", powerState: .poweredOn)
+    let spare = zoneReading(id: "climate.spare", powerState: .off)
+    let load = Task { await store.load() }
+    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
+    loader.yieldRequest(0, update: .live([upstairs, downstairs, spare]))
+    await waitForLiveState(in: store)
+
+    store.apply(
+      HomeAssistantClimatePreset(
+        id: .floor("upstairs"),
+        name: "Upstairs",
+        zoneEntityIDs: [upstairs.id]
+      )
+    )
+    await fulfillment(of: [controller.started(at: 0)], timeout: 1)
+
+    let optimisticPowerStates = Dictionary(
+      uniqueKeysWithValues: store.readings.map { ($0.id, $0.powerState) }
+    )
+    XCTAssertEqual(
+      optimisticPowerStates,
+      [upstairs.id: .poweredOn, downstairs.id: .off, spare.id: .off]
+    )
+    let firstCommands = await controller.commands
+    XCTAssertEqual(firstCommands, [.power(entityID: downstairs.id, isOn: false)])
+    controller.succeed(command: 0)
+    await fulfillment(of: [controller.started(at: 1)], timeout: 1)
+    let completedCommands = await controller.commands
+    XCTAssertEqual(
+      completedCommands,
+      [
+        .power(entityID: downstairs.id, isOn: false),
+        .power(entityID: upstairs.id, isOn: true),
+      ]
+    )
+    controller.succeed(command: 1)
+    loader.finishRequest(0)
+    await load.value
+  }
+
+  func testPresetFailureRollsBackAndDoesNotStartLaterCommands() async {
+    let loader = ControlledTemperatureLoader(requestCount: 1)
+    let controller = OrderedClimateController(commandCount: 1)
+    let store = HomeAssistantTemperatureStore(loader: loader, controller: controller)
+    let upstairs = zoneReading(id: "climate.upstairs", powerState: .off)
+    let downstairs = zoneReading(id: "climate.downstairs", powerState: .poweredOn)
+    let load = Task { await store.load() }
+    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
+    loader.yieldRequest(0, update: .live([upstairs, downstairs]))
+    await waitForLiveState(in: store)
+    let failed = expectation(description: "Preset failure published")
+    let subscription = store.$controlProblem.compactMap { $0 }.prefix(1).sink { _ in
+      failed.fulfill()
+    }
+
+    store.apply(
+      HomeAssistantClimatePreset(
+        id: .floor("upstairs"),
+        name: "Upstairs",
+        zoneEntityIDs: [upstairs.id]
+      )
+    )
+    await fulfillment(of: [controller.started(at: 0)], timeout: 1)
+    controller.fail(command: 0)
+    await fulfillment(of: [failed], timeout: 1)
+
+    let commands = await controller.commands
+    XCTAssertEqual(commands, [.power(entityID: downstairs.id, isOn: false)])
+    XCTAssertEqual(store.readings, [upstairs, downstairs])
+    withExtendedLifetime(subscription) {}
+    loader.finishRequest(0)
+    await load.value
+  }
+
+  func testResetCancelsAnActivePresetTransaction() async {
+    let loader = ControlledTemperatureLoader(requestCount: 1)
+    let controller = OrderedClimateController(commandCount: 1, cancellableCommands: [0])
+    let store = HomeAssistantTemperatureStore(loader: loader, controller: controller)
+    let zone = zoneReading(id: "climate.zone", powerState: .poweredOn)
+    let load = Task { await store.load() }
+    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
+    loader.yieldRequest(0, update: .live([zone]))
+    await waitForLiveState(in: store)
+
+    store.apply(
+      HomeAssistantClimatePreset(id: .none, name: "None", zoneEntityIDs: [])
+    )
+    await fulfillment(of: [controller.started(at: 0)], timeout: 1)
+
+    store.reset()
+
+    await fulfillment(of: [controller.cancelled(at: 0)], timeout: 1)
+    XCTAssertEqual(store.readings, [])
+    loader.finishRequest(0)
+    await load.value
+  }
+
   func testClimateModeCommandRejectsModeNotAdvertisedByEntity() async {
     let loader = ControlledTemperatureLoader(requestCount: 1)
     let controller = RecordingClimateController()
@@ -135,7 +237,10 @@ final class HomeAssistantClimateControlStoreTests: XCTestCase {
     await load.value
   }
 
-  private func controllableReading(
+}
+
+extension HomeAssistantClimateControlStoreTests {
+  fileprivate func controllableReading(
     id: String = "climate.air_conditioner",
     name: String = "Air Conditioner"
   ) -> HomeAssistantTemperatureReading {
@@ -152,7 +257,27 @@ final class HomeAssistantClimateControlStoreTests: XCTestCase {
     )
   }
 
-  private func waitForLiveState(in store: HomeAssistantTemperatureStore) async {
+  fileprivate func zoneReading(
+    id: String,
+    powerState: HomeAssistantTemperatureReading.PowerState
+  ) -> HomeAssistantTemperatureReading {
+    let floorID = id.split(separator: ".").last.map(String.init)
+    return HomeAssistantTemperatureReading(
+      id: id,
+      name: id,
+      value: 22,
+      targetValue: 23,
+      unit: "°C",
+      powerState: powerState,
+      kind: .zone,
+      operatingMode: powerState == .off ? .off : .cooling,
+      floor: floorID.map {
+        HomeAssistantClimateFloor(id: $0, name: $0.capitalized, level: nil)
+      }
+    )
+  }
+
+  fileprivate func waitForLiveState(in store: HomeAssistantTemperatureStore) async {
     if store.isLive {
       return
     }

@@ -43,6 +43,14 @@ struct TemperatureCopy {
   var powerOnAccessibility: String { text(.powerOnAccessibility) }
   var powerOffAccessibility: String { text(.powerOffAccessibility) }
   var unavailableAccessibility: String { text(.unavailableAccessibility) }
+  var all: String { text(.all) }
+  var none: String { text(.none) }
+  var allClimateZones: String { text(.allClimateZones) }
+  var noClimateZones: String { text(.noClimateZones) }
+
+  func climatePreset(named name: String) -> String {
+    text(.namedClimatePreset).replacingOccurrences(of: "%@", with: name)
+  }
 
   func problem(_ problem: HomeAssistantTemperatureStore.Problem) -> String {
     switch problem {
@@ -132,6 +140,7 @@ extension TemperatureCopy {
     case controlFailed, updatingName, turnOff, turnOn, powerUnavailable, namedMode
     case increaseTarget, decreaseTarget, namedTarget, accessibilityValue
     case updatingAccessibilityValue
+    case all, none, allClimateZones, noClimateZones, namedClimatePreset
 
     var entry: BruceCopy.Entry {
       switch self {
@@ -213,6 +222,11 @@ extension TemperatureCopy {
         .localized("temperature.accessibilityValue")
       case .updatingAccessibilityValue:
         .localized("temperature.updatingAccessibilityValue")
+      case .all: .localized("temperature.all")
+      case .none: .localized("temperature.none")
+      case .allClimateZones: .localized("temperature.allClimateZones")
+      case .noClimateZones: .localized("temperature.noClimateZones")
+      case .namedClimatePreset: .localized("temperature.namedClimatePreset")
       }
     }
   }

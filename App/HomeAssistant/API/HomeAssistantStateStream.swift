@@ -75,13 +75,14 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
         attemptedURL = access.baseURL
         try await subscribe(
           using: access,
+          generation: generation,
           previousStates: latestSnapshot.states,
           previousRemovals: latestSnapshot.removals
-        ) { states, removals in
+        ) { states, removals, eventGeneration in
           publishedSnapshot = true
           latestSnapshot = .init(states: states, removals: removals)
           try await cache(latestSnapshot, for: observation.id, access: access)
-          Self.yieldLive(states, generation: generation, to: continuation)
+          Self.yieldLive(states, generation: eventGeneration, to: continuation)
         }
       } catch is CancellationError {
         continuation.finish()
@@ -136,9 +137,10 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
 
   private func subscribe(
     using access: HomeAssistantWebSocketAccess,
+    generation initialGeneration: UUID,
     previousStates: [HomeAssistantState],
     previousRemovals: [String: Date],
-    publish: ([HomeAssistantState], [String: Date]) async throws -> Void
+    publish: ([HomeAssistantState], [String: Date], UUID) async throws -> Void
   ) async throws {
     let connection = connector.connect(to: access.url)
     try await withTaskCancellationHandler {
@@ -146,28 +148,35 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
         connection.cancel()
       }
       try await authenticate(connection, accessToken: access.accessToken)
-      try await subscribeToStateChanges(over: connection)
+      try await subscribeToHomeAssistantEvents(over: connection)
       try await session.rememberSuccessfulWebSocketAccess(access)
       var snapshot = try Self.mergedSnapshot(
         try await apiClient.loadHomeAssistantStates(),
         previousStates: previousStates,
         previousRemovals: previousRemovals
       )
+      var generation = initialGeneration
       try await session.validateWebSocketAccess(access)
-      try await publish(snapshot.orderedStates, snapshot.removals)
+      try await publish(snapshot.orderedStates, snapshot.removals, generation)
 
       while !Task.isCancelled {
-        let event = try decode(
-          HomeAssistantStateChangedMessage.self,
-          from: try await connection.receive()
-        )
-        guard event.id == 1, event.type == "event",
-          event.event.eventType == "state_changed"
+        let data = try await connection.receive()
+        let event = try decode(HomeAssistantEventMessage.self, from: data)
+        guard
+          event.type == "event",
+          let subscribedEventType = Self.eventTypeBySubscriptionID[event.id],
+          event.event.eventType == subscribedEventType
         else {
           throw HomeAssistantAPIError.invalidResponse
         }
-        try Self.apply(event.event.data, to: &snapshot)
-        try await publish(snapshot.orderedStates, snapshot.removals)
+        if subscribedEventType == "state_changed" {
+          let stateChange = try decode(HomeAssistantStateChangedMessage.self, from: data)
+          try Self.apply(stateChange.event.data, to: &snapshot)
+          try await publish(snapshot.orderedStates, snapshot.removals, generation)
+        } else {
+          generation = UUID()
+          try await publish(snapshot.orderedStates, snapshot.removals, generation)
+        }
       }
       throw CancellationError()
     } onCancel: {
@@ -202,23 +211,29 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
     }
   }
 
-  private func subscribeToStateChanges(
+  private func subscribeToHomeAssistantEvents(
     over connection: any HomeAssistantWebSocketConnection
   ) async throws {
-    try await send(
-      HomeAssistantStateChangedSubscription(
-        id: 1,
-        type: "subscribe_events",
-        eventType: "state_changed"
-      ),
-      over: connection
-    )
-    let response = try decode(
-      HomeAssistantSubscriptionResult.self,
-      from: try await connection.receive()
-    )
-    guard response.id == 1, response.type == "result", response.success else {
-      throw HomeAssistantAPIError.invalidResponse
+    for subscription in Self.eventTypeBySubscriptionID.sorted(by: { $0.key < $1.key }) {
+      try await send(
+        HomeAssistantEventSubscription(
+          id: subscription.key,
+          type: "subscribe_events",
+          eventType: subscription.value
+        ),
+        over: connection
+      )
+      let response = try decode(
+        HomeAssistantSubscriptionResult.self,
+        from: try await connection.receive()
+      )
+      guard
+        response.id == subscription.key,
+        response.type == "result",
+        response.success
+      else {
+        throw HomeAssistantAPIError.invalidResponse
+      }
     }
   }
 
@@ -242,6 +257,15 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
 }
 
 extension HomeAssistantStateStream {
+  fileprivate static let eventTypeBySubscriptionID: [Int: String] = [
+    1: "state_changed",
+    2: "entity_registry_updated",
+    3: "device_registry_updated",
+    4: "area_registry_updated",
+    5: "floor_registry_updated",
+    6: "label_registry_updated",
+  ]
+
   fileprivate static func yield(
     _ update: HomeAssistantStateUpdate,
     to continuation: HomeAssistantBufferedUpdateStream<
@@ -298,7 +322,7 @@ private struct HomeAssistantSubscriptionAuthentication: Encodable {
   }
 }
 
-private struct HomeAssistantStateChangedSubscription: Encodable {
+private struct HomeAssistantEventSubscription: Encodable {
   let id: Int
   let type: String
   let eventType: String
@@ -320,6 +344,20 @@ private struct HomeAssistantStateChangedMessage: Decodable {
   let id: Int
   let type: String
   let event: HomeAssistantStateChangedEvent
+}
+
+private struct HomeAssistantEventMessage: Decodable {
+  let id: Int
+  let type: String
+  let event: HomeAssistantEvent
+}
+
+private struct HomeAssistantEvent: Decodable {
+  let eventType: String
+
+  enum CodingKeys: String, CodingKey {
+    case eventType = "event_type"
+  }
 }
 
 private struct HomeAssistantStateChangedEvent: Decodable {

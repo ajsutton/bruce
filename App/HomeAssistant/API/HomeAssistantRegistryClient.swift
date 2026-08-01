@@ -11,6 +11,20 @@ protocol HomeAssistantGarageDoorRegistryLoading: Sendable {
 struct HomeAssistantClimateMetadata: Equatable, Sendable {
   let icon: String?
   let kind: HomeAssistantTemperatureReading.Kind
+  let floor: HomeAssistantClimateFloor?
+  let presetLabels: [HomeAssistantClimatePresetLabel]
+
+  init(
+    icon: String?,
+    kind: HomeAssistantTemperatureReading.Kind,
+    floor: HomeAssistantClimateFloor? = nil,
+    presetLabels: [HomeAssistantClimatePresetLabel] = []
+  ) {
+    self.icon = icon
+    self.kind = kind
+    self.floor = floor
+    self.presetLabels = presetLabels
+  }
 }
 
 struct HomeAssistantRegistryClient:
@@ -51,8 +65,24 @@ struct HomeAssistantRegistryClient:
         id: 3,
         over: connection
       )
+      let floors: [HomeAssistantRegistryFloor] = try await request(
+        "config/floor_registry/list",
+        id: 4,
+        over: connection
+      )
+      let labels: [HomeAssistantRegistryLabel] = try await request(
+        "config/label_registry/list",
+        id: 5,
+        over: connection
+      )
       try Task.checkCancellation()
-      return Self.climateMetadata(entities: entities, devices: devices, areas: areas)
+      return Self.climateMetadata(
+        entities: entities,
+        devices: devices,
+        areas: areas,
+        floors: floors,
+        labels: labels
+      )
     } onCancel: {
       connection.cancel()
     }
@@ -102,7 +132,9 @@ struct HomeAssistantRegistryClient:
   static func climateMetadata(
     entities: [HomeAssistantRegistryEntity],
     devices: [HomeAssistantRegistryDevice],
-    areas: [HomeAssistantRegistryArea]
+    areas: [HomeAssistantRegistryArea],
+    floors: [HomeAssistantRegistryFloor] = [],
+    labels: [HomeAssistantRegistryLabel] = []
   ) -> [String: HomeAssistantClimateMetadata] {
     let devicesByID = devices.reduce(into: [:]) { devicesByID, device in
       devicesByID[device.id] = device
@@ -110,19 +142,54 @@ struct HomeAssistantRegistryClient:
     let areasByID = areas.reduce(into: [:]) { areasByID, area in
       areasByID[area.id] = area
     }
+    let floorsByID = floors.reduce(into: [:]) { floorsByID, floor in
+      floorsByID[floor.id] = floor
+    }
+    let labelsByID = labels.reduce(into: [:]) { labelsByID, label in
+      labelsByID[label.id] = label
+    }
 
     return entities.reduce(into: [:]) { metadata, entity in
       guard entity.id.hasPrefix("climate.") else {
         return
       }
       let areaID = entity.areaID ?? entity.deviceID.flatMap { devicesByID[$0]?.areaID }
-      let areaIcon = areaID.flatMap { areasByID[$0]?.icon }
+      let registryArea = areaID.flatMap { areasByID[$0] }
+      let registryFloor = registryArea?.floorID.flatMap { floorsByID[$0] }
+      let deviceLabelIDs = entity.deviceID.flatMap { devicesByID[$0]?.labelIDs } ?? []
+      let presetLabels = climatePresetLabels(
+        labelIDs: Set(entity.labelIDs + deviceLabelIDs + (registryArea?.labelIDs ?? [])),
+        labelsByID: labelsByID
+      )
       metadata[entity.id] = HomeAssistantClimateMetadata(
-        icon: entity.icon ?? areaIcon ?? entity.originalIcon,
-        kind: kind(for: entity)
+        icon: entity.icon ?? registryArea?.icon ?? entity.originalIcon,
+        kind: kind(for: entity),
+        floor: registryFloor.map {
+          HomeAssistantClimateFloor(id: $0.id, name: $0.name, level: $0.level)
+        },
+        presetLabels: presetLabels
       )
     }
   }
+
+  private static func climatePresetLabels(
+    labelIDs: Set<String>,
+    labelsByID: [String: HomeAssistantRegistryLabel]
+  ) -> [HomeAssistantClimatePresetLabel] {
+    labelIDs.compactMap { id in
+      guard let label = labelsByID[id], label.name.hasPrefix(climatePresetLabelPrefix) else {
+        return nil
+      }
+      let name = label.name
+        .dropFirst(climatePresetLabelPrefix.count)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !name.isEmpty else { return nil }
+      return HomeAssistantClimatePresetLabel(id: id, name: name)
+    }
+    .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+  }
+
+  private static let climatePresetLabelPrefix = "Climate preset:"
 
   private static func kind(
     for entity: HomeAssistantRegistryEntity
@@ -211,85 +278,6 @@ struct HomeAssistantRegistryClient:
     } catch {
       throw HomeAssistantAPIError.invalidResponse
     }
-  }
-}
-
-struct HomeAssistantRegistryEntity: Decodable, Equatable, Sendable {
-  let id: String
-  let platform: String?
-  let uniqueID: String?
-  let deviceID: String?
-  let areaID: String?
-  let icon: String?
-  let originalIcon: String?
-
-  init(
-    id: String,
-    platform: String? = nil,
-    uniqueID: String? = nil,
-    deviceID: String?,
-    areaID: String?,
-    icon: String?,
-    originalIcon: String?
-  ) {
-    self.id = id
-    self.platform = platform
-    self.uniqueID = uniqueID
-    self.deviceID = deviceID
-    self.areaID = areaID
-    self.icon = icon
-    self.originalIcon = originalIcon
-  }
-
-  enum CodingKeys: String, CodingKey {
-    case id = "entity_id"
-    case platform
-    case uniqueID = "unique_id"
-    case deviceID = "device_id"
-    case areaID = "area_id"
-    case icon
-    case originalIcon = "original_icon"
-  }
-}
-
-struct HomeAssistantRegistryDevice: Decodable, Equatable, Sendable {
-  let id: String
-  let areaID: String?
-  let name: String?
-  let nameByUser: String?
-
-  init(
-    id: String,
-    areaID: String?,
-    name: String? = nil,
-    nameByUser: String? = nil
-  ) {
-    self.id = id
-    self.areaID = areaID
-    self.name = name
-    self.nameByUser = nameByUser
-  }
-
-  enum CodingKeys: String, CodingKey {
-    case id
-    case areaID = "area_id"
-    case name
-    case nameByUser = "name_by_user"
-  }
-}
-
-struct HomeAssistantGarageDoorRegistry: Equatable, Sendable {
-  let deviceIDByEntityID: [String: String]
-  let deviceNameByID: [String: String]
-}
-
-struct HomeAssistantRegistryArea: Decodable, Equatable, Sendable {
-  let id: String
-  let icon: String?
-
-  enum CodingKeys: String, CodingKey {
-    case id = "area_id"
-    case icon
   }
 }
 
