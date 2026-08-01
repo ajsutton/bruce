@@ -244,8 +244,8 @@ Names may be adjusted during review, but the responsibilities and safety gates m
 2. Check out the exact tag with full tag history.
 3. Use Bruce's established `xcode-27` runner label unless repository CI changes before
    implementation.
-4. Set an explicit timeout and use the protected `rc-release` environment, with the release
-   operator configured as a required reviewer.
+4. Set an explicit timeout and use the `rc-release` environment for secret scoping, without a
+   required-reviewer deployment gate.
 5. Request only the GitHub permissions required by the workflow, including `contents: write` for
    release-asset upload and the identity/attestation permissions needed for GitHub artifact
    attestations.
@@ -273,8 +273,8 @@ automatic tagging because Bruce has no corresponding use case.
 ### GitHub Actions final workflow
 
 1. Trigger only on final tags matching `v[0-9]+.[0-9]+.[0-9]+`.
-2. Check out full tag history and use the protected `production-release` environment, with the
-   release operator configured as a required reviewer.
+2. Check out full tag history and use the `production-release` environment for secret scoping,
+   without a required-reviewer deployment gate.
 3. Resolve the latest RC tag for the final marketing version.
 4. Fail unless the final tag and latest RC tag point at the same commit.
 5. Download the RC manifest, build number, and Mac zip.
@@ -407,14 +407,14 @@ Codex provides commands and verifies outcomes only.
 
 No release tag is created at this checkpoint.
 
-## Milestone 3: protected GitHub environments and secrets
+## Milestone 3: GitHub environments and secrets
 
 **Owner:** User for secret values; Codex may create or inspect non-secret environment settings
 
 1. Create GitHub Actions environments `rc-release` and `production-release` in `ajsutton/bruce`.
-2. Configure the release operator as a required reviewer for both environments. A raw matching tag
-   may start a workflow, but no Apple signing, upload, notarisation, or App Review submission job
-   may run until its environment approval is granted.
+2. Do not configure required reviewers for either environment. The explicit approval obtained
+   before creating a release tag is the authorization gate; tag creation must be sufficient to
+   start signing and distribution automatically.
 3. Store these secrets in `rc-release`:
 
    ```text
@@ -439,7 +439,8 @@ No release tag is created at this checkpoint.
 5. Store `ASC_KEY_CONTENT` as the base64-encoded `.p8` contents expected by Fastlane.
 6. Use the dedicated Bruce Match repository URL, encryption password, and least-privilege
    repository credential. None of these values should reference or unlock Moolah's Match
-   repository.
+   repository. When `MATCH_GIT_BASIC_AUTHORIZATION` is used, `MATCH_GIT_URL` must use HTTPS rather
+   than SSH (for example, `https://github.com/ajsutton/bruce-match.git`).
 7. Do not put these values in `.env`, workflow YAML, release notes, issue comments, or chat.
 8. Confirm only the RC workflow references `rc-release` and only the final workflow references
    `production-release`.
@@ -447,8 +448,8 @@ No release tag is created at this checkpoint.
    Bruce currently has this disabled, and the final workflow's standard `GITHUB_TOKEN` cannot
    create the post-release bump PR until it is enabled.
 
-Codex can verify the environment protection rules and secret names through GitHub's API. GitHub
-does not reveal secret values, so successful signed validation is the proof that the contents are
+Codex can verify the environment configuration and secret names through GitHub's API. GitHub does
+not reveal secret values, so successful signed validation is the proof that the contents are
 correct. Codex also verifies that the repository reports
 `can_approve_pull_request_reviews: true` before final-promotion automation is accepted.
 
@@ -488,8 +489,8 @@ release state, Codex must show the exact command and obtain approval before runn
    - macOS Developer ID/notarised-zip signing path.
 3. The user explicitly approves those values and authorizes tag creation and upload.
 4. Codex runs `just release-create-rc` with the approved notes.
-5. The protected `rc-release` job pauses, and the user verifies the displayed tag and commit before
-   granting the required GitHub environment approval.
+5. The `rc-release` job starts immediately. Codex verifies the displayed tag and commit while
+   monitoring it.
 6. Codex monitors `release-rc.yml` to completion.
 7. Codex verifies:
    - the workflow used the approved tag and SHA;
@@ -580,9 +581,8 @@ No final tag is created without that approval.
 1. Codex runs `just release-create-final <version> <rc-tag> <notes-file>`.
 2. The command creates the final GitHub release and tag at the paired RC's commit, which starts
    `release-final.yml`.
-3. The protected `production-release` job pauses, and the user verifies the final tag, RC pairing,
-   commit, build number, and attested Mac digest before granting the required GitHub environment
-   approval.
+3. The `production-release` job starts immediately. Codex verifies the final tag, RC pairing,
+   commit, build number, and attested Mac digest while monitoring it.
 4. The workflow independently verifies the tag-to-RC pairing and RC attestations before changing
    App Store state.
 5. The workflow reads the attested RC build number and submits that existing TestFlight build

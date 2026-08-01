@@ -26,8 +26,8 @@ The manual setup instructions in `plans/RELEASE_AUTOMATION_PLAN.md` must be comp
 - A dedicated private Bruce Match repository contains App Store and Developer ID signing material
   for `net.symphonious.bruce`. Bruce must not use Moolah's Match repository, encryption password,
   or repository credential.
-- GitHub environments `rc-release` and `production-release` exist with the release operator as a
-  required reviewer.
+- GitHub environments `rc-release` and `production-release` exist for release-secret scoping and
+  do not require deployment approval.
 - The environment secrets listed in the plan exist.
 - GitHub Actions is allowed to create pull requests.
 
@@ -48,8 +48,8 @@ Before creating either release tag, show the user and obtain explicit approval f
 - App Store automatic release after approval; and
 - proposed post-release marketing-version bump.
 
-The protected GitHub environment is a second approval gate. Confirm the displayed tag and commit
-again before approving the job.
+Creating the approved tag is the release authorization. The GitHub environments scope secrets but
+must not add a second deployment-approval gate.
 
 ## Cut an RC
 
@@ -85,7 +85,7 @@ again before approving the job.
    just release-create-rc <version> .agent-tmp/release-notes-<version>.md
    ```
 
-7. Open the Actions run, verify its tag and commit, and approve the `rc-release` environment.
+7. Open the Actions run and verify its tag and commit.
 
 8. Wait and inspect status:
 
@@ -138,8 +138,7 @@ tag and never replace its attested assets.
    just release-create-final <version> <rc-tag> .agent-tmp/release-notes-<version>.md
    ```
 
-7. Open the Actions run, verify the displayed pairing and attested values, and approve the
-   `production-release` environment.
+7. Open the Actions run and verify the displayed pairing and attested values.
 
 8. Wait and inspect status:
 
