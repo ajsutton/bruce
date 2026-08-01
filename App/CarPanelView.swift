@@ -3,7 +3,9 @@ import SwiftUI
 struct CarPanelView: View {
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @ObservedObject var chargingStore: HomeAssistantEVChargingStore
+  @State private var panelWidth: CGFloat = 0
   @ObservedObject var garageDoorStore: HomeAssistantGarageDoorStore
   let mode: BruceMode
   var showsConnectionProblems = true
@@ -40,49 +42,57 @@ struct CarPanelView: View {
   }
 
   private var panelContent: some View {
-    VStack(spacing: 16) {
-      if chargingStore.mode != nil {
-        HomeAssistantEVChargingCard(
-          store: chargingStore,
-          mode: mode,
-          showsConnectionProblems: showsConnectionProblems,
-          manageConnection: manageConnection,
-          requestRefresh: requestRefresh
-        )
-      }
+    VStack(spacing: BrucePanelLayout.cardSpacing) {
+      if chargingStore.mode != nil || !garageDoorStore.doors.isEmpty {
+        LazyVGrid(
+          columns: carDeviceColumns,
+          alignment: .leading,
+          spacing: BrucePanelLayout.cardSpacing
+        ) {
+          if chargingStore.mode != nil {
+            HomeAssistantEVChargingCard(
+              store: chargingStore,
+              mode: mode,
+              showsConnectionProblems: showsConnectionProblems,
+              manageConnection: manageConnection,
+              requestRefresh: requestRefresh
+            )
+          }
 
-      if !garageDoorStore.doors.isEmpty {
-        ForEach(garageDoorStore.doors) { door in
-          HomeAssistantGarageDoorCard(
-            door: door,
-            isLive: garageDoorStore.isLive,
-            isRefreshing: garageDoorStore.isRefreshing,
-            mode: mode,
-            isLightChanging: garageDoorStore.isControlling(
-              .light,
-              for: door.id
-            ),
-            isLockChanging: garageDoorStore.isControlling(
-              .lock,
-              for: door.id
-            ),
-            pendingDoorCommand: garageDoorStore.pendingDoorCommands[door.id],
-            toggleLight: {
-              Task {
-                await garageDoorStore.toggleLight(for: door)
-              }
-            },
-            toggleLock: {
-              Task {
-                await garageDoorStore.toggleLock(for: door)
-              }
-            },
-            sendDoorCommand: { command in
-              Task {
-                await garageDoorStore.send(command, to: door)
-              }
+          if !garageDoorStore.doors.isEmpty {
+            ForEach(garageDoorStore.doors) { door in
+              HomeAssistantGarageDoorCard(
+                door: door,
+                isLive: garageDoorStore.isLive,
+                isRefreshing: garageDoorStore.isRefreshing,
+                mode: mode,
+                isLightChanging: garageDoorStore.isControlling(
+                  .light,
+                  for: door.id
+                ),
+                isLockChanging: garageDoorStore.isControlling(
+                  .lock,
+                  for: door.id
+                ),
+                pendingDoorCommand: garageDoorStore.pendingDoorCommands[door.id],
+                toggleLight: {
+                  Task {
+                    await garageDoorStore.toggleLight(for: door)
+                  }
+                },
+                toggleLock: {
+                  Task {
+                    await garageDoorStore.toggleLock(for: door)
+                  }
+                },
+                sendDoorCommand: { command in
+                  Task {
+                    await garageDoorStore.send(command, to: door)
+                  }
+                }
+              )
             }
-          )
+          }
         }
       }
 
@@ -107,9 +117,37 @@ struct CarPanelView: View {
         carDevicesUnavailableView
       }
     }
-    .padding()
-    .frame(maxWidth: 720)
+    .padding(BrucePanelLayout.contentPadding)
+    .frame(maxWidth: BrucePanelLayout.maximumContentWidth)
     .frame(maxWidth: .infinity)
+    .onGeometryChange(for: CGFloat.self) { geometry in
+      geometry.size.width
+    } action: { width in
+      panelWidth = width
+    }
+  }
+
+  private var carDeviceColumns: [GridItem] {
+    if dynamicTypeSize.isAccessibilitySize || horizontalSizeClass == .compact
+      || availableContentWidth < BrucePanelLayout.carDeviceMinimumWidth
+    {
+      return [GridItem(.flexible())]
+    }
+    return [
+      GridItem(
+        .adaptive(minimum: BrucePanelLayout.carDeviceMinimumWidth),
+        spacing: BrucePanelLayout.cardSpacing,
+        alignment: .top
+      )
+    ]
+  }
+
+  private var availableContentWidth: CGFloat {
+    max(
+      min(panelWidth, BrucePanelLayout.maximumContentWidth)
+        - (BrucePanelLayout.contentPadding * 2),
+      0
+    )
   }
 
   @ViewBuilder

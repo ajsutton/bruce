@@ -2,6 +2,11 @@ import SwiftUI
 
 struct HomeAssistantTemperatureView: View {
   @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @ScaledMetric(relativeTo: .body) private var climateZoneMinimumWidth =
+    BrucePanelLayout.climateZoneMinimumWidth
+  @State private var panelWidth: CGFloat = 0
   @ObservedObject var store: HomeAssistantTemperatureStore
   let mode: BruceMode
   let isConnecting: Bool
@@ -82,6 +87,11 @@ struct HomeAssistantTemperatureView: View {
       temperatureContent
     }
     .background(screenBackground)
+    .onGeometryChange(for: CGFloat.self) { geometry in
+      geometry.size.width
+    } action: { width in
+      panelWidth = width
+    }
   }
 
   @ViewBuilder
@@ -137,36 +147,67 @@ struct HomeAssistantTemperatureView: View {
         .padding(.bottom, 4)
       }
 
-      ForEach(summary.rooms) { reading in
-        HomeAssistantTemperatureCard(
-          reading: reading,
-          mode: mode,
-          showsControl: reading.kind == .zone && store.supportsControl,
-          isControlEnabled: store.canControl(reading),
-          isControlling: store.isControllingClimateState(entityID: reading.id),
-          isTargetControlling: store.isAdjustingTarget(entityID: reading.id),
-          isLastKnown: isDisplayingLastKnown,
-          showsTargetControl: reading.kind == .zone
-            && reading.targetValue != nil
-            && store.supportsControl,
-          targetValueFractionLength: summary.targetValueFractionLength,
-          setPower: { isOn in
-            Task {
-              await store.setPower(for: reading, isOn: isOn)
-            }
-          },
-          setTargetValue: { value in
-            MainActor.assumeIsolated {
-              store.setTargetValue(value, for: reading)
-            }
+      if !summary.rooms.isEmpty {
+        LazyVGrid(
+          columns: climateZoneColumns,
+          alignment: .leading,
+          spacing: 14
+        ) {
+          ForEach(summary.rooms) { reading in
+            HomeAssistantTemperatureCard(
+              reading: reading,
+              mode: mode,
+              showsControl: reading.kind == .zone && store.supportsControl,
+              isControlEnabled: store.canControl(reading),
+              isControlling: store.isControllingClimateState(entityID: reading.id),
+              isTargetControlling: store.isAdjustingTarget(entityID: reading.id),
+              isLastKnown: isDisplayingLastKnown,
+              showsTargetControl: reading.kind == .zone
+                && reading.targetValue != nil
+                && store.supportsControl,
+              targetValueFractionLength: summary.targetValueFractionLength,
+              setPower: { isOn in
+                Task {
+                  await store.setPower(for: reading, isOn: isOn)
+                }
+              },
+              setTargetValue: { value in
+                MainActor.assumeIsolated {
+                  store.setTargetValue(value, for: reading)
+                }
+              }
+            )
+            .equatable()
           }
-        )
-        .equatable()
+        }
       }
     }
-    .padding()
-    .frame(maxWidth: 720)
+    .padding(BrucePanelLayout.contentPadding)
+    .frame(maxWidth: BrucePanelLayout.maximumContentWidth)
     .frame(maxWidth: .infinity)
+  }
+
+  private var climateZoneColumns: [GridItem] {
+    if dynamicTypeSize.isAccessibilitySize || horizontalSizeClass == .compact
+      || availableContentWidth < climateZoneMinimumWidth
+    {
+      return [GridItem(.flexible())]
+    }
+    return [
+      GridItem(
+        .adaptive(minimum: climateZoneMinimumWidth),
+        spacing: 14,
+        alignment: .top
+      )
+    ]
+  }
+
+  private var availableContentWidth: CGFloat {
+    max(
+      min(panelWidth, BrucePanelLayout.maximumContentWidth)
+        - (BrucePanelLayout.contentPadding * 2),
+      0
+    )
   }
 
   private var showsActivity: Bool {

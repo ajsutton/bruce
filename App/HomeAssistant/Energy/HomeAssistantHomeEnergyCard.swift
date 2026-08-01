@@ -3,7 +3,9 @@ import SwiftUI
 struct HomeAssistantHomeEnergyCard: View {
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @ScaledMetric(relativeTo: .title3) private var metricIconWidth = 28
+  @State private var availableWidth: CGFloat = 0
   @ObservedObject var store: HomeAssistantHomeEnergyStore
   let mode: BruceMode
   var showsConnectionProblems = true
@@ -40,10 +42,7 @@ struct HomeAssistantHomeEnergyCard: View {
         }
       } else {
         LazyVGrid(
-          columns: [
-            GridItem(.flexible(), spacing: 12),
-            GridItem(.flexible(), spacing: 12),
-          ],
+          columns: metricColumns,
           spacing: 12
         ) {
           metricViews
@@ -61,6 +60,19 @@ struct HomeAssistantHomeEnergyCard: View {
       color: .black.opacity(mode.isFullBruce ? 0.2 : 0.1),
       radius: 10,
       y: 4
+    )
+    .onGeometryChange(for: CGFloat.self) { geometry in
+      geometry.size.width
+    } action: { width in
+      availableWidth = width
+    }
+  }
+
+  private var metricColumns: [GridItem] {
+    let count = horizontalSizeClass == .compact || availableWidth < 1_000 ? 2 : 4
+    return Array(
+      repeating: GridItem(.flexible(), spacing: 12, alignment: .top),
+      count: count
     )
   }
 

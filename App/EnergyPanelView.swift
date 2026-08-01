@@ -60,8 +60,8 @@ struct EnergyPanelView: View {
         mode: mode
       )
     }
-    .padding()
-    .frame(maxWidth: 720)
+    .padding(BrucePanelLayout.contentPadding)
+    .frame(maxWidth: BrucePanelLayout.maximumContentWidth)
     .frame(maxWidth: .infinity)
   }
 }

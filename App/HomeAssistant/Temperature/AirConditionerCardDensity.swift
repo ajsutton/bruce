@@ -21,7 +21,7 @@ enum AirConditionerCardDensity {
   }
 
   var temperatureMaximumWidth: CGFloat {
-    self == .spacious ? .infinity : 68
+    self == .spacious ? 180 : 68
   }
 
   var minimumHeight: CGFloat {

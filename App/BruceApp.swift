@@ -40,6 +40,7 @@ struct BruceApp: App {
           homeEnergyStore: homeEnergyStore,
           settingsNavigation: settingsNavigation
         )
+        .frame(minWidth: BrucePanelLayout.minimumWindowWidth)
         .tint(modeController.mode.accentColor)
         .environmentObject(observationCoordinator)
       #else
@@ -55,6 +56,9 @@ struct BruceApp: App {
         .environmentObject(observationCoordinator)
       #endif
     }
+    #if os(macOS)
+      .windowResizability(.contentMinSize)
+    #endif
 
     #if os(macOS)
       Settings {
