@@ -23,7 +23,9 @@ The manual setup instructions in `plans/RELEASE_AUTOMATION_PLAN.md` must be comp
 - The App Store Connect Bruce record exists.
 - A team App Store Connect API key has been validated for upload, review submission, Match, and
   notarisation.
-- Match contains App Store and Developer ID signing material for `net.symphonious.bruce`.
+- A dedicated private Bruce Match repository contains App Store and Developer ID signing material
+  for `net.symphonious.bruce`. Bruce must not use Moolah's Match repository, encryption password,
+  or repository credential.
 - GitHub environments `rc-release` and `production-release` exist with the release operator as a
   required reviewer.
 - The environment secrets listed in the plan exist.

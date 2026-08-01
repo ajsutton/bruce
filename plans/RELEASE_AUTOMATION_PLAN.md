@@ -98,8 +98,9 @@ The user must perform account- and secret-bearing setup that Codex cannot safely
 - create or confirm the Apple App ID and App Store Connect app record;
 - enable required capabilities for the production bundle identifier;
 - create or select an App Store Connect API key and retain its `.p8` private key;
-- confirm whether Bruce will reuse Moolah's Match repository and encryption password;
-- provide writable Match access for the one-time certificate/profile bootstrap;
+- create a dedicated private Match repository for Bruce with its own encryption password and
+  least-privilege access credential;
+- provide writable access to that repository for the one-time certificate/profile bootstrap;
 - place secret values in the protected GitHub release environments;
 - configure TestFlight tester groups and beta-review information as desired;
 - complete the App Store product page, privacy, pricing, review, and release metadata before final
@@ -379,14 +380,16 @@ lanes are exercised only after Milestones 2 and 3.
 
 ### Manual Match bootstrap
 
-1. Confirm whether Bruce will reuse Moolah's encrypted Match repository. Reuse is preferred when
-   both apps belong to the same Apple team.
-2. Ensure the operator has writable credentials for that Match repository.
-3. From a trusted local machine, run the checked-in writable certificate/profile lanes only after
+1. Create a dedicated private Match repository for Bruce. Do not point Bruce at Moolah's Match
+   repository, even when both apps belong to the same Apple team.
+2. Create a Bruce-specific Match encryption password and a least-privilege Git credential scoped
+   to the dedicated repository. Do not reuse Moolah's Match password or repository credential.
+3. Ensure the operator has writable access to the Bruce Match repository.
+4. From a trusted local machine, run the checked-in writable certificate/profile lanes only after
    reviewing the identifiers and Apple team.
-4. Confirm the Match repository now contains the App Store and Developer ID profiles for
+5. Confirm the Bruce Match repository now contains the App Store and Developer ID profiles for
    `net.symphonious.bruce` without exposing their contents in logs or commits in Bruce.
-5. Return CI to read-only Match operation.
+6. Return CI to read-only Match operation.
 
 The user may explicitly authorize Codex to execute the bootstrap commands, but that approval must
 name the Apple team, bundle identifier, Match repository, and signing types. Without that approval,
@@ -434,7 +437,9 @@ No release tag is created at this checkpoint.
    ```
 
 5. Store `ASC_KEY_CONTENT` as the base64-encoded `.p8` contents expected by Fastlane.
-6. Use a least-privilege credential for Match repository access.
+6. Use the dedicated Bruce Match repository URL, encryption password, and least-privilege
+   repository credential. None of these values should reference or unlock Moolah's Match
+   repository.
 7. Do not put these values in `.env`, workflow YAML, release notes, issue comments, or chat.
 8. Confirm only the RC workflow references `rc-release` and only the final workflow references
    `production-release`.
