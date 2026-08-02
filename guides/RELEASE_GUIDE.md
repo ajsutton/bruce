@@ -104,7 +104,14 @@ must not add a second deployment-approval gate.
     `ajsutton/bruce` and `.github/workflows/release-rc.yml`.
 
 11. Wait for App Store Connect processing, then smoke-test the TestFlight build on a physical iOS
-    device and the downloaded Mac zip through Finder. Do not smoke-test a local workflow output.
+    device. Install the latest published Mac release, including prereleases, with:
+
+    ```sh
+    just install-release-mac
+    ```
+
+    Launch `/Applications/Bruce.app` through Finder and smoke-test it. Do not smoke-test a local
+    workflow output.
 
 If an RC fails, fix the problem on `main` and cut the next RC number. Never move or delete the bad
 tag and never replace its attested assets.

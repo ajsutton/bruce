@@ -135,6 +135,41 @@ release-wait tag:
 release-status tag:
     bash scripts/release-status.sh {{ tag }}
 
+# Download the latest GitHub release (including prereleases), unzip it,
+# and replace /Applications/Bruce.app. Prints the installed version on
+# success. Requires `gh` authenticated.
+install-release-mac:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tag="$(gh release list --limit 1 --json tagName --jq '.[0].tagName')"
+    if [ -z "$tag" ]; then
+        echo "No GitHub releases found." >&2
+        exit 1
+    fi
+    tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' EXIT
+    echo "==> Downloading ${tag}…"
+    gh release download "$tag" --pattern 'Bruce-*.zip' --dir "$tmp"
+    zip="$(find "$tmp" -maxdepth 1 -name 'Bruce-*.zip' -print -quit)"
+    if [ -z "$zip" ]; then
+        echo "Release $tag has no Bruce-*.zip asset." >&2
+        exit 1
+    fi
+    echo "==> Extracting $(basename "$zip")…"
+    unzip -q "$zip" -d "$tmp/extracted"
+    app="$(find "$tmp/extracted" -maxdepth 2 -name 'Bruce.app' -type d -print -quit)"
+    if [ -z "$app" ]; then
+        echo "Bruce.app not found inside $(basename "$zip")." >&2
+        exit 1
+    fi
+    echo "==> Replacing /Applications/Bruce.app…"
+    pkill -f "Bruce.app/Contents/MacOS/Bruce" 2>/dev/null || true
+    rm -rf "/Applications/Bruce.app"
+    mv "$app" "/Applications/Bruce.app"
+    version="$(defaults read /Applications/Bruce.app/Contents/Info CFBundleShortVersionString)"
+    build="$(defaults read /Applications/Bruce.app/Contents/Info CFBundleVersion)"
+    echo "==> Installed Bruce $version (build $build) from $tag"
+
 clean:
     #!/usr/bin/env bash
     set -euo pipefail
