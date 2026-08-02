@@ -77,11 +77,19 @@ final class HomeAssistantSetupStore: ObservableObject {
   init(
     discovery: any HomeAssistantDiscovering,
     connection: (any HomeAssistantConnecting)? = nil,
-    webAuthenticationPresenter: HomeAssistantWebAuthenticationPresenter? = nil
+    webAuthenticationPresenter: HomeAssistantWebAuthenticationPresenter? = nil,
+    connectionRetryDelay: Duration = .seconds(60),
+    sleep: @escaping @Sendable (Duration) async throws -> Void = {
+      try await Task.sleep(for: $0)
+    }
   ) {
     self.discovery = discovery
     self.webAuthenticationPresenter = webAuthenticationPresenter
-    connectionController = HomeAssistantConnectionController(connection: connection)
+    connectionController = HomeAssistantConnectionController(
+      connection: connection,
+      connectionRetryDelay: connectionRetryDelay,
+      sleep: sleep
+    )
     connectionController.onStepChange = { [weak self] step in
       self?.step = step
     }
@@ -92,18 +100,6 @@ final class HomeAssistantSetupStore: ObservableObject {
 
   deinit {
     discoveryTask?.cancel()
-  }
-
-  var connectedCredentials: HomeAssistantCredentials? {
-    connectionController.connectedCredentials
-  }
-
-  var connectionCheckState: ConnectionCheckState {
-    connectionController.connectionCheckState
-  }
-
-  var isDisconnecting: Bool {
-    connectionController.isDisconnecting
   }
 
   var canConfirmSelectedInstance: Bool {
@@ -293,6 +289,20 @@ final class HomeAssistantSetupStore: ObservableObject {
   func cancel() {
     stopDiscovery()
     connectionController.cancel()
+  }
+}
+
+extension HomeAssistantSetupStore {
+  var connectedCredentials: HomeAssistantCredentials? {
+    connectionController.connectedCredentials
+  }
+
+  var connectionCheckState: ConnectionCheckState {
+    connectionController.connectionCheckState
+  }
+
+  var isDisconnecting: Bool {
+    connectionController.isDisconnecting
   }
 }
 
