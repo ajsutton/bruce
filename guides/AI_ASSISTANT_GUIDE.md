@@ -18,7 +18,9 @@ Use at least `code-review` after modifying production Swift. Add:
 - `data-access-review` for remote-data clients, streams, live updates, freshness, stale values,
   optimistic writes, or data-backed presentation.
 - `ui-test-review` for UI tests, screen drivers, seeds, or accessibility identifiers.
-- `appstore-review` before release tagging.
+
+Release candidate and final-release tagging use the approval and verification gates in
+`RELEASE_GUIDE.md`; tagging alone does not require a reviewer.
 
 ## Working style
 

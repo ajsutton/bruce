@@ -30,6 +30,10 @@ Codex reviewer wrappers live in `.codex/agents`; their detailed checklists live 
 `.claude/agents`. Before committing, run the reviewers required by
 `guides/AI_ASSISTANT_GUIDE.md`, fix every finding, and repeat until there are no findings.
 
+Release candidate and final-release tagging follow `guides/RELEASE_GUIDE.md` exactly. Tagging
+does not require a separate reviewer cycle unless the release preparation includes repository
+changes that require review before they are committed.
+
 ## Task completion
 
 For every implementation task, run the required formatting, builds, tests, and reviewer cycle,
