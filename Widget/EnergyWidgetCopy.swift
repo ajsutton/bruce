@@ -3,6 +3,7 @@ import Foundation
 struct EnergyWidgetCopy {
   let isFullBruce: Bool
 
+  var energy: String { text("widget.energy") }
   var energyNow: String { text("widget.energyNow") }
   var battery: String { text("widget.battery") }
   var costToday: String { text("widget.costToday") }

@@ -63,8 +63,8 @@ struct EnergyWidgetView: View {
   }
 
   private var smallContent: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      header
+    VStack(alignment: .leading, spacing: 5) {
+      header(title: copy.energy)
       if let snapshot = entry.snapshot {
         let metrics = snapshot.stableMetrics(copy: copy)
         HStack(spacing: 8) {
@@ -127,7 +127,7 @@ struct EnergyWidgetView: View {
   }
 
   private var largeContent: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 8) {
       header
       if let snapshot = entry.snapshot {
         let metrics =
@@ -135,7 +135,7 @@ struct EnergyWidgetView: View {
           + snapshot.changingMetrics(copy: copy)
         LazyVGrid(
           columns: [GridItem(.flexible()), GridItem(.flexible())],
-          spacing: 10
+          spacing: 7
         ) {
           ForEach(metrics) { metric in
             largeMetric(metric)
@@ -151,8 +151,12 @@ struct EnergyWidgetView: View {
   }
 
   private var header: some View {
+    header(title: copy.energyNow)
+  }
+
+  private func header(title: String) -> some View {
     HStack {
-      Text(copy.energyNow)
+      Text(title)
         .font(.headline)
         .lineLimit(1)
         .minimumScaleFactor(0.8)
@@ -230,7 +234,8 @@ struct EnergyWidgetView: View {
           .minimumScaleFactor(0.8)
       }
     }
-    .padding(10)
+    .padding(.horizontal, 10)
+    .padding(.vertical, 6)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(palette.metricBackground, in: RoundedRectangle(cornerRadius: 12))
     .accessibilityElement(children: .ignore)

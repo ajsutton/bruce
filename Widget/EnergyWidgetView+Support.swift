@@ -46,7 +46,7 @@ extension EnergyWidgetView {
     .foregroundStyle(palette.secondary)
     .lineLimit(1)
     .fixedSize(horizontal: false, vertical: true)
-    .padding(.bottom, 2)
+    .layoutPriority(1)
   }
 
   func accessoryMetric(_ metric: EnergyWidgetMetric) -> some View {

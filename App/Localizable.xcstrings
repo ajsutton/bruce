@@ -6036,6 +6036,22 @@
         }
       }
     },
+    "widget.energy" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Juice"
+          }
+        }
+      }
+    },
     "widget.energyNow" : {
       "extractionState" : "stale",
       "localizations" : {
