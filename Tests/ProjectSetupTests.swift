@@ -42,6 +42,25 @@ final class ProjectSetupTests: XCTestCase {
     XCTAssertEqual(store.loadMode(), .full)
   }
 
+  func testLocalStoreSharesModeWithTheWidget() throws {
+    let localSuite = "BruceTests.local.\(UUID().uuidString)"
+    let sharedSuite = "BruceTests.shared.\(UUID().uuidString)"
+    let localDefaults = try XCTUnwrap(UserDefaults(suiteName: localSuite))
+    let sharedDefaults = try XCTUnwrap(UserDefaults(suiteName: sharedSuite))
+    defer {
+      localDefaults.removePersistentDomain(forName: localSuite)
+      sharedDefaults.removePersistentDomain(forName: sharedSuite)
+    }
+    let store = BruceModeStore(
+      defaults: localDefaults,
+      sharedDefaults: sharedDefaults
+    )
+
+    store.saveMode(.full)
+
+    XCTAssertTrue(sharedDefaults.bool(forKey: BruceMode.storageKey))
+  }
+
   func testRefreshingLocalPreferenceAppliesSystemSettingsChange() async {
     let store = TestModeStore(localMode: .standard)
     let iconApplier = TestIconApplier()

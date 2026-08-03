@@ -70,6 +70,50 @@ final class HomeAssistantProjectConfigurationTests: XCTestCase {
     )
   }
 
+  func testIOSAppAndWidgetShareOnlyTheirMatchingContainers() throws {
+    let releaseApp = try loadPropertyList("Bruce-iOS.entitlements")
+    let debugApp = try loadPropertyList("Bruce-iOS-Debug.entitlements")
+    let releaseWidget = try loadPropertyList("EnergyWidget.entitlements")
+    let debugWidget = try loadPropertyList("EnergyWidget-Debug.entitlements")
+
+    XCTAssertEqual(
+      releaseApp["com.apple.security.application-groups"] as? [String],
+      ["group.net.symphonious.bruce"]
+    )
+    XCTAssertEqual(
+      releaseWidget["com.apple.security.application-groups"] as? [String],
+      ["group.net.symphonious.bruce"]
+    )
+    XCTAssertEqual(
+      debugApp["com.apple.security.application-groups"] as? [String],
+      ["group.net.symphonious.bruce.debug"]
+    )
+    XCTAssertEqual(
+      debugWidget["com.apple.security.application-groups"] as? [String],
+      ["group.net.symphonious.bruce.debug"]
+    )
+  }
+
+  func testProjectEmbedsEnergyWidgetWithDistinctReleaseAndDebugIdentities() throws {
+    let project = try String(
+      contentsOf: resourceURL("project.yml"),
+      encoding: .utf8
+    )
+
+    XCTAssertTrue(project.contains("BruceEnergyWidget:"))
+    XCTAssertTrue(project.contains("embed: true"))
+    XCTAssertTrue(
+      project.contains(
+        "PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.energy-widget"
+      )
+    )
+    XCTAssertTrue(
+      project.contains(
+        "PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.debug.energy-widget"
+      )
+    )
+  }
+
   func testDebugAndTestAppsHaveDistinctIdentities() throws {
     let project = try String(
       contentsOf: resourceURL("project.yml"),
@@ -78,8 +122,10 @@ final class HomeAssistantProjectConfigurationTests: XCTestCase {
 
     XCTAssertTrue(project.contains("APP_DISPLAY_NAME: Bruce Debug"))
     XCTAssertEqual(
-      project.components(separatedBy: "PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.tests-host")
-        .count - 1,
+      project.split(separator: "\n").count {
+        $0.trimmingCharacters(in: .whitespaces)
+          == "PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.tests-host"
+      },
       2
     )
     for filename in ["Info-iOS.plist", "Info-macOS.plist"] {

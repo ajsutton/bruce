@@ -45,5 +45,6 @@ extension HomeAssistantHomeEnergySnapshot {
       entity(Self.feedInEarningsEntityID)?.lastReset
     importCostTodayStatus = .current
     feedInEarningsTodayStatus = .current
+    dailyEnergyInterval = nil
   }
 }

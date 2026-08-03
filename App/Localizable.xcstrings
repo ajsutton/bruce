@@ -17,6 +17,16 @@
         }
       }
     },
+    "%@: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
     "%@%%" : {
 
     },
@@ -3991,6 +4001,38 @@
         }
       }
     },
+    "homeEnergy.costToday" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cost today"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today’s Wallet Barbecue"
+          }
+        }
+      }
+    },
+    "homeEnergy.costTodayAccessibility" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electricity import cost today"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electricity import cost today — today’s wallet barbecue"
+          }
+        }
+      }
+    },
     "homeEnergy.dailyTotalsLoadFailed" : {
       "localizations" : {
         "en" : {
@@ -4035,38 +4077,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Last haul · Wallet radar carked it"
-          }
-        }
-      }
-    },
-    "homeEnergy.costToday" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cost today"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Today’s Wallet Barbecue"
-          }
-        }
-      }
-    },
-    "homeEnergy.costTodayAccessibility" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Electricity import cost today"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Electricity import cost today — today’s wallet barbecue"
           }
         }
       }
@@ -5527,6 +5537,22 @@
         }
       }
     },
+    "temperature.namedClimatePreset" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ climate preset"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ climate preset"
+          }
+        }
+      }
+    },
     "temperature.namedMode" : {
       "localizations" : {
         "en" : {
@@ -5575,6 +5601,22 @@
         }
       }
     },
+    "temperature.noClimateZones" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No climate zones"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No climate zones"
+          }
+        }
+      }
+    },
     "temperature.noCurrentTemperatures" : {
       "localizations" : {
         "en" : {
@@ -5619,38 +5661,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "None"
-          }
-        }
-      }
-    },
-    "temperature.noClimateZones" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No climate zones"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No climate zones"
-          }
-        }
-      }
-    },
-    "temperature.namedClimatePreset" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ climate preset"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ climate preset"
           }
         }
       }
@@ -5973,6 +5983,358 @@
             "value" : "Fetching fresh air-con numbers"
           }
         }
+      }
+    },
+    "widget.battery" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery"
+          }
+        }
+      }
+    },
+    "widget.costToday" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cost"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wallet"
+          }
+        }
+      }
+    },
+    "widget.earningsToday" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Earnings"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payday"
+          }
+        }
+      }
+    },
+    "widget.energyNow" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy Now"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Juice now"
+          }
+        }
+      }
+    },
+    "widget.energyUnavailable" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy data unavailable"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Juice unavailable"
+          }
+        }
+      }
+    },
+    "widget.feedInCharge" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export charge"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paying to export"
+          }
+        }
+      }
+    },
+    "widget.feedInPrice" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feed-in"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solar sell price"
+          }
+        }
+      }
+    },
+    "widget.galleryDescription" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery, energy costs and current household energy readings."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Battery, energy costs and current household energy readings."
+          }
+        }
+      }
+    },
+    "widget.galleryName" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy Now"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy Now"
+          }
+        }
+      }
+    },
+    "widget.generalPrice" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grid sting"
+          }
+        }
+      }
+    },
+    "widget.gridExport" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exporting"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flicking it back"
+          }
+        }
+      }
+    },
+    "widget.gridIdle" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grid idle"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grid's having a spell"
+          }
+        }
+      }
+    },
+    "widget.gridImport" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importing"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buying juice"
+          }
+        }
+      }
+    },
+    "widget.lastKnown" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last known"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last known"
+          }
+        }
+      }
+    },
+    "widget.minutesAgo %lld" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld min ago" } },
+        "en-AU" : { "stringUnit" : { "state" : "translated", "value" : "%lld min ago" } }
+      }
+    },
+    "widget.openBruce" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Bruce to connect"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Bruce to get the juice sorted"
+          }
+        }
+      }
+    },
+    "widget.openBruceDetails" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Bruce for details"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Bruce"
+          }
+        }
+      }
+    },
+    "widget.refreshIntentDescription" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetch the latest Energy Now readings without opening Bruce."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetch the latest Energy Now readings without opening Bruce."
+          }
+        }
+      }
+    },
+    "widget.refreshIntentTitle" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh Energy Now"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh Energy Now"
+          }
+        }
+      }
+    },
+    "widget.solar" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solar"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sun juice"
+          }
+        }
+      }
+    },
+    "widget.usage" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usage"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House guzzle"
+          }
+        }
+      }
+    },
+    "widget.upToDate" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Up to date" } },
+        "en-AU" : { "stringUnit" : { "state" : "translated", "value" : "Up to date" } }
       }
     }
   },

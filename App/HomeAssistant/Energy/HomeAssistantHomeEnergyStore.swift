@@ -15,6 +15,7 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
 
   private let loader: any HomeAssistantHomeEnergyLoading
   private let now: @Sendable () -> Date
+  private let publishWidgetSnapshot: @MainActor (HomeAssistantHomeEnergySnapshot, Date) -> Void
   private let onAuthenticationRequired: @MainActor @Sendable () -> Void
   private let progressDelay: Duration
   private let progressSleep: @Sendable (Duration) async -> Void
@@ -38,6 +39,8 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       try? await Task.sleep(for: $0)
     },
     onAuthenticationRequired: @escaping @MainActor @Sendable () -> Void = {},
+    publishWidgetSnapshot:
+      @escaping @MainActor (HomeAssistantHomeEnergySnapshot, Date) -> Void = { _, _ in },
     now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.loader = loader
@@ -70,6 +73,7 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     self.progressDelay = progressDelay
     self.progressSleep = progressSleep
     self.onAuthenticationRequired = onAuthenticationRequired
+    self.publishWidgetSnapshot = publishWidgetSnapshot
     self.now = now
     flowHistoryStore.authenticationFailureHandler = { [weak self] in
       self?.handleHistoryAuthenticationFailure()
@@ -124,6 +128,7 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
         return
       }
       self.snapshot = snapshot
+      publishWidgetSnapshot(snapshot, now())
       finishLoad(isLive: true)
     } catch is CancellationError {
       guard loadGeneration == generation else { return }
@@ -205,8 +210,9 @@ extension HomeAssistantHomeEnergyStore {
         finishLoad(isLive: false)
         return
       }
-      publishSnapshotIfChanged(snapshot)
       let timestamp = now()
+      publishSnapshotIfChanged(snapshot)
+      publishWidgetSnapshot(snapshot, timestamp)
       if needsHistoryBackfill {
         needsHistoryBackfill = false
         reloadHistory()

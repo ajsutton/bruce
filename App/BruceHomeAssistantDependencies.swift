@@ -1,5 +1,9 @@
 import Foundation
 
+#if os(iOS)
+  import WidgetKit
+#endif
+
 @MainActor
 struct BruceHomeAssistantDependencies {
   let setupStore: HomeAssistantSetupStore
@@ -19,16 +23,7 @@ struct BruceHomeAssistantDependencies {
       ),
       onAuthenticationRequired: context.requireReauthentication
     )
-    let homeEnergyStore = HomeAssistantHomeEnergyStore(
-      loader: HomeAssistantHomeEnergyStream(
-        states: context.states,
-        loader: context.apiClient,
-        dailyTotalsLoader: HomeAssistantDailyEnergyTotalsClient(
-          session: context.session
-        )
-      ),
-      onAuthenticationRequired: context.requireReauthentication
-    )
+    let homeEnergyStore = Self.homeEnergyStore(context: context)
     let garageDoorStore = HomeAssistantGarageDoorStore(
       loader: HomeAssistantGarageDoorStream(
         states: context.states,
@@ -67,8 +62,10 @@ struct BruceHomeAssistantDependencies {
     let webAuthenticationPresenter = HomeAssistantWebAuthenticationPresenter()
     let session = HomeAssistantSession(
       credentialStore: KeychainHomeAssistantCredentialStore(
-        service: "\(bundleIdentifier).home-assistant",
-        legacyService: legacyCredentialService(for: bundleIdentifier)
+        service: sharedCredentialService(for: bundleIdentifier),
+        legacyService: legacyCredentialService(for: bundleIdentifier),
+        accessGroup: sharedCredentialAccessGroup(),
+        connectionDidChange: updateWidgetConnection
       ),
       authenticationClient: authenticationClient,
       loader: loader
@@ -93,10 +90,70 @@ struct BruceHomeAssistantDependencies {
     )
   }
 
+  private static func homeEnergyStore(context: Context) -> HomeAssistantHomeEnergyStore {
+    #if os(iOS)
+      let widgetPublisher = HomeEnergyWidgetSnapshotPublisher()
+    #endif
+    return HomeAssistantHomeEnergyStore(
+      loader: HomeAssistantHomeEnergyStream(
+        states: context.states,
+        loader: context.apiClient,
+        dailyTotalsLoader: HomeAssistantDailyEnergyTotalsClient(
+          session: context.session
+        )
+      ),
+      onAuthenticationRequired: context.requireReauthentication,
+      publishWidgetSnapshot: { snapshot, capturedAt in
+        #if os(iOS)
+          widgetPublisher.publish(snapshot, capturedAt: capturedAt)
+        #endif
+      }
+    )
+  }
+
+  private static func sharedCredentialService(for bundleIdentifier: String) -> String {
+    #if os(iOS)
+      BruceSharedKeychain.credentialService
+    #else
+      "\(bundleIdentifier).home-assistant"
+    #endif
+  }
+
+  private static func sharedCredentialAccessGroup() -> String? {
+    #if os(iOS)
+      BruceSharedKeychain.accessGroup()
+    #else
+      nil
+    #endif
+  }
+
+  nonisolated private static func updateWidgetConnection(
+    _ credentials: HomeAssistantCredentials?
+  ) {
+    #if os(iOS)
+      let sourceIdentifier = credentials.map {
+        BruceSharedHomeAssistant.sourceIdentifier(
+          instanceID: $0.instanceID,
+          internalURL: $0.internalURL,
+          externalURL: $0.externalURL
+        )
+      }
+      guard BruceSharedHomeAssistant.storedSourceIdentifier() != sourceIdentifier else { return }
+      HomeEnergyWidgetSnapshotStore()?.clear()
+      BruceSharedHomeAssistant.clearWidgetRoute()
+      BruceSharedHomeAssistant.storeSourceIdentifier(sourceIdentifier)
+      WidgetCenter.shared.reloadTimelines(ofKind: EnergyWidgetKind.value)
+    #endif
+  }
+
   private static func legacyCredentialService(for bundleIdentifier: String) -> String? {
-    bundleIdentifier == "net.symphonious.bruce.debug"
-      ? "net.symphonious.bruce.home-assistant"
-      : nil
+    #if os(iOS)
+      "\(bundleIdentifier).home-assistant"
+    #else
+      bundleIdentifier == "net.symphonious.bruce.debug"
+        ? "net.symphonious.bruce.home-assistant"
+        : nil
+    #endif
   }
 
   private struct Context {

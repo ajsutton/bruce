@@ -51,11 +51,13 @@ targets:
         INFOPLIST_FILE: App/Info-iOS.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: AppIconFullBruce
+        SHARED_KEYCHAIN_ACCESS_GROUP: $(AppIdentifierPrefix)net.symphonious.bruce.shared
       configs:
         Debug:
           APP_DISPLAY_NAME: Bruce Debug
           PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.debug
-          CODE_SIGN_ENTITLEMENTS: App/Bruce-Debug.entitlements
+          CODE_SIGN_ENTITLEMENTS: App/Bruce-iOS-Debug.entitlements
+          SHARED_KEYCHAIN_ACCESS_GROUP: $(AppIdentifierPrefix)net.symphonious.bruce.debug.shared
         Testing:
           APP_DISPLAY_NAME: Bruce Tests
           PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.tests-host
@@ -63,8 +65,59 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce
           CODE_SIGN_STYLE: Manual
           CODE_SIGN_IDENTITY: Apple Distribution
-          CODE_SIGN_ENTITLEMENTS: App/Bruce.entitlements
+          CODE_SIGN_ENTITLEMENTS: App/Bruce-iOS.entitlements
           PROVISIONING_PROFILE_SPECIFIER: ${IOS_PROVISIONING_PROFILE}
+    dependencies:
+      - target: BruceEnergyWidget
+        embed: true
+
+  BruceEnergyWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widget
+        excludes:
+          - Info.plist
+          - EnergyWidget.entitlements
+          - EnergyWidget-Debug.entitlements
+      - path: App/WidgetSupport/BruceSharedContainer.swift
+        group: App/WidgetSupport
+      - path: App/WidgetSupport/BruceSharedCredentialLock.swift
+        group: App/WidgetSupport
+      - path: App/WidgetSupport/BruceSharedKeychain.swift
+        group: App/WidgetSupport
+      - path: App/WidgetSupport/BruceSharedHomeAssistant.swift
+        group: App/WidgetSupport
+      - path: App/WidgetSupport/EnergyWidgetKind.swift
+        group: App/WidgetSupport
+      - path: App/WidgetSupport/HomeEnergyWidgetSnapshot.swift
+        group: App/WidgetSupport
+      - path: App/WidgetSupport/HomeEnergyWidgetSnapshotStore.swift
+        group: App/WidgetSupport
+      - path: App/Localizable.xcstrings
+    settings:
+      base:
+        PRODUCT_NAME: BruceEnergyWidget
+        PRODUCT_MODULE_NAME: BruceEnergyWidget
+        INFOPLIST_FILE: Widget/Info.plist
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+        SHARED_KEYCHAIN_ACCESS_GROUP: $(AppIdentifierPrefix)net.symphonious.bruce.shared
+      configs:
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.debug.energy-widget
+          CODE_SIGN_ENTITLEMENTS: Widget/EnergyWidget-Debug.entitlements
+          SHARED_KEYCHAIN_ACCESS_GROUP: $(AppIdentifierPrefix)net.symphonious.bruce.debug.shared
+        Testing:
+          PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.tests-host.energy-widget
+          CODE_SIGNING_REQUIRED: NO
+          CODE_SIGNING_ALLOWED: NO
+        Release:
+          PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.energy-widget
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: Apple Distribution
+          CODE_SIGN_ENTITLEMENTS: Widget/EnergyWidget.entitlements
+          PROVISIONING_PROFILE_SPECIFIER: ${IOS_WIDGET_PROVISIONING_PROFILE}
 
   Bruce_macOS:
     type: application
@@ -136,6 +189,14 @@ targets:
         buildPhase: resources
       - path: App/Bruce-Debug.entitlements
         buildPhase: resources
+      - path: App/Bruce-iOS.entitlements
+        buildPhase: resources
+      - path: App/Bruce-iOS-Debug.entitlements
+        buildPhase: resources
+      - path: Widget/EnergyWidget.entitlements
+        buildPhase: resources
+      - path: Widget/EnergyWidget-Debug.entitlements
+        buildPhase: resources
       - path: docs/.well-known/apple-app-site-association
         buildPhase: resources
       - path: project.yml
@@ -151,6 +212,35 @@ targets:
     dependencies:
       - target: Bruce_iOS
 
+  BruceEnergyWidgetTests_iOS:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: WidgetTests
+      - path: Widget/WidgetDailyEnergyClient.swift
+      - path: Widget/WidgetHomeAssistantCredentials.swift
+      - path: Widget/WidgetHomeEnergyClient+Snapshot.swift
+      - path: Widget/WidgetHomeEnergyClient.swift
+      - path: Widget/WidgetHomeEnergyError.swift
+      - path: Widget/SourceScopedTaskCoalescer.swift
+      - path: Widget/EnergyWidgetFreshnessSchedule.swift
+      - path: App/WidgetSupport/BruceSharedKeychain.swift
+        group: App/WidgetSupport
+      - path: App/WidgetSupport/BruceSharedHomeAssistant.swift
+        group: App/WidgetSupport
+      - path: App/WidgetSupport/BruceSharedContainer.swift
+        group: App/WidgetSupport
+      - path: App/WidgetSupport/BruceSharedCredentialLock.swift
+        group: App/WidgetSupport
+      - path: App/WidgetSupport/HomeEnergyWidgetSnapshot.swift
+        group: App/WidgetSupport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.energy-widget-tests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
+
   BruceTests_macOS:
     type: bundle.unit-test
     platform: macOS
@@ -163,6 +253,14 @@ targets:
       - path: App/Bruce.entitlements
         buildPhase: resources
       - path: App/Bruce-Debug.entitlements
+        buildPhase: resources
+      - path: App/Bruce-iOS.entitlements
+        buildPhase: resources
+      - path: App/Bruce-iOS-Debug.entitlements
+        buildPhase: resources
+      - path: Widget/EnergyWidget.entitlements
+        buildPhase: resources
+      - path: Widget/EnergyWidget-Debug.entitlements
         buildPhase: resources
       - path: docs/.well-known/apple-app-site-association
         buildPhase: resources
@@ -213,6 +311,7 @@ schemes:
       config: Testing
       targets:
         - BruceTests_iOS
+        - BruceEnergyWidgetTests_iOS
 
   Bruce-macOS:
     build:

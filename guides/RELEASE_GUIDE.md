@@ -20,12 +20,16 @@ The manual setup instructions in `plans/RELEASE_AUTOMATION_PLAN.md` must be comp
 
 - Ruby 3.3 and the Bundler version locked in `Gemfile.lock` are available locally.
 - Apple identifier `net.symphonious.bruce` exists with Associated Domains enabled.
+- Widget identifier `net.symphonious.bruce.energy-widget` exists. Both iOS identifiers are
+  associated with `group.net.symphonious.bruce`, include the shared Keychain access group, and
+  have current App Store distribution profiles. After changing these capabilities, an explicitly
+  approved operator runs `bundle exec fastlane ios force_certificates` before the next release.
 - The App Store Connect Bruce record exists.
 - A team App Store Connect API key has been validated for upload, review submission, Match, and
   notarisation.
 - A dedicated private Bruce Match repository contains App Store and Developer ID signing material
-  for `net.symphonious.bruce`. Bruce must not use Moolah's Match repository, encryption password,
-  or repository credential.
+  for `net.symphonious.bruce` and `net.symphonious.bruce.energy-widget`. Bruce must not use
+  Moolah's Match repository, encryption password, or repository credential.
 - GitHub environments `rc-release` and `production-release` exist for release-secret scoping and
   do not require deployment approval.
 - The environment secrets listed in the plan exist.
@@ -123,7 +127,8 @@ tag and never replace its attested assets.
 2. Complete all App Store metadata, privacy, pricing, screenshots, review contact details, and
    review access described in the implementation plan. A reachable Home Assistant review instance
    with active temporary credentials or a fully featured demo mode must remain available throughout
-   App Review.
+   App Review. Review notes must explain how to add and refresh the Energy Now widget and identify
+   the Home Assistant energy and daily-statistics entities required to populate it.
 
 3. Run:
 

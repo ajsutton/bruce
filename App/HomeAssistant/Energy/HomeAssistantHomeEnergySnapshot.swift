@@ -37,6 +37,7 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
   let feedInEarningsCounterLastReset: Date?
   let importCostTodayStatus: HomeAssistantDailyEnergyMetricStatus
   let feedInEarningsTodayStatus: HomeAssistantDailyEnergyMetricStatus
+  let dailyEnergyInterval: DateInterval?
 
   init(
     pvPowerKilowatts: Double?,
@@ -53,7 +54,8 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
     importCostCounterLastReset: Date? = nil,
     feedInEarningsCounterLastReset: Date? = nil,
     importCostTodayStatus: HomeAssistantDailyEnergyMetricStatus = .current,
-    feedInEarningsTodayStatus: HomeAssistantDailyEnergyMetricStatus = .current
+    feedInEarningsTodayStatus: HomeAssistantDailyEnergyMetricStatus = .current,
+    dailyEnergyInterval: DateInterval? = nil
   ) {
     self.pvPowerKilowatts = pvPowerKilowatts
     self.batteryStateOfCharge = batteryStateOfCharge
@@ -70,6 +72,7 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
     self.feedInEarningsCounterLastReset = feedInEarningsCounterLastReset
     self.importCostTodayStatus = importCostTodayStatus
     self.feedInEarningsTodayStatus = feedInEarningsTodayStatus
+    self.dailyEnergyInterval = dailyEnergyInterval
   }
 
   static let unavailable = HomeAssistantHomeEnergySnapshot(
@@ -162,7 +165,8 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
       feedInEarningsCounterLastReset: feedInEarningsCounterLastReset,
       importCostTodayStatus: importStatus ?? importCostTodayStatus,
       feedInEarningsTodayStatus:
-        feedInStatus ?? feedInEarningsTodayStatus
+        feedInStatus ?? feedInEarningsTodayStatus,
+      dailyEnergyInterval: totals?.interval ?? dailyEnergyInterval
     )
   }
 

@@ -45,6 +45,21 @@ final class HomeAssistantCredentialStoreTests: XCTestCase {
     XCTAssertEqual(keychain.deleteCount, 0)
   }
 
+  func testConnectionObserverReceivesReplacementAndDisconnect() async throws {
+    let keychain = RecordingHomeAssistantKeychain()
+    let observer = CredentialConnectionObserver()
+    let store = KeychainHomeAssistantCredentialStore(
+      keychain: keychain,
+      connectionDidChange: { observer.record($0?.instanceID) }
+    )
+
+    try await store.save(credentials(accessToken: "first", instanceID: "first-home"))
+    try await store.save(credentials(accessToken: "second", instanceID: "second-home"))
+    try await store.delete()
+
+    XCTAssertEqual(observer.instanceIDs, ["first-home", "second-home", nil])
+  }
+
   func testLegacyCredentialMigratesToBundleScopedService() async throws {
     let keychain = RecordingHomeAssistantKeychain()
     let legacyStore = KeychainHomeAssistantCredentialStore(
@@ -87,10 +102,39 @@ final class HomeAssistantCredentialStoreTests: XCTestCase {
     XCTAssertNotNil(keychain.data(service: "net.symphonious.bruce.home-assistant"))
   }
 
-  private func credentials(accessToken: String) -> HomeAssistantCredentials {
+  func testUnscopedCredentialMigratesIntoTheWidgetAccessGroup() async throws {
+    let keychain = RecordingHomeAssistantKeychain()
+    let legacyService = "net.symphonious.bruce.debug.home-assistant"
+    let sharedService = "net.symphonious.bruce.shared.home-assistant"
+    let accessGroup = "TEAM.net.symphonious.bruce.debug.shared"
+    let legacyStore = KeychainHomeAssistantCredentialStore(
+      service: legacyService,
+      keychain: keychain
+    )
+    let expected = credentials(accessToken: "shared")
+    try await legacyStore.save(expected)
+    let sharedStore = KeychainHomeAssistantCredentialStore(
+      service: sharedService,
+      legacyService: legacyService,
+      accessGroup: accessGroup,
+      keychain: keychain
+    )
+
+    let migrated = try await sharedStore.load()
+
+    XCTAssertEqual(migrated, expected)
+    XCTAssertNotNil(
+      keychain.data(service: sharedService, accessGroup: accessGroup)
+    )
+  }
+
+  private func credentials(
+    accessToken: String,
+    instanceID: String = "instance"
+  ) -> HomeAssistantCredentials {
     let localURL = URL(string: "http://home.local:8123") ?? URL(fileURLWithPath: "/")
     return HomeAssistantCredentials(
-      instanceID: "instance",
+      instanceID: instanceID,
       instanceName: "Home",
       internalURL: localURL,
       externalURL: URL(string: "https://home.example.com"),
@@ -101,6 +145,17 @@ final class HomeAssistantCredentialStoreTests: XCTestCase {
       accessTokenExpiresAt: Date(timeIntervalSince1970: 1_000),
       clientID: HomeAssistantOAuthConfiguration.release.clientID
     )
+  }
+}
+
+private final class CredentialConnectionObserver: @unchecked Sendable {
+  private let lock = NSLock()
+  private var values: [String?] = []
+
+  var instanceIDs: [String?] { lock.withLock { values } }
+
+  func record(_ instanceID: String?) {
+    lock.withLock { values.append(instanceID) }
   }
 }
 
@@ -124,22 +179,29 @@ private final class RecordingHomeAssistantKeychain:
     }
   }
 
-  func data(service: String, account: String = "credentials") -> Data? {
-    lock.withLock { storedDataByKey[key(service: service, account: account)] }
+  func data(
+    service: String,
+    account: String = "credentials",
+    accessGroup: String? = nil
+  ) -> Data? {
+    lock.withLock {
+      storedDataByKey[key(service: service, account: account, accessGroup: accessGroup)]
+    }
   }
 
-  func load(service: String, account: String) throws -> Data? {
-    data(service: service, account: account)
+  func load(service: String, account: String, accessGroup: String?) throws -> Data? {
+    data(service: service, account: account, accessGroup: accessGroup)
   }
 
   func add(
     _ data: Data,
     service: String,
     account: String,
+    accessGroup: String?,
     options: HomeAssistantKeychainOptions
   ) throws {
     lock.withLock {
-      storedDataByKey[key(service: service, account: account)] = data
+      storedDataByKey[key(service: service, account: account, accessGroup: accessGroup)] = data
       addedOptions = options
     }
   }
@@ -148,22 +210,23 @@ private final class RecordingHomeAssistantKeychain:
     _ data: Data,
     service: String,
     account: String,
+    accessGroup: String?,
     options: HomeAssistantKeychainOptions
   ) throws {
     lock.withLock {
-      storedDataByKey[key(service: service, account: account)] = data
+      storedDataByKey[key(service: service, account: account, accessGroup: accessGroup)] = data
       updateCount += 1
     }
   }
 
-  func delete(service: String, account: String) throws {
+  func delete(service: String, account: String, accessGroup: String?) throws {
     lock.withLock {
-      storedDataByKey[key(service: service, account: account)] = nil
+      storedDataByKey[key(service: service, account: account, accessGroup: accessGroup)] = nil
       deleteCount += 1
     }
   }
 
-  private func key(service: String, account: String) -> String {
-    "\(service)|\(account)"
+  private func key(service: String, account: String, accessGroup: String? = nil) -> String {
+    "\(accessGroup ?? "unscoped")|\(service)|\(account)"
   }
 }
