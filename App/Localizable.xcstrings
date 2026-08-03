@@ -6037,6 +6037,7 @@
       }
     },
     "widget.energy" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6240,9 +6241,20 @@
       }
     },
     "widget.minutesAgo %lld" : {
+      "extractionState" : "stale",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld min ago" } },
-        "en-AU" : { "stringUnit" : { "state" : "translated", "value" : "%lld min ago" } }
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min ago"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min ago"
+          }
+        }
       }
     },
     "widget.openBruce" : {
@@ -6330,6 +6342,23 @@
         }
       }
     },
+    "widget.upToDate" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Up to date"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Up to date"
+          }
+        }
+      }
+    },
     "widget.usage" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -6345,12 +6374,6 @@
             "value" : "House guzzle"
           }
         }
-      }
-    },
-    "widget.upToDate" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Up to date" } },
-        "en-AU" : { "stringUnit" : { "state" : "translated", "value" : "Up to date" } }
       }
     }
   },
