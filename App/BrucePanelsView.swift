@@ -31,10 +31,6 @@ struct BrucePanelsView: View {
     )
   }
 
-  private var showsServerStatus: Bool {
-    serverStatus.phase != .idle || isConnecting || isRemovingConnection
-  }
-
   var body: some View {
     VStack(spacing: 0) {
       if let connectionBanner {
@@ -183,6 +179,7 @@ struct BrucePanelsView: View {
         }
         .scrollTargetLayout()
       }
+      .background(mode.panelBackgroundColor(for: colorScheme))
       .scrollPosition($scrollPosition, anchor: .top)
       .coordinateSpace(name: BrucePanelScrollCoordinateSpace.name)
       .onAppear {
@@ -273,6 +270,10 @@ struct BrucePanelsView: View {
 }
 
 extension BrucePanelsView {
+  private var showsServerStatus: Bool {
+    serverStatus.phase != .idle || isConnecting || isRemovingConnection
+  }
+
   fileprivate func requestScroll(to panel: BrucePanel) {
     let sourcePanel = selectedPanel
     selectedPanel = panel
