@@ -100,8 +100,8 @@ extension EVChargingReconciliationTests {
         )
       )
     )
-    await waitForValue(store.$activity, matching: .connected)
-    XCTAssertEqual(store.mode, .charging)
+    await Task.yield()
+    XCTAssertEqual(store.activity, .switchedOff)
     withExtendedLifetime(subscription) {}
     setup.connection.cancel()
     await setup.connection.value

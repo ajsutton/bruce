@@ -3,15 +3,18 @@ import Foundation
 struct HomeAssistantEVChargingSnapshot: Equatable, Sendable {
   let mode: HomeAssistantEVChargingMode
   let activity: HomeAssistantEVChargingActivity
+  let decision: HomeAssistantEVChargingDecision
   let modeLastUpdated: Date?
 
   init(
     mode: HomeAssistantEVChargingMode,
     activity: HomeAssistantEVChargingActivity,
+    decision: HomeAssistantEVChargingDecision = .unavailable,
     modeLastUpdated: Date? = nil
   ) {
     self.mode = mode
     self.activity = activity
+    self.decision = decision
     self.modeLastUpdated = modeLastUpdated
   }
 

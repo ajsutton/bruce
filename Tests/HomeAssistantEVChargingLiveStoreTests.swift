@@ -14,12 +14,12 @@ final class HomeAssistantEVChargingLiveStoreTests: XCTestCase {
     }
     await fulfillment(of: [client.started], timeout: 1)
 
-    client.yield(.live(.init(mode: .smart, activity: .charging(powerWatts: 7_100))))
+    client.yield(.live(snapshot(activity: .charging(powerWatts: 7_100))))
     await waitForValue(store.$activity, matching: .charging(powerWatts: 7_100))
-    client.yield(.live(.init(mode: .smart, activity: .charging(powerWatts: 7_024))))
+    client.yield(.live(snapshot(activity: .charging(powerWatts: 7_024))))
     await waitForValue(store.$activity, matching: .charging(powerWatts: 7_024))
     client.yield(
-      .reconnecting(.init(mode: .smart, activity: .charging(powerWatts: 7_024)))
+      .reconnecting(snapshot(activity: .charging(powerWatts: 7_024)))
     )
     await waitForValue(store.$problem.compactMap(\.self), matching: .reconnecting)
 
@@ -27,6 +27,8 @@ final class HomeAssistantEVChargingLiveStoreTests: XCTestCase {
     XCTAssertEqual(store.activity, .charging(powerWatts: 7_024))
     XCTAssertFalse(store.isLive)
     XCTAssertFalse(store.isActivityLive)
+    XCTAssertFalse(store.isDecisionLive)
+    XCTAssertEqual(store.decision, decision(desired: true))
     XCTAssertFalse(store.showsProgress)
 
     client.yield(.live(.init(mode: .charging, activity: .charging(powerWatts: 7_100))))
@@ -34,6 +36,7 @@ final class HomeAssistantEVChargingLiveStoreTests: XCTestCase {
     XCTAssertEqual(store.mode, .charging)
     XCTAssertEqual(store.activity, .charging(powerWatts: 7_100))
     XCTAssertTrue(store.isActivityLive)
+    XCTAssertTrue(store.isDecisionLive)
     XCTAssertNil(store.problem)
     XCTAssertFalse(store.showsProgress)
     connection.cancel()
@@ -69,19 +72,10 @@ final class HomeAssistantEVChargingLiveStoreTests: XCTestCase {
     XCTAssertFalse(store.showsProgress)
     client.succeedSet(with: .charging)
     await change.value
-    client.yield(.live(.init(mode: .off, activity: .charging(powerWatts: 6_900))))
-    await waitForValue(
-      store.$activity,
-      matching: .charging(powerWatts: 6_900)
-    )
-    client.yield(.live(.init(mode: .off, activity: .charging(powerWatts: 7_000))))
-    await waitForValue(
-      store.$activity,
-      matching: .charging(powerWatts: 7_000)
-    )
     XCTAssertEqual(store.mode, .charging)
-    XCTAssertEqual(store.activity, .charging(powerWatts: 7_000))
+    XCTAssertEqual(store.activity, .charging(powerWatts: 6_800))
     XCTAssertTrue(store.isActivityLive)
+    XCTAssertFalse(store.isDecisionLive)
     XCTAssertFalse(store.showsProgress)
     connection.cancel()
     await connection.value
@@ -114,27 +108,80 @@ final class HomeAssistantEVChargingLiveStoreTests: XCTestCase {
         .init(
           mode: .smart,
           activity: .charging(powerWatts: 7_000),
+          decision: decision(desired: true),
           modeLastUpdated: Date(timeIntervalSince1970: 102)
         )
       )
     )
     await waitForValue(store.$activity, matching: .charging(powerWatts: 7_000))
-    client.yield(
-      .live(
-        .init(
-          mode: .off,
-          activity: .connected,
-          modeLastUpdated: Date(timeIntervalSince1970: 101)
-        )
-      )
-    )
-    await waitForValue(store.$activity, matching: .connected)
     client.succeedSet(with: .charging)
     await change.value
 
     XCTAssertEqual(store.mode, .smart)
     XCTAssertTrue(store.isLive)
+    XCTAssertTrue(store.isDecisionLive)
+    XCTAssertEqual(store.decision, decision(desired: true))
     connection.cancel()
+    await connection.value
+  }
+
+  func testAcceptedInFlightDecisionBecomesLiveWhenModeChangeCompletes() async {
+    let client = StreamingEVChargingClient()
+    let store = HomeAssistantEVChargingStore(client: client)
+    let connection = Task {
+      await store.synchronize(with: .connected(credentials))
+    }
+    await fulfillment(of: [client.started], timeout: 1)
+    client.yield(.live(.init(mode: .off, activity: .connected)))
+    await waitForValue(store.$mode.compactMap(\.self), matching: .off)
+
+    let change = Task { await store.selectMode(.charging) }
+    await fulfillment(of: [client.setStarted], timeout: 1)
+    client.yield(
+      .live(
+        .init(
+          mode: .charging,
+          activity: .charging(powerWatts: 6_900),
+          decision: decision(desired: true)
+        )
+      )
+    )
+    await waitForValue(store.$activity, matching: .charging(powerWatts: 6_900))
+    XCTAssertFalse(store.isDecisionLive)
+    client.succeedSet(with: .charging)
+    await change.value
+    XCTAssertTrue(store.isDecisionLive)
+    XCTAssertEqual(store.decision, decision(desired: true))
+    connection.cancel()
+    await connection.value
+  }
+
+}
+
+extension HomeAssistantEVChargingLiveStoreTests {
+  func testFinishedStreamRetainsDecisionWithoutClaimingItIsLive() async {
+    let client = StreamingEVChargingClient()
+    let store = HomeAssistantEVChargingStore(client: client)
+    let connection = Task {
+      await store.synchronize(with: .connected(credentials))
+    }
+    await fulfillment(of: [client.started], timeout: 1)
+    client.yield(
+      .live(
+        .init(
+          mode: .smart,
+          activity: .connected,
+          decision: decision(desired: true)
+        )
+      )
+    )
+    await waitForValue(store.$isDecisionLive, matching: true)
+
+    client.finishUpdates()
+    await waitForValue(store.$problem.compactMap(\.self), matching: .connectionUnavailable)
+
+    XCTAssertEqual(store.decision, decision(desired: true))
+    XCTAssertFalse(store.isDecisionLive)
     await connection.value
   }
 
@@ -152,17 +199,35 @@ final class HomeAssistantEVChargingLiveStoreTests: XCTestCase {
       await store.selectMode(.charging)
     }
     await fulfillment(of: [client.setStarted], timeout: 1)
-    client.yield(.live(.init(mode: .charging, activity: .charging(powerWatts: 7_000))))
+    client.yield(
+      .live(
+        .init(
+          mode: .charging,
+          activity: .charging(powerWatts: 7_000),
+          decision: decision(desired: true)
+        )
+      )
+    )
     await waitForValue(
       store.$activity,
       matching: .charging(powerWatts: 7_000)
     )
     client.succeedSet(with: .charging)
     await change.value
-    client.yield(.live(.init(mode: .smart, activity: .connected)))
+    client.yield(
+      .live(
+        .init(
+          mode: .smart,
+          activity: .connected,
+          decision: decision(desired: false)
+        )
+      )
+    )
     await waitForValue(store.$mode.compactMap(\.self), matching: .smart)
 
     XCTAssertEqual(store.mode, .smart)
+    XCTAssertEqual(store.activity, .connected)
+    XCTAssertEqual(store.decision, decision(desired: false))
     XCTAssertTrue(store.isLive)
     connection.cancel()
     await connection.value
@@ -210,6 +275,7 @@ final class HomeAssistantEVChargingLiveStoreTests: XCTestCase {
     await fulfillment(of: [client.setStarted], timeout: 1)
     client.succeedSet(with: .charging)
     await change.value
+    XCTAssertFalse(store.isDecisionLive)
     client.yield(.reconnecting(.init(mode: .off, activity: .connected)))
     await waitForValue(store.$problem.compactMap(\.self), matching: .reconnecting)
     XCTAssertEqual(store.mode, .charging)
@@ -219,6 +285,7 @@ final class HomeAssistantEVChargingLiveStoreTests: XCTestCase {
     XCTAssertEqual(store.mode, .charging)
     XCTAssertFalse(store.isLive)
     XCTAssertFalse(store.isActivityLive)
+    XCTAssertFalse(store.isDecisionLive)
     connection.cancel()
     await connection.value
   }
@@ -245,6 +312,7 @@ final class HomeAssistantEVChargingLiveStoreTests: XCTestCase {
     XCTAssertEqual(store.mode, .charging)
     XCTAssertFalse(store.isLive)
     XCTAssertFalse(store.isActivityLive)
+    XCTAssertFalse(store.isDecisionLive)
     XCTAssertFalse(store.canSelectMode)
     XCTAssertEqual(store.problem, .reconnecting)
     connection.cancel()
@@ -278,111 +346,5 @@ final class HomeAssistantEVChargingLiveStoreTests: XCTestCase {
       clientID: HomeAssistantOAuthConfiguration.release.clientID
     )
   }
-}
 
-final class StreamingEVChargingClient:
-  HomeAssistantEVCharging, @unchecked Sendable
-{
-  let providesContinuousUpdates = true
-
-  let started = XCTestExpectation(description: "EV charging stream started")
-  let setStarted = XCTestExpectation(description: "EV charging mode change started")
-  let loadStarted = XCTestExpectation(description: "EV charging reconciliation started")
-
-  private let lock = NSLock()
-  private var continuation:
-    AsyncThrowingStream<
-      HomeAssistantEVChargingUpdate, any Error
-    >.Continuation?
-  private var setContinuation: CheckedContinuation<HomeAssistantEVChargingMode, any Error>?
-  private var loadContinuation: CheckedContinuation<HomeAssistantEVChargingSnapshot, any Error>?
-  private var nextStreamStart: XCTestExpectation?
-
-  func evChargingUpdates() -> AsyncThrowingStream<
-    HomeAssistantEVChargingUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
-      let nextStreamStart = lock.withLock {
-        self.continuation = continuation
-        let expectation = self.nextStreamStart
-        self.nextStreamStart = nil
-        return expectation
-      }
-      started.fulfill()
-      nextStreamStart?.fulfill()
-    }
-  }
-
-  func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {
-    throw StreamingEVChargingError.unexpectedRequest
-  }
-
-  func loadEVChargingSnapshot() async throws -> HomeAssistantEVChargingSnapshot {
-    loadStarted.fulfill()
-    return try await withCheckedThrowingContinuation { continuation in
-      lock.withLock {
-        loadContinuation = continuation
-      }
-    }
-  }
-
-  func setEVChargingMode(
-    _ mode: HomeAssistantEVChargingMode
-  ) async throws -> HomeAssistantEVChargingMode {
-    setStarted.fulfill()
-    return try await withCheckedThrowingContinuation { continuation in
-      lock.withLock {
-        setContinuation = continuation
-      }
-    }
-  }
-
-  func yield(_ update: HomeAssistantEVChargingUpdate) {
-    let continuation = lock.withLock { self.continuation }
-    continuation?.yield(update)
-  }
-
-  func finishUpdates() {
-    let continuation = lock.withLock { self.continuation }
-    continuation?.finish()
-  }
-
-  func expectNextStreamStart() -> XCTestExpectation {
-    let expectation = XCTestExpectation(description: "EV charging stream restarted")
-    lock.withLock {
-      nextStreamStart = expectation
-    }
-    return expectation
-  }
-
-  func succeedSet(with mode: HomeAssistantEVChargingMode) {
-    let continuation = lock.withLock {
-      let continuation = setContinuation
-      setContinuation = nil
-      return continuation
-    }
-    continuation?.resume(returning: mode)
-  }
-
-  func failSet() {
-    let continuation = lock.withLock {
-      let continuation = setContinuation
-      setContinuation = nil
-      return continuation
-    }
-    continuation?.resume(throwing: StreamingEVChargingError.unexpectedRequest)
-  }
-
-  func succeedLoad(with snapshot: HomeAssistantEVChargingSnapshot) {
-    let continuation = lock.withLock {
-      let continuation = loadContinuation
-      loadContinuation = nil
-      return continuation
-    }
-    continuation?.resume(returning: snapshot)
-  }
-}
-
-private enum StreamingEVChargingError: Error {
-  case unexpectedRequest
 }

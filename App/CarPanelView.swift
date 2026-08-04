@@ -222,7 +222,8 @@ struct CarPanelView: View {
     chargingStore: HomeAssistantEVChargingStore(
       client: PreviewCarEVChargingClient(),
       mode: .smart,
-      activity: .connected
+      activity: .connected,
+      decision: .preview
     ),
     garageDoorStore: HomeAssistantGarageDoorStore(
       loader: PreviewGarageDoorLoader(),
@@ -297,7 +298,8 @@ struct CarPanelView: View {
     chargingStore: HomeAssistantEVChargingStore(
       client: PreviewCarEVChargingClient(),
       mode: .smart,
-      activity: .connected
+      activity: .connected,
+      decision: .preview
     ),
     garageDoorStore: HomeAssistantGarageDoorStore(
       loader: PreviewGarageDoorLoader(),
@@ -320,6 +322,16 @@ private struct PreviewCarEVChargingClient: HomeAssistantEVCharging {
   ) async throws -> HomeAssistantEVChargingMode {
     mode
   }
+}
+
+extension HomeAssistantEVChargingDecision {
+  fileprivate static let preview = HomeAssistantEVChargingDecision(
+    isChargingDesired: false,
+    overnightSafeChargingMinutes: 108,
+    priceAllowsCharging: true,
+    currentPriceDollarsPerKilowattHour: 0.24,
+    batteryStateOfCharge: 78
+  )
 }
 
 private struct PreviewGarageDoorLoader: HomeAssistantGarageDoorLoading {

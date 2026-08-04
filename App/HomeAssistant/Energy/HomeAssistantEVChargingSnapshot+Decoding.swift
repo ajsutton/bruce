@@ -20,6 +20,7 @@ extension HomeAssistantEVChargingSnapshot {
         mode: mode,
         sourceState: Self.sourceState(in: states)
       ),
+      decision: HomeAssistantEVChargingDecision(states: states),
       modeLastUpdated: modeLastUpdated
     )
   }
@@ -69,15 +70,7 @@ extension HomeAssistantEVChargingSnapshot {
     return EVChargingSourceState(
       powerWatts: chargingPower(in: states, plugEntity: plugEntity),
       plugState: plugEntity?.state,
-      chargerState: chargerState,
-      batteryAllowsCharging: uniqueState(in: states) {
-        $0.entityID.hasPrefix("input_boolean.")
-          && matches($0, terms: ["battery", "allows", "charging"])
-      }?.state,
-      priceAllowsCharging: uniqueState(in: states) {
-        $0.entityID.hasPrefix("input_boolean.")
-          && matches($0, terms: ["price", "allows", "charging"])
-      }?.state
+      chargerState: chargerState
     )
   }
 
@@ -166,12 +159,6 @@ extension HomeAssistantEVChargingSnapshot {
     if sourceState.chargerState == "Completed" {
       return .complete
     }
-    if sourceState.priceAllowsCharging == "off" {
-      return .paused(reason: .electricityPrice)
-    }
-    if mode == .smart, sourceState.batteryAllowsCharging == "off" {
-      return .paused(reason: .homeBattery)
-    }
     if sourceState.plugState == "Waiting for EV" {
       return .waitingForVehicle
     }
@@ -189,6 +176,4 @@ private struct EVChargingSourceState {
   let powerWatts: Double?
   let plugState: String?
   let chargerState: String?
-  let batteryAllowsCharging: String?
-  let priceAllowsCharging: String?
 }

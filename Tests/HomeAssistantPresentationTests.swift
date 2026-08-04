@@ -110,6 +110,76 @@ final class HomeAssistantPresentationTests: XCTestCase {
     )
   }
 
+  func testChargingDecisionFormatsCompactHeaderMetrics() {
+    let presentation = chargingDecisionPresentation(
+      desired: true,
+      safeMinutes: 108,
+      batteryStateOfCharge: 78,
+      hour: 10
+    )
+
+    XCTAssertEqual(presentation.intent, .allowed)
+    XCTAssertEqual(presentation.safeChargingTime, "1h48m")
+    XCTAssertEqual(
+      presentation.safeChargingTimeAccessibility,
+      "1 hour, 48 minutes"
+    )
+    XCTAssertEqual(presentation.batteryStateOfCharge, "78%")
+    XCTAssertEqual(presentation.batteryIcon, "battery.75percent")
+  }
+
+  func testChargingDecisionShowsPriceAsTheImmediateSmartChargingBlocker() {
+    let presentation = chargingDecisionPresentation(
+      desired: false,
+      priceAllowsCharging: false,
+      price: 0.42,
+      hour: 17
+    )
+
+    XCTAssertEqual(presentation.explanation, "Price too high · 42¢/kWh")
+  }
+
+  func testChargingDecisionExplainsPriceHysteresis() {
+    let presentation = chargingDecisionPresentation(
+      desired: false,
+      priceAllowsCharging: false,
+      price: 0.37,
+      hour: 10
+    )
+
+    XCTAssertEqual(
+      presentation.explanation,
+      "Waiting for price below 35¢/kWh · now 37¢/kWh"
+    )
+  }
+
+  func testChargingDecisionExplainsDaytimeBatteryRestartThreshold() {
+    let presentation = chargingDecisionPresentation(
+      desired: false,
+      batteryStateOfCharge: 24,
+      hour: 10
+    )
+
+    XCTAssertEqual(
+      presentation.explanation,
+      "Waiting for home battery above 25% · now 24%"
+    )
+  }
+
+  func testChargingDecisionExplainsOvernightWait() {
+    let presentation = chargingDecisionPresentation(
+      desired: false,
+      safeMinutes: 48,
+      batteryStateOfCharge: 78,
+      hour: 22
+    )
+
+    XCTAssertEqual(
+      presentation.explanation,
+      "Waiting for the safe overnight start"
+    )
+  }
+
   private func makePresentation(
     step: HomeAssistantSetupStore.Step,
     state: HomeAssistantSetupStore.ConnectionCheckState = .idle
@@ -117,6 +187,36 @@ final class HomeAssistantPresentationTests: XCTestCase {
     HomeAssistantPresentation(
       step: step,
       connectionCheckState: state
+    )
+  }
+
+  private func chargingDecisionPresentation(
+    desired: Bool,
+    safeMinutes: Double? = 108,
+    priceAllowsCharging: Bool = true,
+    price: Double = 0.24,
+    batteryStateOfCharge: Double? = 78,
+    hour: Int
+  ) -> EVChargingDecisionPresentation {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+    let date =
+      calendar.date(
+        from: DateComponents(year: 2026, month: 8, day: 4, hour: hour)
+      ) ?? Date(timeIntervalSince1970: 0)
+    return EVChargingDecisionPresentation(
+      decision: HomeAssistantEVChargingDecision(
+        isChargingDesired: desired,
+        overnightSafeChargingMinutes: safeMinutes,
+        priceAllowsCharging: priceAllowsCharging,
+        currentPriceDollarsPerKilowattHour: price,
+        batteryStateOfCharge: batteryStateOfCharge
+      ),
+      chargingMode: .smart,
+      mode: .standard,
+      date: date,
+      calendar: calendar,
+      locale: Locale(identifier: "en_AU")
     )
   }
 

@@ -4,8 +4,10 @@ extension HomeAssistantEVChargingLiveSubscription.CurrentPresentation {
     self.init(
       mode: store.mode,
       activity: store.activity,
+      decision: store.decision,
       isLive: store.isLive,
-      isActivityLive: store.isActivityLive
+      isActivityLive: store.isActivityLive,
+      isDecisionLive: store.isDecisionLive
     )
   }
 }

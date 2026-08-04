@@ -33,7 +33,9 @@ struct HomeAssistantEVChargingCard: View {
 
       HomeAssistantEVOperationalStatusView(
         activity: store.activity,
-        isLive: store.isActivityLive,
+        decisionPresentation: decisionPresentation,
+        isActivityLive: store.isActivityLive,
+        isDecisionLive: decisionIsLive,
         isLoading: store.isLoading,
         isRefreshing: store.isRefreshing,
         mode: mode
@@ -125,8 +127,9 @@ struct HomeAssistantEVChargingCard: View {
       HStack(spacing: 12) {
         chargerIcon
         chargerDescription
-        Spacer()
-        progress
+        if store.showsProgress {
+          progress
+        }
       }
     }
   }
@@ -139,17 +142,6 @@ struct HomeAssistantEVChargingCard: View {
       .background(iconBackground, in: RoundedRectangle(cornerRadius: 12))
       .contentTransition(.symbolEffect(.replace))
       .accessibilityHidden(true)
-  }
-
-  private var chargerDescription: some View {
-    VStack(alignment: .leading, spacing: 2) {
-      Text(copy.carCharger)
-        .font(.headline)
-        .foregroundStyle(primaryForeground)
-      Text(status)
-        .font(.subheadline)
-        .foregroundStyle(secondaryForeground)
-    }
   }
 
   @ViewBuilder
@@ -215,6 +207,132 @@ struct HomeAssistantEVChargingCard: View {
 }
 
 extension HomeAssistantEVChargingCard {
+  private var chargerDescription: some View {
+    VStack(alignment: .leading, spacing: 2) {
+      if dynamicTypeSize.isAccessibilitySize {
+        VStack(alignment: .leading, spacing: 6) {
+          chargerTitle
+          decisionMetrics
+        }
+      } else {
+        HStack(spacing: 8) {
+          chargerTitle
+            .fixedSize(horizontal: true, vertical: false)
+          Spacer(minLength: 0)
+          decisionMetrics
+            .fixedSize()
+        }
+      }
+      Text(status)
+        .font(.subheadline)
+        .foregroundStyle(secondaryForeground)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private var chargerTitle: some View {
+    Text(copy.carCharger)
+      .font(.headline)
+      .foregroundStyle(primaryForeground)
+  }
+
+  private var decisionMetrics: some View {
+    HStack(spacing: 10) {
+      Image(systemName: displayedIntent.icon)
+        .foregroundStyle(intentColor)
+        .accessibilityLabel(intentAccessibilityLabel)
+
+      HStack(spacing: 3) {
+        Image(systemName: "moon.stars")
+          .accessibilityHidden(true)
+        Text(displayedSafeChargingTime)
+          .monospacedDigit()
+      }
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(copy.safeOvernightChargingTime)
+      .accessibilityValue(
+        metricAccessibilityValue(decisionPresentation.safeChargingTimeAccessibility)
+      )
+
+      HStack(spacing: 3) {
+        Image(systemName: displayedBatteryIcon)
+          .accessibilityHidden(true)
+        Text(displayedBatteryStateOfCharge)
+          .monospacedDigit()
+      }
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(copy.homeBattery)
+      .accessibilityValue(
+        metricAccessibilityValue(decisionPresentation.batteryStateOfCharge)
+      )
+
+      ZStack {
+        Image(systemName: "clock")
+          .opacity(!decisionIsLive && !decisionIsUpdating ? 1 : 0)
+        Image(systemName: "arrow.clockwise")
+          .opacity(!decisionIsLive && decisionIsUpdating ? 1 : 0)
+      }
+      .frame(width: 12)
+      .accessibilityHidden(true)
+    }
+    .font(.caption.weight(.medium))
+    .foregroundStyle(secondaryForeground)
+  }
+
+  private var decisionPresentation: EVChargingDecisionPresentation {
+    EVChargingDecisionPresentation(
+      decision: store.decision,
+      chargingMode: store.mode ?? .off,
+      mode: mode
+    )
+  }
+
+  private var intentColor: Color {
+    decisionIsLive && decisionPresentation.intent == .allowed ? .green : .secondary
+  }
+
+  private var displayedIntent: EVChargingDecisionPresentation.Intent { decisionPresentation.intent }
+
+  private var displayedSafeChargingTime: String {
+    store.decision.overnightSafeChargingMinutes == nil
+      ? "—" : decisionPresentation.safeChargingTime
+  }
+
+  private var displayedBatteryStateOfCharge: String {
+    store.decision.batteryStateOfCharge == nil
+      ? "—" : decisionPresentation.batteryStateOfCharge
+  }
+
+  private var displayedBatteryIcon: String {
+    decisionPresentation.batteryIcon
+  }
+
+  private var decisionIsLive: Bool {
+    store.isDecisionLive && !store.isChanging && !store.isRefreshing
+  }
+
+  private var intentAccessibilityLabel: String {
+    let value =
+      switch decisionPresentation.intent {
+      case .allowed: copy.chargingAllowed
+      case .held: copy.chargingHeld
+      case .unavailable: copy.chargingDecisionUnavailable
+      }
+    guard decisionPresentation.intent != .unavailable else { return value }
+    guard !decisionIsLive else { return value }
+    return decisionIsUpdating ? copy.updating(lastKnown: value) : copy.lastKnown(value)
+  }
+
+  private func metricAccessibilityValue(_ value: String) -> String {
+    guard value != copy.unavailable else { return value }
+    guard !decisionIsLive else { return value }
+    return decisionIsUpdating ? copy.updating(lastKnown: value) : copy.lastKnown(value)
+  }
+
+  private var decisionIsUpdating: Bool {
+    store.isLoading || store.isRefreshing || store.isChanging
+  }
+
   private var primaryForeground: AnyShapeStyle {
     mode.isFullBruce ? AnyShapeStyle(Color.white) : AnyShapeStyle(.primary)
   }

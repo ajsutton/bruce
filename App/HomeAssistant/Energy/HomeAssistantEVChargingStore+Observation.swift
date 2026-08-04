@@ -17,7 +17,9 @@ extension HomeAssistantEVChargingStore {
     if preservesRefreshPresentation {
       isLoading = false
     } else {
-      (isLoading, isLive, isActivityLive, problem) = (true, false, false, nil)
+      (isLoading, isLive, isActivityLive, isDecisionLive, problem) = (
+        true, false, false, false, nil
+      )
       isRefreshing = false
     }
     finishProgress()
@@ -63,9 +65,13 @@ extension HomeAssistantEVChargingStore {
 
   var hasCompletedDiscovery: Bool { liveSubscription.hasCompletedDiscovery }
 
-  func finishLoad(isLive: Bool, activityIsLive: Bool = false) {
-    (isLoading, self.isLive, isActivityLive, isRefreshing) = (
-      false, isLive, activityIsLive, false
+  func finishLoad(
+    isLive: Bool,
+    activityIsLive: Bool = false,
+    decisionIsLive: Bool = false
+  ) {
+    (isLoading, self.isLive, isActivityLive, isDecisionLive, isRefreshing) = (
+      false, isLive, activityIsLive, decisionIsLive, false
     )
     finishProgress()
   }
@@ -78,9 +84,14 @@ extension HomeAssistantEVChargingStore {
   private func apply(
     _ presentation: HomeAssistantEVChargingLiveSubscription.Presentation
   ) {
-    (mode, activity) = (presentation.mode, presentation.activity)
-    (isLoading, isLive, isActivityLive) = (
-      false, presentation.isLive, presentation.isActivityLive
+    (mode, activity, decision) = (
+      presentation.mode, presentation.activity, presentation.decision
+    )
+    (isLoading, isLive, isActivityLive, isDecisionLive) = (
+      false,
+      presentation.isLive,
+      presentation.isActivityLive,
+      presentation.isDecisionLive
     )
     isRefreshing = presentation.isRefreshing
     problem = presentation.problem
@@ -89,7 +100,9 @@ extension HomeAssistantEVChargingStore {
 
   private func finishSubscription(problem: Problem) {
     liveSubscription.finish()
-    (isLoading, isLive, isActivityLive, isRefreshing) = (false, false, false, false)
+    (isLoading, isLive, isActivityLive, isDecisionLive, isRefreshing) = (
+      false, false, false, false, false
+    )
     self.problem = problem
     if problem == .signInRequired { onAuthenticationRequired() }
     if !isChanging { finishProgress() }

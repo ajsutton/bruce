@@ -2,45 +2,15 @@ import Foundation
 
 @MainActor
 final class HomeAssistantEVChargingLiveSubscription {
-  enum Event {
-    case progress
-    case update(HomeAssistantEVChargingUpdate)
-    case finished
-    case failed(any Error)
-  }
-
-  struct Presentation {
-    let mode: HomeAssistantEVChargingMode?
-    let activity: HomeAssistantEVChargingActivity
-    let isLive: Bool
-    let isActivityLive: Bool
-    let isRefreshing: Bool
-    let problem: HomeAssistantEVChargingStore.Problem?
-    let finishesProgress: Bool
-  }
-
-  struct ModeConfirmation {
-    let mode: HomeAssistantEVChargingMode
-    let isLive: Bool
-    let isActivityLive: Bool
-  }
-
-  struct CurrentPresentation {
-    let mode: HomeAssistantEVChargingMode?
-    let activity: HomeAssistantEVChargingActivity
-    let isLive: Bool
-    let isActivityLive: Bool
-  }
-
   private let client: any HomeAssistantEVCharging
   private let progressDelay: Duration
   private let sleep: @Sendable (Duration) async -> Void
-  private(set) var revision = 0
-  private(set) var isLive = false
+  private(set) var revision = 0, isLive = false
   private(set) var hasCompletedDiscovery: Bool
-  private var hasReceivedSnapshot = false
-  private var receivedLiveActivityDuringModeChange = false
+  private var hasReceivedSnapshot = false, receivedLiveActivityDuringModeChange = false
   private var liveModeDuringModeChange: HomeAssistantEVChargingMode?
+  private var liveDecisionDuringModeChange: HomeAssistantEVChargingDecision?
+  private var liveActivityDuringModeChange: HomeAssistantEVChargingActivity?
   private var liveModeTimestampDuringModeChange: Date?
   private var modeTimestampAtChange: Date?
   private var latestModeTimestamp: Date?
@@ -112,6 +82,8 @@ final class HomeAssistantEVChargingLiveSubscription {
   func beginModeChange() {
     receivedLiveActivityDuringModeChange = false
     liveModeDuringModeChange = nil
+    liveDecisionDuringModeChange = nil
+    liveActivityDuringModeChange = nil
     liveModeTimestampDuringModeChange = nil
     modeTimestampAtChange = latestModeTimestamp
   }
@@ -120,6 +92,7 @@ final class HomeAssistantEVChargingLiveSubscription {
     _ confirmedMode: HomeAssistantEVChargingMode,
     previousMode: HomeAssistantEVChargingMode?,
     activity: HomeAssistantEVChargingActivity,
+    decision: HomeAssistantEVChargingDecision,
     wasLive: Bool
   ) -> ModeConfirmation {
     let receivedNewerLiveMode =
@@ -135,8 +108,13 @@ final class HomeAssistantEVChargingLiveSubscription {
       receivedNewerLiveMode
       ? liveModeDuringModeChange ?? confirmedMode
       : confirmedMode
+    let matchingLiveModeConfirmed =
+      liveModeDuringModeChange == confirmedMode
+      && (liveModeTimestampDuringModeChange == nil
+        || modeTimestampAtChange == nil
+        || isNewerThanModeAtChange(liveModeTimestampDuringModeChange))
     let confirmedBeforeRequestCompleted =
-      receivedNewerLiveMode || liveModeDuringModeChange == confirmedMode
+      receivedNewerLiveMode || matchingLiveModeConfirmed
     confirmedModeAwaitingLiveUpdate =
       confirmedBeforeRequestCompleted ? nil : confirmedMode
     staleModeAwaitingLiveUpdate =
@@ -144,10 +122,14 @@ final class HomeAssistantEVChargingLiveSubscription {
     isLive = isLive || wasLive
     return ModeConfirmation(
       mode: resolvedMode,
+      decision: confirmedBeforeRequestCompleted
+        ? liveDecisionDuringModeChange ?? decision
+        : decision,
       isLive: isLive,
       isActivityLive: isLive
         && receivedLiveActivityDuringModeChange
-        && activity != .unavailable
+        && activity != .unavailable,
+      isDecisionLive: isLive && confirmedBeforeRequestCompleted
     )
   }
 
@@ -163,7 +145,7 @@ final class HomeAssistantEVChargingLiveSubscription {
     case .live(let snapshot):
       return livePresentation(
         snapshot,
-        currentMode: current.mode,
+        current: current,
         isChanging: isChanging
       )
     case .refreshing:
@@ -172,8 +154,10 @@ final class HomeAssistantEVChargingLiveSubscription {
       return Presentation(
         mode: current.mode,
         activity: current.activity,
+        decision: current.decision,
         isLive: false,
         isActivityLive: false,
+        isDecisionLive: false,
         isRefreshing: true,
         problem: nil,
         finishesProgress: true
@@ -184,6 +168,7 @@ final class HomeAssistantEVChargingLiveSubscription {
       return stalePresentation(
         snapshot: snapshot,
         currentMode: current.mode,
+        currentDecision: current.decision,
         problem: .reconnecting,
         isChanging: isChanging
       )
@@ -194,6 +179,7 @@ final class HomeAssistantEVChargingLiveSubscription {
         snapshot: snapshot,
         currentMode: current.mode,
         currentActivity: current.activity,
+        currentDecision: current.decision,
         problem: .invalidResponse,
         isChanging: isChanging
       )
@@ -208,8 +194,10 @@ final class HomeAssistantEVChargingLiveSubscription {
     return Presentation(
       mode: nil,
       activity: .unavailable,
+      decision: .unavailable,
       isLive: false,
       isActivityLive: false,
+      isDecisionLive: false,
       isRefreshing: false,
       problem: nil,
       finishesProgress: true
@@ -227,23 +215,29 @@ final class HomeAssistantEVChargingLiveSubscription {
 extension HomeAssistantEVChargingLiveSubscription {
   private func livePresentation(
     _ snapshot: HomeAssistantEVChargingSnapshot,
-    currentMode: HomeAssistantEVChargingMode?,
+    current: CurrentPresentation,
     isChanging: Bool
   ) -> Presentation {
     isLive = true
     hasReceivedSnapshot = true
     hasCompletedDiscovery = true
-    let nextMode = liveMode(
-      snapshot.mode,
-      timestamp: snapshot.modeLastUpdated,
-      currentMode: currentMode,
+    let resolution = liveMode(
+      snapshot,
+      currentMode: current.mode,
       isChanging: isChanging
     )
     return Presentation(
-      mode: nextMode,
-      activity: snapshot.activity,
+      mode: resolution.mode,
+      activity: resolution.accepted
+        ? (isChanging ? liveActivityDuringModeChange ?? snapshot.activity : snapshot.activity)
+        : current.activity,
+      decision: resolution.accepted
+        ? (isChanging ? liveDecisionDuringModeChange ?? snapshot.decision : snapshot.decision)
+        : current.decision,
       isLive: true,
-      isActivityLive: snapshot.activity != .unavailable,
+      isActivityLive: resolution.accepted
+        ? snapshot.activity != .unavailable : current.isActivityLive,
+      isDecisionLive: resolution.accepted ? !isChanging : current.isDecisionLive,
       isRefreshing: false,
       problem: nil,
       finishesProgress: !isChanging
@@ -251,46 +245,51 @@ extension HomeAssistantEVChargingLiveSubscription {
   }
 
   private func liveMode(
-    _ liveMode: HomeAssistantEVChargingMode,
-    timestamp: Date?,
+    _ snapshot: HomeAssistantEVChargingSnapshot,
     currentMode: HomeAssistantEVChargingMode?,
     isChanging: Bool
-  ) -> HomeAssistantEVChargingMode? {
+  ) -> (mode: HomeAssistantEVChargingMode?, accepted: Bool) {
+    let liveMode = snapshot.mode
+    let timestamp = snapshot.modeLastUpdated
     if !isChanging, let latestModeTimestamp {
       guard let timestamp, timestamp >= latestModeTimestamp else {
-        return currentMode
+        return (currentMode, false)
       }
     }
     if let timestamp {
       latestModeTimestamp = max(latestModeTimestamp ?? timestamp, timestamp)
     }
     if isChanging {
-      receivedLiveActivityDuringModeChange = true
-      if shouldRetainModeChangeUpdate(timestamp: timestamp) {
+      let accepted = shouldRetainModeChangeUpdate(timestamp: timestamp)
+      if accepted {
+        receivedLiveActivityDuringModeChange = true
         liveModeDuringModeChange = liveMode
+        liveActivityDuringModeChange = snapshot.activity
+        liveDecisionDuringModeChange = snapshot.decision
         liveModeTimestampDuringModeChange = timestamp
       }
-      return currentMode
+      return (currentMode, accepted)
     }
     if liveMode == confirmedModeAwaitingLiveUpdate {
       clearAwaitingConfirmation()
-      return liveMode
+      return (liveMode, true)
     }
     if liveMode == staleModeAwaitingLiveUpdate,
       !isNewerThanModeAtChange(timestamp)
     {
-      return currentMode
+      return (currentMode, false)
     }
     if confirmedModeAwaitingLiveUpdate != nil {
       clearAwaitingConfirmation()
     }
-    return liveMode
+    return (liveMode, true)
   }
 
   private func stalePresentation(
     snapshot: HomeAssistantEVChargingSnapshot?,
     currentMode: HomeAssistantEVChargingMode?,
     currentActivity: HomeAssistantEVChargingActivity? = nil,
+    currentDecision: HomeAssistantEVChargingDecision,
     problem: HomeAssistantEVChargingStore.Problem,
     isChanging: Bool
   ) -> Presentation {
@@ -298,8 +297,10 @@ extension HomeAssistantEVChargingLiveSubscription {
     return Presentation(
       mode: canReplaceMode ? snapshot?.mode ?? currentMode : currentMode,
       activity: snapshot?.activity ?? currentActivity ?? .unavailable,
+      decision: snapshot?.decision ?? currentDecision,
       isLive: false,
       isActivityLive: false,
+      isDecisionLive: false,
       isRefreshing: false,
       problem: problem,
       finishesProgress: !isChanging
@@ -312,6 +313,11 @@ extension HomeAssistantEVChargingLiveSubscription {
   }
 
   private func shouldRetainModeChangeUpdate(timestamp: Date?) -> Bool {
+    if timestamp != nil, modeTimestampAtChange != nil,
+      !isNewerThanModeAtChange(timestamp)
+    {
+      return false
+    }
     guard let retainedTimestamp = liveModeTimestampDuringModeChange else {
       return liveModeDuringModeChange == nil || timestamp != nil
     }
@@ -330,6 +336,8 @@ extension HomeAssistantEVChargingLiveSubscription {
     clearAwaitingConfirmation()
     receivedLiveActivityDuringModeChange = false
     liveModeDuringModeChange = nil
+    liveDecisionDuringModeChange = nil
+    liveActivityDuringModeChange = nil
     liveModeTimestampDuringModeChange = nil
     modeTimestampAtChange = nil
     latestModeTimestamp = nil

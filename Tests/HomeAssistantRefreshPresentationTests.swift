@@ -157,6 +157,13 @@ final class HomeAssistantRefreshPresentationTests: XCTestCase {
     let snapshot = HomeAssistantEVChargingSnapshot(
       mode: .smart,
       activity: .connected,
+      decision: .init(
+        isChargingDesired: true,
+        overnightSafeChargingMinutes: 48,
+        priceAllowsCharging: true,
+        currentPriceDollarsPerKilowattHour: 0.24,
+        batteryStateOfCharge: 78
+      ),
       modeLastUpdated: Date(timeIntervalSince1970: 100)
     )
     client.yield(.live(snapshot))
@@ -171,6 +178,8 @@ final class HomeAssistantRefreshPresentationTests: XCTestCase {
 
     XCTAssertFalse(store.isLive)
     XCTAssertFalse(store.isActivityLive)
+    XCTAssertFalse(store.isDecisionLive)
+    XCTAssertEqual(store.decision, snapshot.decision)
     XCTAssertTrue(store.isRefreshing)
     XCTAssertFalse(store.isLoading)
     XCTAssertFalse(store.canSelectMode)

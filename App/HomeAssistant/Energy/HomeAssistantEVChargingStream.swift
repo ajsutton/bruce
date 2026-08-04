@@ -12,10 +12,8 @@ struct HomeAssistantEVChargingStream: HomeAssistantEVCharging {
     self.controller = controller
   }
 
-  func evChargingUpdates() -> AsyncThrowingStream<
-    HomeAssistantEVChargingUpdate, any Error
-  > {
-    AsyncThrowingStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
+  func evChargingUpdates() -> HomeAssistantEVChargingUpdateStream {
+    HomeAssistantEVChargingUpdateStream { continuation in
       let task = Task {
         do {
           var lastUpdate: HomeAssistantEVChargingUpdate?
@@ -101,7 +99,7 @@ struct HomeAssistantEVChargingStream: HomeAssistantEVCharging {
 }
 
 extension HomeAssistantEVChargingUpdate {
-  fileprivate var snapshot: HomeAssistantEVChargingSnapshot? {
+  var snapshot: HomeAssistantEVChargingSnapshot? {
     switch self {
     case .absent:
       nil

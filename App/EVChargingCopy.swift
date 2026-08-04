@@ -32,6 +32,21 @@ struct EVChargingCopy {
   var chargingSwitchedOff: String { text(.chargingSwitchedOff) }
   var pausedForPrice: String { text(.pausedForPrice) }
   var pausedForBattery: String { text(.pausedForBattery) }
+  var chargingAllowed: String { text(.chargingAllowed) }
+  var chargingHeld: String { text(.chargingHeld) }
+  var safeOvernightChargingTime: String { text(.safeOvernightChargingTime) }
+  var homeBattery: String { text(.homeBattery) }
+  var chargingDecisionUnavailable: String { text(.chargingDecisionUnavailable) }
+  var chargingDecisionUpdating: String { text(.chargingDecisionUpdating) }
+  var electricityPriceUnavailable: String { text(.electricityPriceUnavailable) }
+  var chargingRequested: String { text(.chargingRequested) }
+  var homeBatteryUnavailable: String { text(.homeBatteryUnavailable) }
+  var pausedForAfternoonPeak: String { text(.pausedForAfternoonPeak) }
+  var homeBatteryHasEnoughReserve: String { text(.homeBatteryHasEnoughReserve) }
+  var protectingHomeBatteryReserve: String { text(.protectingHomeBatteryReserve) }
+  var overnightForecastUnavailable: String { text(.overnightForecastUnavailable) }
+  var enoughEnergyUntilMorning: String { text(.enoughEnergyUntilMorning) }
+  var waitingForSafeOvernightStart: String { text(.waitingForSafeOvernightStart) }
 
   func lastKnown(_ value: String) -> String {
     "\(lastKnown): \(value)"
@@ -49,6 +64,23 @@ struct EVChargingCopy {
     let power =
       "\(kilowatts.formatted(.number.locale(locale).precision(.fractionLength(1)))) kW"
     return text(.chargingWithPower).replacingOccurrences(of: "%@", with: power)
+  }
+
+  func priceTooHigh(price: Double, locale: Locale) -> String {
+    text(.priceTooHigh).replacingOccurrences(of: "%@", with: priceText(price, locale: locale))
+  }
+
+  func waitingForLowerPrice(price: Double, locale: Locale) -> String {
+    text(.waitingForLowerPrice)
+      .replacingOccurrences(of: "%@", with: priceText(price, locale: locale))
+  }
+
+  func waitingForHomeBattery(stateOfCharge: Double, locale: Locale) -> String {
+    let percentage = stateOfCharge.formatted(
+      .number.locale(locale).precision(.fractionLength(0))
+    )
+    return text(.waitingForHomeBattery)
+      .replacingOccurrences(of: "%@", with: "\(percentage)%")
   }
 
   func chargingModeTitle(_ mode: HomeAssistantEVChargingMode) -> String {
@@ -90,6 +122,13 @@ struct EVChargingCopy {
   private func text(_ key: Key) -> String {
     copy.text(key.entry)
   }
+
+  private func priceText(_ price: Double, locale: Locale) -> String {
+    let cents = (price * 100).formatted(
+      .number.locale(locale).precision(.fractionLength(0...1))
+    )
+    return "\(cents)¢/kWh"
+  }
 }
 
 extension EVChargingCopy {
@@ -100,6 +139,13 @@ extension EVChargingCopy {
     case requestedMode, updating, updatingLastKnown, checkingCurrentMode, lastKnown, unavailable
     case notPluggedIn, connectedReady, waitingForVehicle, charging, chargingWithPower
     case chargeComplete, chargingPaused, chargingSwitchedOff, pausedForPrice, pausedForBattery
+    case chargingAllowed, chargingHeld, safeOvernightChargingTime, homeBattery
+    case chargingDecisionUnavailable, chargingDecisionUpdating, electricityPriceUnavailable
+    case priceTooHigh
+    case waitingForLowerPrice, chargingRequested, homeBatteryUnavailable
+    case pausedForAfternoonPeak, homeBatteryHasEnoughReserve, waitingForHomeBattery
+    case protectingHomeBatteryReserve, overnightForecastUnavailable
+    case enoughEnergyUntilMorning, waitingForSafeOvernightStart
     case chargingModeOff, chargingModeSmart, chargingModeOn
     case chargingModeOffAccessibility, chargingModeSmartAccessibility
     case chargingModeOnAccessibility
@@ -148,6 +194,35 @@ extension EVChargingCopy {
         .localized("evCharging.pausedForPrice")
       case .pausedForBattery:
         .localized("evCharging.pausedForBattery")
+      case .chargingAllowed: .localized("evCharging.chargingAllowed")
+      case .chargingHeld: .localized("evCharging.chargingHeld")
+      case .safeOvernightChargingTime:
+        .localized("evCharging.safeOvernightChargingTime")
+      case .homeBattery: .localized("evCharging.homeBattery")
+      case .chargingDecisionUnavailable:
+        .localized("evCharging.chargingDecisionUnavailable")
+      case .chargingDecisionUpdating:
+        .localized("evCharging.chargingDecisionUpdating")
+      case .electricityPriceUnavailable:
+        .localized("evCharging.electricityPriceUnavailable")
+      case .priceTooHigh: .localized("evCharging.priceTooHigh")
+      case .waitingForLowerPrice: .localized("evCharging.waitingForLowerPrice")
+      case .chargingRequested: .localized("evCharging.chargingRequested")
+      case .homeBatteryUnavailable: .localized("evCharging.homeBatteryUnavailable")
+      case .pausedForAfternoonPeak:
+        .localized("evCharging.pausedForAfternoonPeak")
+      case .homeBatteryHasEnoughReserve:
+        .localized("evCharging.homeBatteryHasEnoughReserve")
+      case .waitingForHomeBattery:
+        .localized("evCharging.waitingForHomeBattery")
+      case .protectingHomeBatteryReserve:
+        .localized("evCharging.protectingHomeBatteryReserve")
+      case .overnightForecastUnavailable:
+        .localized("evCharging.overnightForecastUnavailable")
+      case .enoughEnergyUntilMorning:
+        .localized("evCharging.enoughEnergyUntilMorning")
+      case .waitingForSafeOvernightStart:
+        .localized("evCharging.waitingForSafeOvernightStart")
       case .chargingModeOff: .localized("evCharging.chargingModeOff")
       case .chargingModeSmart: .localized("evCharging.chargingModeSmart")
       case .chargingModeOn: .localized("evCharging.chargingModeOn")

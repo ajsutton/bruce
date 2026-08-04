@@ -31,8 +31,7 @@ final class HomeAssistantLiveDataTests: XCTestCase {
 
     assertSnapshots(
       charging: initialChargingSnapshot,
-      mode: .smart,
-      activity: .connected,
+      expectedCharging: .initial,
       energy: initialEnergySnapshot,
       expectedEnergy: energySnapshot(
         solar: 8.4, battery: 76, consumption: 3.1, grid: -2.7, prices: (0.341, 0.127)
@@ -50,8 +49,7 @@ final class HomeAssistantLiveDataTests: XCTestCase {
 
     assertSnapshots(
       charging: updatedChargingSnapshot,
-      mode: .charging,
-      activity: .charging(powerWatts: 7_024),
+      expectedCharging: .updated,
       energy: updatedEnergySnapshot,
       expectedEnergy: energySnapshot(
         solar: 9.1, battery: 68, consumption: 4.6, grid: 1.8, prices: (0.292, 0.143)
@@ -277,7 +275,9 @@ extension HomeAssistantLiveDataTests {
     consumption: Double = 3.1,
     grid: Double = -2.7,
     generalPrice: Double = 0.341,
-    feedInPrice: Double = 0.127
+    feedInPrice: Double = 0.127,
+    chargingDesired: Bool = false,
+    safeChargingMinutes: Double = 48
   ) throws -> [HomeAssistantState] {
     let data = Data(
       """
@@ -287,7 +287,9 @@ extension HomeAssistantLiveDataTests {
         {"entity_id":"sensor.zappi_myenergi_zappi_26482259_plug_status","state":"EV Connected","attributes":{}},
         {"entity_id":"sensor.zappi_myenergi_zappi_26482259_status","state":"Ready","attributes":{}},
         {"entity_id":"input_boolean.ev_smart_battery_allows_charging","state":"on","attributes":{}},
+        {"entity_id":"input_boolean.ev_charging_desired","state":"\(chargingDesired ? "on" : "off")","attributes":{}},
         {"entity_id":"input_boolean.ev_price_allows_charging","state":"on","attributes":{}},
+        {"entity_id":"sensor.ev_overnight_safe_charging_time","state":"\(safeChargingMinutes)","attributes":{"unit_of_measurement":"min"}},
         {"entity_id":"sensor.sigen_plant_pv_power","state":"\(solar)","attributes":{}},
         {"entity_id":"sensor.sigen_plant_battery_state_of_charge","state":"\(battery)","attributes":{}},
         {"entity_id":"sensor.sigen_plant_consumed_power","state":"\(consumption)","attributes":{}},
@@ -309,7 +311,9 @@ extension HomeAssistantLiveDataTests {
       consumption: 4.6,
       grid: 1.8,
       generalPrice: 0.292,
-      feedInPrice: 0.143
+      feedInPrice: 0.143,
+      chargingDesired: true,
+      safeChargingMinutes: 108
     )
   }
 
@@ -332,15 +336,16 @@ extension HomeAssistantLiveDataTests {
 
   fileprivate func assertSnapshots(
     charging: HomeAssistantEVChargingSnapshot,
-    mode: HomeAssistantEVChargingMode,
-    activity: HomeAssistantEVChargingActivity,
+    expectedCharging: ExpectedChargingSnapshot,
     energy: HomeAssistantHomeEnergySnapshot,
     expectedEnergy: HomeAssistantHomeEnergySnapshot
   ) {
-    XCTAssertEqual(charging.mode, mode)
-    XCTAssertEqual(charging.activity, activity)
+    XCTAssertEqual(charging.mode, expectedCharging.mode)
+    XCTAssertEqual(charging.activity, expectedCharging.activity)
+    XCTAssertEqual(charging.decision, expectedCharging.decision)
     XCTAssertEqual(energy, expectedEnergy)
   }
+
 }
 
 private struct UnusedEVChargingController: HomeAssistantEVCharging {

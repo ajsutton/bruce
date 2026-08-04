@@ -334,10 +334,8 @@ private final class ControlledStateFeedReset: @unchecked Sendable {
 private struct LifecycleEVChargingClient: HomeAssistantEVCharging {
   let providesContinuousUpdates = true
 
-  func evChargingUpdates() -> AsyncThrowingStream<
-    HomeAssistantEVChargingUpdate, any Error
-  > {
-    AsyncThrowingStream { _ in }
+  func evChargingUpdates() -> HomeAssistantEVChargingUpdateStream {
+    HomeAssistantEVChargingUpdateStream { _ in }
   }
 
   func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {

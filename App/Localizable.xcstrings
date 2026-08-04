@@ -1009,6 +1009,294 @@
         }
       }
     },
+    "evCharging.chargingAllowed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charging allowed"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charging’s got the green light"
+          }
+        }
+      }
+    },
+    "evCharging.chargingDecisionUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charging decision unavailable"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruce can’t call the charging play"
+          }
+        }
+      }
+    },
+    "evCharging.chargingDecisionUpdating" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating charging decision"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruce is sorting the charging play"
+          }
+        }
+      }
+    },
+    "evCharging.chargingHeld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charging held"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charger’s parked up"
+          }
+        }
+      }
+    },
+    "evCharging.chargingRequested" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charging requested — price is within limit"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charger’s been told to get stuck in — price is behaving"
+          }
+        }
+      }
+    },
+    "evCharging.electricityPriceUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electricity price unavailable"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Power price has gone walkabout"
+          }
+        }
+      }
+    },
+    "evCharging.enoughEnergyUntilMorning" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enough energy to charge through 6:00"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plenty of juice to charge through to six"
+          }
+        }
+      }
+    },
+    "evCharging.homeBattery" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home battery"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Battery"
+          }
+        }
+      }
+    },
+    "evCharging.homeBatteryHasEnoughReserve" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home battery has enough reserve"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House battery has juice to spare"
+          }
+        }
+      }
+    },
+    "evCharging.homeBatteryUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home battery level unavailable"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House battery has gone quiet"
+          }
+        }
+      }
+    },
+    "evCharging.overnightForecastUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overnight forecast unavailable"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tonight’s juice forecast has gone walkabout"
+          }
+        }
+      }
+    },
+    "evCharging.pausedForAfternoonPeak" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused for the afternoon peak"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charger’s sitting out the arvo peak"
+          }
+        }
+      }
+    },
+    "evCharging.priceTooHigh" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Price too high · %@"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Power price is having a lend · %@"
+          }
+        }
+      }
+    },
+    "evCharging.protectingHomeBatteryReserve" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protecting the 20% home-battery reserve"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving the house battery’s last 20%"
+          }
+        }
+      }
+    },
+    "evCharging.safeOvernightChargingTime" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Safe overnight charging time"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Safe Overnight Juice Time"
+          }
+        }
+      }
+    },
+    "evCharging.waitingForHomeBattery" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for home battery above 25% · now %@"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the house battery to clear 25% · now %@"
+          }
+        }
+      }
+    },
+    "evCharging.waitingForLowerPrice" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for price below 35¢/kWh · now %@"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for power below 35¢/kWh · now %@"
+          }
+        }
+      }
+    },
+    "evCharging.waitingForSafeOvernightStart" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the safe overnight start"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for tonight’s safe juice window"
+          }
+        }
+      }
+    },
     "garageDoor.closed" : {
       "localizations" : {
         "en" : {

@@ -2,7 +2,9 @@ import SwiftUI
 
 struct HomeAssistantEVOperationalStatusView: View {
   let activity: HomeAssistantEVChargingActivity
-  let isLive: Bool
+  let decisionPresentation: EVChargingDecisionPresentation
+  let isActivityLive: Bool
+  let isDecisionLive: Bool
   let isLoading: Bool
   var isRefreshing = false
   let mode: BruceMode
@@ -43,15 +45,16 @@ struct HomeAssistantEVOperationalStatusView: View {
   }
 
   private var statusText: String {
-    if isLoading, !isLive {
+    if isLoading, !isActivityLive, !isDecisionLive {
       return copy.checkingChargerStatus
     }
     if isRefreshing, activity != .unavailable {
-      return presentation.text
+      return copy.updating(lastKnown: presentation.text)
     }
-    if isLive {
-      return presentation.text
+    if displaysDecisionExplanation {
+      return displayedText
     }
+    if isActivityLive { return displayedText }
     if activity != .unavailable {
       return copy.lastKnown(presentation.text)
     }
@@ -59,15 +62,16 @@ struct HomeAssistantEVOperationalStatusView: View {
   }
 
   private var accessibilityValue: String {
-    if isLoading, !isLive {
+    if isLoading, !isActivityLive, !isDecisionLive {
       return copy.checkingChargerStatus
     }
     if isRefreshing, activity != .unavailable {
       return copy.updating(lastKnown: presentation.accessibilityText)
     }
-    if isLive {
-      return presentation.accessibilityText
+    if displaysDecisionExplanation {
+      return displayedText
     }
+    if isActivityLive { return displayedText }
     if activity != .unavailable {
       return copy.lastKnown(presentation.accessibilityText)
     }
@@ -75,17 +79,50 @@ struct HomeAssistantEVOperationalStatusView: View {
   }
 
   private var statusIcon: String {
-    if isLoading, !isLive {
+    if isLoading, !isActivityLive, !isDecisionLive {
       return "arrow.clockwise"
     }
     if isRefreshing, activity != .unavailable {
-      return presentation.statusIcon
+      return "arrow.clockwise"
     }
-    return isLive ? presentation.statusIcon : "questionmark.circle"
+    return isActivityLive || isDecisionLive ? displayedIcon : "questionmark.circle"
   }
 
   private var statusColor: Color {
-    isLive || isRefreshing ? presentation.color : .secondary
+    isRefreshing ? .secondary : (isActivityLive || isDecisionLive ? displayedColor : .secondary)
+  }
+
+  private var displaysHeldReason: Bool {
+    guard isDecisionLive, decisionPresentation.intent == .held else { return false }
+    switch activity {
+    case .charging, .complete, .notPluggedIn, .waitingForVehicle:
+      return false
+    case .connected, .paused, .switchedOff:
+      return true
+    case .unavailable:
+      return false
+    }
+  }
+
+  private var displaysDecisionExplanation: Bool {
+    displaysHeldReason
+  }
+
+  private var displayedText: String {
+    displaysDecisionExplanation ? decisionPresentation.explanation : presentation.text
+  }
+
+  private var displayedIcon: String {
+    displaysDecisionExplanation ? decisionPresentation.intent.icon : presentation.statusIcon
+  }
+
+  private var displayedColor: Color {
+    guard displaysDecisionExplanation else { return presentation.color }
+    return switch decisionPresentation.intent {
+    case .allowed: .green
+    case .held: .orange
+    case .unavailable: .secondary
+    }
   }
 
   private var foreground: AnyShapeStyle {
