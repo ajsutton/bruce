@@ -113,7 +113,7 @@ actor HomeAssistantSession {
     }
   }
 
-  private func refreshIfNeeded(force: Bool) async throws {
+  func refreshIfNeeded(force: Bool) async throws {
     guard let credentials else {
       throw HomeAssistantAPIError.noCredentials
     }
@@ -245,41 +245,7 @@ actor HomeAssistantSession {
 }
 
 extension HomeAssistantSession {
-  func checkConnection(
-    validate: @escaping @Sendable (Data) throws -> Void
-  ) async throws -> Data {
-    try await refreshIfNeeded(force: false)
-    return try await performRequest(
-      path: "api/",
-      body: nil,
-      canRefreshAfterUnauthorized: true,
-      routeSelection: .firstValid(validate)
-    )
-  }
-
-  func authenticatedGET(
-    path: String,
-    queryItems: [URLQueryItem] = []
-  ) async throws -> Data {
-    try await refreshIfNeeded(force: false)
-    return try await performRequest(
-      path: path,
-      queryItems: queryItems,
-      body: nil,
-      canRefreshAfterUnauthorized: true
-    )
-  }
-
-  func authenticatedPOST(path: String, body: Data) async throws -> Data {
-    try await refreshIfNeeded(force: false)
-    return try await performRequest(
-      path: path,
-      body: body,
-      canRefreshAfterUnauthorized: true
-    )
-  }
-
-  private func performRequest(
+  func performRequest(
     path: String,
     queryItems: [URLQueryItem] = [],
     body: Data?,
@@ -369,6 +335,18 @@ extension HomeAssistantSession {
       credentialGeneration: credentialGeneration,
       authenticationSessionEpoch: authenticationSessionEpoch
     )
+  }
+
+  func refreshRejectedWebSocketAccess(
+    _ access: HomeAssistantWebSocketAccess
+  ) async throws {
+    guard let credentials,
+      access.authenticationSessionEpoch == authenticationSessionEpoch
+    else {
+      throw HomeAssistantAPIError.staleOperation
+    }
+    guard credentials.accessToken == access.accessToken else { return }
+    try await refreshIfNeeded(force: true)
   }
 
   func rememberSuccessfulWebSocketAccess(

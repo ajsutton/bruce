@@ -7,11 +7,11 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
     category: "HomeAssistantStateSubscription"
   )
 
-  private let session: HomeAssistantSession
+  let session: HomeAssistantSession
   private let apiClient: HomeAssistantAPIClient
   private let connector: any HomeAssistantWebSocketConnecting
   let retryDelays: [Duration]
-  private let sleep: @Sendable (Duration) async throws -> Void
+  let sleep: @Sendable (Duration) async throws -> Void
   private let orderingCache = HomeAssistantStateOrderingCache()
 
   init(
@@ -59,20 +59,22 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
     >.Continuation
   ) async throws {
     let observation = try await beginObservation()
-    var retryIndex = 0
-    var lastFailedURL: URL?
+    var recoveryState = HomeAssistantReconnectState()
     var latestSnapshot = observation.snapshot
     while !Task.isCancelled {
       let generation = UUID()
       var publishedSnapshot = false
-      var attemptedURL: URL?
+      var attemptedAccess: HomeAssistantWebSocketAccess?
       do {
         let accesses = try await session.authenticatedWebSocketAccesses()
-        let access = try preferredAccess(from: accesses, avoiding: lastFailedURL)
+        let access = try preferredAccess(
+          from: accesses,
+          avoiding: recoveryState.lastFailedURL
+        )
         guard access.observationIdentity == observation.identity else {
           throw HomeAssistantAPIError.staleOperation
         }
-        attemptedURL = access.baseURL
+        attemptedAccess = access
         try await subscribe(
           using: access,
           generation: generation,
@@ -80,6 +82,7 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
           previousRemovals: latestSnapshot.removals
         ) { states, removals, eventGeneration in
           publishedSnapshot = true
+          recoveryState.refreshedAfterUnauthorized = false
           latestSnapshot = .init(states: states, removals: removals)
           try await cache(latestSnapshot, for: observation.id, access: access)
           Self.yieldLive(states, generation: eventGeneration, to: continuation)
@@ -90,16 +93,15 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
       } catch {
         let attempt = HomeAssistantReconnectAttempt(
           publishedSnapshot: publishedSnapshot,
-          attemptedURL: attemptedURL,
+          attemptedAccess: attemptedAccess,
           latestStates: latestSnapshot.states,
           generation: generation
         )
         guard
-          await recover(
+          await recoverSubscription(
             from: error,
             attempt: attempt,
-            retryIndex: &retryIndex,
-            lastFailedURL: &lastFailedURL,
+            state: &recoveryState,
             continuation: continuation
           )
         else { return }
@@ -298,14 +300,6 @@ extension HomeAssistantStateStream {
     yield(update, to: continuation)
   }
 
-  func waitForRetry(_ delay: Duration) async -> Bool {
-    do {
-      try await sleep(delay)
-      return true
-    } catch {
-      return false
-    }
-  }
 }
 
 private struct HomeAssistantSubscriptionMessageKind: Decodable {

@@ -2,12 +2,70 @@ import Foundation
 
 struct HomeAssistantReconnectAttempt {
   let publishedSnapshot: Bool
-  let attemptedURL: URL?
+  let attemptedAccess: HomeAssistantWebSocketAccess?
   let latestStates: [HomeAssistantState]
   let generation: UUID
 }
 
+struct HomeAssistantReconnectState {
+  var retryIndex = 0
+  var lastFailedURL: URL?
+  var refreshedAfterUnauthorized = false
+}
+
 extension HomeAssistantStateStream {
+  func waitForRetry(_ delay: Duration) async -> Bool {
+    do {
+      try await sleep(delay)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  func recoverSubscription(
+    from error: any Error,
+    attempt: HomeAssistantReconnectAttempt,
+    state: inout HomeAssistantReconnectState,
+    continuation: HomeAssistantBufferedUpdateStream<
+      HomeAssistantStateUpdate
+    >.Continuation
+  ) async -> Bool {
+    guard case HomeAssistantAPIError.unauthorized = error,
+      let attemptedAccess = attempt.attemptedAccess,
+      !state.refreshedAfterUnauthorized
+    else {
+      return await recover(
+        from: error,
+        attempt: attempt,
+        retryIndex: &state.retryIndex,
+        lastFailedURL: &state.lastFailedURL,
+        continuation: continuation
+      )
+    }
+    do {
+      try await session.refreshRejectedWebSocketAccess(attemptedAccess)
+      state.refreshedAfterUnauthorized = true
+      Self.reportDisconnect(
+        error,
+        update: .reconnecting(attempt.latestStates, generation: attempt.generation),
+        to: continuation
+      )
+      return true
+    } catch is CancellationError {
+      continuation.finish()
+      return false
+    } catch {
+      return await recover(
+        from: error,
+        attempt: attempt,
+        retryIndex: &state.retryIndex,
+        lastFailedURL: &state.lastFailedURL,
+        continuation: continuation
+      )
+    }
+  }
+
   func recover(
     from error: any Error,
     attempt: HomeAssistantReconnectAttempt,
@@ -52,7 +110,7 @@ extension HomeAssistantStateStream {
     guard Self.shouldReconnect(after: error), !retryDelays.isEmpty else {
       return nil
     }
-    lastFailedURL = attempt.attemptedURL ?? lastFailedURL
+    lastFailedURL = attempt.attemptedAccess?.baseURL ?? lastFailedURL
     retryIndex = attempt.publishedSnapshot ? 0 : retryIndex
     let delay = retryDelays[min(retryIndex, retryDelays.count - 1)]
     retryIndex = min(retryIndex + 1, retryDelays.count - 1)

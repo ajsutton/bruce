@@ -134,28 +134,47 @@ final class HomeAssistantTemperatureStreamTests: XCTestCase {
     XCTAssertEqual(newest.map(\.value), [23])
   }
 
-  func testRejectedAuthenticationFinishesWithUnauthorizedError() async throws {
+  func testRepeatedRejectedAuthenticationFinishesWithUnauthorizedError() async throws {
     let fixture = SessionFixture()
-    let session = fixture.makeSession(apiResponses: [])
+    let tokenResponse = Data(
+      #"{"access_token":"refreshed-access","token_type":"Bearer","expires_in":1800}"#.utf8
+    )
+    let session = fixture.makeSession(
+      apiResponses: [],
+      authenticationResponses: [
+        .success(tokenResponse, statusCode: 200),
+        .success(tokenResponse, statusCode: 200),
+      ]
+    )
     try await session.install(fixture.credentials())
-    let connection = TemperatureSubscriptionConnection(
+    let firstConnection = TemperatureSubscriptionConnection(
       messages: [
         .success(#"{"type":"auth_required"}"#),
         .success(#"{"type":"auth_invalid"}"#),
       ]
     )
-    let client = makeClient(session: session, connections: [connection])
+    let secondConnection = TemperatureSubscriptionConnection(
+      messages: [
+        .success(#"{"type":"auth_required"}"#),
+        .success(#"{"type":"auth_invalid"}"#),
+      ]
+    )
+    let client = makeClient(
+      session: session,
+      connections: [firstConnection, secondConnection]
+    )
     let probe = AsyncThrowingStreamTestProbe(client.temperatureUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
 
     do {
-      _ = try probe.value(at: 0)
+      _ = try probe.value(at: 1)
       XCTFail("Expected WebSocket authentication to be rejected.")
     } catch HomeAssistantAPIError.unauthorized {
     } catch {
       XCTFail("Unexpected error: \(error)")
     }
-    XCTAssertTrue(connection.isCancelled)
+    XCTAssertTrue(firstConnection.isCancelled)
+    XCTAssertTrue(secondConnection.isCancelled)
   }
 
   func testRegistryUpdateReloadsClimatePresetLabels() async throws {
