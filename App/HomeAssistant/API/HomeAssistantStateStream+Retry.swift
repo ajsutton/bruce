@@ -2,6 +2,7 @@ import Foundation
 
 struct HomeAssistantReconnectAttempt {
   let publishedSnapshot: Bool
+  let hasPublishedSnapshot: Bool
   let attemptedAccess: HomeAssistantWebSocketAccess?
   let latestStates: [HomeAssistantState]
   let generation: UUID
@@ -31,6 +32,17 @@ extension HomeAssistantStateStream {
       HomeAssistantStateUpdate
     >.Continuation
   ) async -> Bool {
+    if case HomeAssistantAPIError.staleOperation = error,
+      let attemptedAccess = attempt.attemptedAccess
+    {
+      do {
+        try await session.validateWebSocketAccess(attemptedAccess)
+      } catch {
+        Self.reportTerminalDisconnect(error)
+        continuation.finish(throwing: error)
+        return false
+      }
+    }
     guard case HomeAssistantAPIError.unauthorized = error,
       let attemptedAccess = attempt.attemptedAccess,
       !state.refreshedAfterUnauthorized
@@ -83,6 +95,7 @@ extension HomeAssistantStateStream {
         lastFailedURL: &lastFailedURL
       )
     else {
+      Self.reportTerminalDisconnect(error)
       continuation.finish(throwing: error)
       return false
     }
@@ -107,13 +120,22 @@ extension HomeAssistantStateStream {
     retryIndex: inout Int,
     lastFailedURL: inout URL?
   ) -> Duration? {
-    guard Self.shouldReconnect(after: error), !retryDelays.isEmpty else {
+    guard Self.shouldReconnect(after: error, attempt: attempt), !retryDelays.isEmpty else {
       return nil
     }
-    lastFailedURL = attempt.attemptedAccess?.baseURL ?? lastFailedURL
+    if !Self.preservesPreferredRoute(after: error) {
+      lastFailedURL = attempt.attemptedAccess?.baseURL ?? lastFailedURL
+    }
     retryIndex = attempt.publishedSnapshot ? 0 : retryIndex
     let delay = retryDelays[min(retryIndex, retryDelays.count - 1)]
     retryIndex = min(retryIndex + 1, retryDelays.count - 1)
     return delay
+  }
+
+  private static func preservesPreferredRoute(after error: any Error) -> Bool {
+    if case HomeAssistantAPIError.staleOperation = error {
+      return true
+    }
+    return false
   }
 }

@@ -1,12 +1,6 @@
 import Foundation
-import OSLog
 
 struct HomeAssistantStateStream: HomeAssistantStateLoading {
-  private static let logger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "net.symphonious.bruce",
-    category: "HomeAssistantStateSubscription"
-  )
-
   let session: HomeAssistantSession
   private let apiClient: HomeAssistantAPIClient
   private let connector: any HomeAssistantWebSocketConnecting
@@ -61,6 +55,7 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
     let observation = try await beginObservation()
     var recoveryState = HomeAssistantReconnectState()
     var latestSnapshot = observation.snapshot
+    var hasPublishedSnapshot = false
     while !Task.isCancelled {
       let generation = UUID()
       var publishedSnapshot = false
@@ -71,9 +66,7 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
           from: accesses,
           avoiding: recoveryState.lastFailedURL
         )
-        guard access.observationIdentity == observation.identity else {
-          throw HomeAssistantAPIError.staleOperation
-        }
+        try validateObservation(access, identity: observation.identity)
         attemptedAccess = access
         try await subscribe(
           using: access,
@@ -81,7 +74,7 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
           previousStates: latestSnapshot.states,
           previousRemovals: latestSnapshot.removals
         ) { states, removals, eventGeneration in
-          publishedSnapshot = true
+          (publishedSnapshot, hasPublishedSnapshot) = (true, true)
           recoveryState.refreshedAfterUnauthorized = false
           latestSnapshot = .init(states: states, removals: removals)
           try await cache(latestSnapshot, for: observation.id, access: access)
@@ -93,6 +86,7 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
       } catch {
         let attempt = HomeAssistantReconnectAttempt(
           publishedSnapshot: publishedSnapshot,
+          hasPublishedSnapshot: hasPublishedSnapshot,
           attemptedAccess: attemptedAccess,
           latestStates: latestSnapshot.states,
           generation: generation
@@ -118,6 +112,15 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
     try await session.validateWebSocketAccess(access)
     await orderingCache.store(snapshot, observation: observation)
     try await session.validateWebSocketAccess(access)
+  }
+
+  private func validateObservation(
+    _ access: HomeAssistantWebSocketAccess,
+    identity: HomeAssistantObservationIdentity
+  ) throws {
+    guard access.observationIdentity == identity else {
+      throw HomeAssistantAPIError.staleOperation
+    }
   }
 
   private func beginObservation() async throws -> HomeAssistantStateOrderingCache.Observation {
@@ -268,7 +271,7 @@ extension HomeAssistantStateStream {
     6: "label_registry_updated",
   ]
 
-  fileprivate static func yield(
+  static func yield(
     _ update: HomeAssistantStateUpdate,
     to continuation: HomeAssistantBufferedUpdateStream<
       HomeAssistantStateUpdate
@@ -285,19 +288,6 @@ extension HomeAssistantStateStream {
     >.Continuation
   ) {
     yield(.live(states, generation: generation), to: continuation)
-  }
-
-  static func reportDisconnect(
-    _ error: any Error,
-    update: HomeAssistantStateUpdate,
-    to continuation: HomeAssistantBufferedUpdateStream<
-      HomeAssistantStateUpdate
-    >.Continuation
-  ) {
-    logger.error(
-      "Home Assistant state subscription disconnected: \(String(describing: error), privacy: .private)"
-    )
-    yield(update, to: continuation)
   }
 
 }

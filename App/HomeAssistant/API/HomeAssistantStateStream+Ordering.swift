@@ -169,15 +169,22 @@ extension HomeAssistantStateStream {
     }
   }
 
-  static func shouldReconnect(after error: any Error) -> Bool {
+  static func shouldReconnect(
+    after error: any Error,
+    attempt: HomeAssistantReconnectAttempt
+  ) -> Bool {
     guard let apiError = error as? HomeAssistantAPIError else {
       return true
     }
     switch apiError {
     case .server:
       return true
+    case .invalidResponse:
+      return attempt.hasPublishedSnapshot
+    case .staleOperation:
+      return attempt.attemptedAccess != nil
     case .noCredentials, .invalidServerURL, .unauthorized, .reauthenticationRequired,
-      .incompatibleServer, .invalidResponse, .staleOperation:
+      .incompatibleServer:
       return false
     }
   }
