@@ -22,6 +22,8 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
   private var loadGeneration = UUID()
   private var progressTask: Task<Void, Never>?
   private var needsHistoryBackfill = false
+  private var canReuseHistoryAfterSuspension = false
+  private var historyReuseDeadline: Date?
 
   init(
     loader: any HomeAssistantHomeEnergyLoading,
@@ -90,12 +92,23 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
     progressTask?.cancel()
   }
 
-  func synchronize(with connection: HomeAssistantConnectionState) async {
+  func synchronize(
+    with connection: HomeAssistantConnectionState,
+    historyReuseDeadline: Date? = nil
+  ) async {
     switch connection {
     case .connected:
+      let reusesHistory =
+        historyReuseDeadline.map { now() < $0 } == true
+        && canReuseHistoryAfterSuspension
+        && hasUsableHistory
       let generation = UUID()
       beginObservation(generation: generation)
-      reloadHistory()
+      if reusesHistory {
+        self.historyReuseDeadline = historyReuseDeadline
+      } else {
+        reloadHistoryDiscardingReuse()
+      }
       await observeUpdates(generation: generation)
     case .disconnected:
       reset()
@@ -108,6 +121,12 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
         problem = .connectionNeedsManagement
       }
     }
+  }
+
+  func prepareForActivitySuspension() {
+    canReuseHistoryAfterSuspension = hasCurrentHistory
+    historyReuseDeadline = nil
+    invalidateHistory()
   }
 
   func load() async {
@@ -169,9 +188,7 @@ extension HomeAssistantHomeEnergyStore {
         finishProgress()
       }
     } catch is CancellationError {
-      guard loadGeneration == generation else { return }
-      invalidateHistory()
-      finishLoad(isLive: false)
+      cancelObservation(generation: generation)
     } catch {
       guard loadGeneration == generation else { return }
       guard !Task.isCancelled, !Self.isCancellation(error) else {
@@ -191,6 +208,7 @@ extension HomeAssistantHomeEnergyStore {
 
   private func beginObservation(generation: UUID) {
     loadGeneration = generation
+    historyReuseDeadline = nil
     let preservesRefreshPresentation = isRefreshing && problem == nil
     isLoading = !preservesRefreshPresentation
     guard !preservesRefreshPresentation else { return }
@@ -200,57 +218,92 @@ extension HomeAssistantHomeEnergyStore {
     scheduleProgress(for: generation)
   }
 
+  private func cancelObservation(generation: UUID) {
+    guard loadGeneration == generation else { return }
+    historyReuseDeadline = nil
+    invalidateHistory()
+    finishLoad(isLive: false)
+  }
+
   private func apply(
     _ update: HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>
   ) {
     switch update {
     case .live(let snapshot):
-      guard snapshot.hasReadings else {
-        problem = .invalidResponse
-        finishLoad(isLive: false)
-        return
-      }
-      let timestamp = now()
-      publishSnapshotIfChanged(snapshot)
-      publishWidgetSnapshot(snapshot, timestamp)
-      if needsHistoryBackfill {
-        needsHistoryBackfill = false
-        reloadHistory()
-      }
-      recordHistory(snapshot: snapshot, at: timestamp)
-      if problem != nil {
-        problem = nil
-      }
-      if isRefreshing {
-        isRefreshing = false
-      }
-      finishLoad(isLive: true)
+      applyLive(snapshot)
     case .refreshing(let snapshot):
-      if snapshot.hasReadings {
-        publishSnapshotIfChanged(snapshot)
-      }
-      problem = nil
-      isLoading = false
-      isLive = false
-      isRefreshing = true
-      finishProgress()
-      invalidateHistory()
-      needsHistoryBackfill = true
+      applyRefreshing(snapshot)
     case .reconnecting(let snapshot):
-      if snapshot.hasReadings {
-        publishSnapshotIfChanged(snapshot)
-      }
-      problem = .reconnecting
-      isRefreshing = false
+      applyReconnecting(snapshot)
+    }
+  }
+
+  private func applyLive(_ snapshot: HomeAssistantHomeEnergySnapshot) {
+    guard snapshot.hasReadings else {
+      problem = .invalidResponse
       finishLoad(isLive: false)
-      invalidateHistory()
+      return
+    }
+    let timestamp = now()
+    publishSnapshotIfChanged(snapshot)
+    publishWidgetSnapshot(snapshot, timestamp)
+    let validatesPreservedHistory =
+      historyReuseDeadline.map { timestamp < $0 } == true
+      && !needsHistoryBackfill
+    let reloadsHistory =
+      needsHistoryBackfill
+      || (historyReuseDeadline != nil && !validatesPreservedHistory)
+    if reloadsHistory {
+      needsHistoryBackfill = false
+      reloadHistoryDiscardingReuse()
+    }
+    recordHistory(snapshot: snapshot, at: timestamp)
+    if validatesPreservedHistory {
+      discardHistoryReuse()
+      validatePreservedHistory()
+    }
+    if problem != nil {
+      problem = nil
+    }
+    if isRefreshing {
+      isRefreshing = false
+    }
+    finishLoad(isLive: true)
+  }
+
+  private func applyRefreshing(_ snapshot: HomeAssistantHomeEnergySnapshot) {
+    if snapshot.hasReadings {
+      publishSnapshotIfChanged(snapshot)
+    }
+    problem = nil
+    isLoading = false
+    isLive = false
+    isRefreshing = true
+    finishProgress()
+    invalidateHistory()
+    if !canStillReuseHistory {
+      discardHistoryReuse()
       needsHistoryBackfill = true
     }
+  }
+
+  private func applyReconnecting(_ snapshot: HomeAssistantHomeEnergySnapshot) {
+    if snapshot.hasReadings {
+      publishSnapshotIfChanged(snapshot)
+    }
+    problem = .reconnecting
+    isRefreshing = false
+    finishLoad(isLive: false)
+    discardHistoryReuse()
+    invalidateHistory()
+    needsHistoryBackfill = true
   }
 
   @discardableResult
   func reset() -> Task<Void, Never>? {
     loadGeneration = UUID()
+    canReuseHistoryAfterSuspension = false
+    historyReuseDeadline = nil
     snapshot = .unavailable
     isLoading = false
     isLive = false
@@ -264,6 +317,8 @@ extension HomeAssistantHomeEnergyStore {
   @discardableResult
   private func invalidateLoad() -> Task<Void, Never>? {
     loadGeneration = UUID()
+    canReuseHistoryAfterSuspension = false
+    historyReuseDeadline = nil
     isLoading = false
     isLive = false
     isRefreshing = false
@@ -310,6 +365,21 @@ extension HomeAssistantHomeEnergyStore {
     problem = .signInRequired
     finishLoad(isLive: false)
     onAuthenticationRequired()
+  }
+
+  private var canStillReuseHistory: Bool {
+    historyReuseDeadline.map { now() < $0 } == true
+      && canReuseHistoryAfterSuspension
+  }
+
+  private func reloadHistoryDiscardingReuse() {
+    discardHistoryReuse()
+    reloadHistory()
+  }
+
+  private func discardHistoryReuse() {
+    canReuseHistoryAfterSuspension = false
+    historyReuseDeadline = nil
   }
 
   private func publishSnapshotIfChanged(

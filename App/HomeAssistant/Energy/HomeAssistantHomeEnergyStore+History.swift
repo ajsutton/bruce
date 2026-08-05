@@ -5,6 +5,22 @@ enum HomeEnergyHistorySampling {
 }
 
 extension HomeAssistantHomeEnergyStore {
+  var hasUsableHistory: Bool {
+    flowHistoryStore.hasUsableHistory
+      && batteryHistoryStore.hasUsableHistory
+      && priceHistoryStore.hasUsableHistory
+  }
+
+  var hasCurrentHistory: Bool {
+    hasUsableHistory
+      && !flowHistoryStore.isStale
+      && !batteryHistoryStore.isStale
+      && !priceHistoryStore.isStale
+      && !flowHistoryStore.isLoading
+      && !batteryHistoryStore.isLoading
+      && !priceHistoryStore.isLoading
+  }
+
   func reloadHistory() {
     flowHistoryStore.reload()
     batteryHistoryStore.reload()
@@ -18,6 +34,12 @@ extension HomeAssistantHomeEnergyStore {
     flowHistoryStore.record(snapshot: snapshot, at: timestamp)
     batteryHistoryStore.record(snapshot: snapshot, at: timestamp)
     priceHistoryStore.record(snapshot: snapshot, at: timestamp)
+  }
+
+  func validatePreservedHistory() {
+    flowHistoryStore.validatePreservedHistory()
+    batteryHistoryStore.validatePreservedHistory()
+    priceHistoryStore.validatePreservedHistory()
   }
 
   @discardableResult

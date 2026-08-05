@@ -30,6 +30,9 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   private var isTransitioning = false
   private var transitionGeneration = UUID()
   private var observationGeneration = UUID()
+  private var updatesSuspendedAt: Date?
+  private var suspendedConnection: HomeAssistantConnectionState?
+  private var homeEnergyHistoryReuseDeadline: Date?
   private lazy var updateActivity = HomeAssistantObservationActivity(
     suspend: { [weak self] in await self?.suspendUpdates() },
     resume: { [weak self] in self?.resumeUpdates() }
@@ -66,6 +69,7 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     let generation = UUID()
     transitionGeneration = generation
     isTransitioning = true
+    homeEnergyHistoryReuseDeadline = nil
     isRefreshing = false
     cancelObservations()
     serverStatusGeneration = UUID()
@@ -109,7 +113,11 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     if refreshedActiveFeed {
       for feature in HomeAssistantObservedFeature.allCases
       where !activeFeatures.contains(feature) {
-        startObservation(feature, connection: connection)
+        startObservation(
+          feature,
+          connection: connection,
+          homeEnergyHistoryReuseDeadline: homeEnergyHistoryReuseDeadline
+        )
       }
     } else {
       restartServerStatusObservation(for: connection)
@@ -120,7 +128,11 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   private func restartObservations(for connection: HomeAssistantConnectionState) {
     cancelObservations()
     HomeAssistantObservedFeature.allCases.forEach {
-      startObservation($0, connection: connection)
+      startObservation(
+        $0,
+        connection: connection,
+        homeEnergyHistoryReuseDeadline: homeEnergyHistoryReuseDeadline
+      )
     }
   }
 
@@ -210,7 +222,8 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
 
   private func startObservation(
     _ feature: HomeAssistantObservedFeature,
-    connection: HomeAssistantConnectionState
+    connection: HomeAssistantConnectionState,
+    homeEnergyHistoryReuseDeadline: Date? = nil
   ) {
     observationTasks[feature]?.cancel()
     let generation = UUID()
@@ -232,7 +245,10 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
         }
       case .homeEnergy:
         { [homeEnergyStore] in
-          await homeEnergyStore.synchronize(with: connection)
+          await homeEnergyStore.synchronize(
+            with: connection,
+            historyReuseDeadline: homeEnergyHistoryReuseDeadline
+          )
         }
       }
     observationTasks[feature] = Task { [weak self] in
@@ -269,8 +285,11 @@ extension HomeAssistantObservationCoordinator {
   }
 
   private func suspendUpdates() async {
+    updatesSuspendedAt = now()
+    suspendedConnection = connection
     observationGeneration = UUID()
     isRefreshing = false
+    homeEnergyStore.prepareForActivitySuspension()
     cancelObservations()
     serverStatusGeneration = UUID()
     serverStatusTask?.cancel()
@@ -286,10 +305,27 @@ extension HomeAssistantObservationCoordinator {
 
   private func resumeUpdates() {
     guard !isTransitioning, let connection else { return }
+    let historyReuseDeadline = updatesSuspendedAt.map {
+      $0.addingTimeInterval(HomeEnergyHistorySampling.interval)
+    }
+    if suspendedConnection == connection,
+      let historyReuseDeadline,
+      now() < historyReuseDeadline
+    {
+      homeEnergyHistoryReuseDeadline = historyReuseDeadline
+    } else {
+      homeEnergyHistoryReuseDeadline = nil
+    }
+    updatesSuspendedAt = nil
+    suspendedConnection = nil
     updateServerStatus(for: connection)
     startServerStatusObservation(for: connection)
     HomeAssistantObservedFeature.allCases.forEach {
-      startObservation($0, connection: connection)
+      startObservation(
+        $0,
+        connection: connection,
+        homeEnergyHistoryReuseDeadline: homeEnergyHistoryReuseDeadline
+      )
     }
   }
 }

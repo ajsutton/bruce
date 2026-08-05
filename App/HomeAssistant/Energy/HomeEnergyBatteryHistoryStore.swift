@@ -80,6 +80,12 @@ final class HomeEnergyBatteryHistoryStore: ObservableObject {
     recordSample(snapshot: snapshot, at: timestamp)
   }
 
+  func validatePreservedHistory() {
+    guard hasUsableHistory else { return }
+    isUnavailable = false
+    isStale = false
+  }
+
   @discardableResult
   func reset() -> Task<Void, Never>? {
     let cancelledTask = cancelLoad()

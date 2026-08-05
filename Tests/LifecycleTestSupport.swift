@@ -149,3 +149,159 @@ struct ObservationTestEnergyLoader: HomeAssistantHomeEnergyLoading {
 private enum LifecycleObservationError: Error {
   case unexpectedRequest
 }
+
+final class LifecycleHistoryLoader:
+  HomeAssistantHomeEnergyLoading, @unchecked Sendable
+{
+  private let lock = NSLock()
+  private let requestDelay: ControlledHomeEnergyDelay?
+  private var storedRequestCount = 0
+  private var storedCancellationCount = 0
+  private var requestExpectations: [Int: XCTestExpectation] = [:]
+  private var cancellationExpectations: [Int: XCTestExpectation] = [:]
+
+  init(blocksRequests: Bool = false) {
+    requestDelay =
+      blocksRequests
+      ? ControlledHomeEnergyDelay(delayCount: 3)
+      : nil
+  }
+
+  var requestCount: Int {
+    lock.withLock { storedRequestCount }
+  }
+
+  func expectRequestCount(_ count: Int) -> XCTestExpectation {
+    let expectation = XCTestExpectation(
+      description: "Energy history reached \(count) requests"
+    )
+    let reached = lock.withLock {
+      if storedRequestCount >= count { return true }
+      requestExpectations[count] = expectation
+      return false
+    }
+    if reached {
+      expectation.fulfill()
+    }
+    return expectation
+  }
+
+  func expectCancellationCount(_ count: Int) -> XCTestExpectation {
+    let expectation = XCTestExpectation(
+      description: "Energy history reached \(count) cancellations"
+    )
+    let reached = lock.withLock {
+      if storedCancellationCount >= count { return true }
+      cancellationExpectations[count] = expectation
+      return false
+    }
+    if reached {
+      expectation.fulfill()
+    }
+    return expectation
+  }
+
+  func loadHomeEnergyFlowHistory() async throws -> HomeEnergyFlowHistory {
+    recordRequest()
+    try await blockIfNeeded()
+    let timestamp = Date(timeIntervalSince1970: 10_000)
+    return HomeEnergyFlowHistory(
+      interval: DateInterval(start: timestamp, duration: 60),
+      readings: HomeEnergyFlowHistory.Series.allCases.map {
+        HomeEnergyFlowHistory.Reading(
+          series: $0,
+          timestamp: timestamp,
+          kilowatts: 1
+        )
+      }
+    )
+  }
+
+  func loadHomeEnergyBatteryHistory() async throws -> HomeEnergyBatteryHistory {
+    recordRequest()
+    try await blockIfNeeded()
+    let timestamp = Date(timeIntervalSince1970: 10_000)
+    return HomeEnergyBatteryHistory(
+      interval: DateInterval(start: timestamp, duration: 60),
+      readings: [.init(timestamp: timestamp, stateOfCharge: 50)]
+    )
+  }
+
+  func loadHomeEnergyPriceHistory() async throws -> HomeEnergyPriceHistory {
+    recordRequest()
+    try await blockIfNeeded()
+    let timestamp = Date(timeIntervalSince1970: 10_000)
+    return HomeEnergyPriceHistory(
+      interval: DateInterval(start: timestamp, duration: 60),
+      readings: HomeEnergyPriceHistory.Tariff.allCases.map {
+        HomeEnergyPriceHistory.Reading(
+          tariff: $0,
+          timestamp: timestamp,
+          dollarsPerKilowattHour: 0.2
+        )
+      }
+    )
+  }
+
+  func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
+    .unavailable
+  }
+
+  private func recordRequest() {
+    let expectation = lock.withLock {
+      storedRequestCount += 1
+      return requestExpectations.removeValue(forKey: storedRequestCount)
+    }
+    expectation?.fulfill()
+  }
+
+  private func blockIfNeeded() async throws {
+    guard let requestDelay else { return }
+    do {
+      try await requestDelay.sleep(.zero)
+    } catch {
+      recordCancellation()
+      throw error
+    }
+  }
+
+  private func recordCancellation() {
+    let expectation = lock.withLock {
+      storedCancellationCount += 1
+      return cancellationExpectations.removeValue(forKey: storedCancellationCount)
+    }
+    expectation?.fulfill()
+  }
+}
+
+final class LifecycleDateSequence: @unchecked Sendable {
+  private let lock = NSLock()
+  private var dates: [Date]
+
+  init(_ dates: [Date]) {
+    self.dates = dates
+  }
+
+  func next() -> Date {
+    lock.withLock { dates.removeFirst() }
+  }
+}
+
+final class LifecycleClock: @unchecked Sendable {
+  private let lock = NSLock()
+  private var storedNow: Date
+
+  init(now: Date) {
+    storedNow = now
+  }
+
+  func callAsFunction() -> Date {
+    lock.withLock { storedNow }
+  }
+
+  func advance(by interval: TimeInterval) {
+    lock.withLock {
+      storedNow = storedNow.addingTimeInterval(interval)
+    }
+  }
+}
