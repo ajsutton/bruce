@@ -1,15 +1,15 @@
 import Foundation
 
+private enum HomeAssistantObservedFeature: CaseIterable {
+  case temperature
+  case charging
+  case garageDoor
+  case homeEnergy
+}
+
 @MainActor
 final class HomeAssistantObservationCoordinator: ObservableObject {
   @Published private(set) var serverStatus = HomeAssistantServerStatus.idle
-
-  private enum Feature: CaseIterable {
-    case temperature
-    case charging
-    case garageDoor
-    case homeEnergy
-  }
 
   private let temperatureStore: HomeAssistantTemperatureStore
   private let chargingStore: HomeAssistantEVChargingStore
@@ -23,12 +23,17 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   private var connection: HomeAssistantConnectionState?
   private var serverStatusTask: Task<Void, Never>?
   private var serverStatusGeneration = UUID()
-  private var observationTasks: [Feature: Task<Void, Never>] = [:]
-  private var observationGenerations: [Feature: UUID] = [:]
-  private var activeFeatures: Set<Feature> = []
+  private var observationTasks: [HomeAssistantObservedFeature: Task<Void, Never>] = [:]
+  private var observationGenerations: [HomeAssistantObservedFeature: UUID] = [:]
+  private var activeFeatures: Set<HomeAssistantObservedFeature> = []
   private var isRefreshing = false
   private var isTransitioning = false
   private var transitionGeneration = UUID()
+  private var observationGeneration = UUID()
+  private lazy var updateActivity = HomeAssistantObservationActivity(
+    suspend: { [weak self] in await self?.suspendUpdates() },
+    resume: { [weak self] in self?.resumeUpdates() }
+  )
 
   init(
     temperatureStore: HomeAssistantTemperatureStore,
@@ -76,20 +81,34 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     self.connection = connection
     isTransitioning = false
     updateServerStatus(for: connection)
+    guard !updateActivity.isSuspended else { return }
     startServerStatusObservation(for: connection)
-    Feature.allCases.forEach { startObservation($0, connection: connection) }
+    HomeAssistantObservedFeature.allCases.forEach {
+      startObservation($0, connection: connection)
+    }
   }
 
   func refresh() async {
-    guard case .connected = connection, !isRefreshing, !isTransitioning else { return }
+    guard
+      case .connected = connection,
+      !isRefreshing,
+      !isTransitioning,
+      !updateActivity.isSuspended
+    else { return }
     let generation = transitionGeneration
+    let lifecycleGeneration = observationGeneration
     isRefreshing = true
     let refreshedActiveFeed = await refreshStateFeed()
-    guard transitionGeneration == generation else { return }
+    guard
+      transitionGeneration == generation,
+      observationGeneration == lifecycleGeneration,
+      !updateActivity.isSuspended
+    else { return }
     isRefreshing = false
     guard let connection, case .connected = connection else { return }
     if refreshedActiveFeed {
-      for feature in Feature.allCases where !activeFeatures.contains(feature) {
+      for feature in HomeAssistantObservedFeature.allCases
+      where !activeFeatures.contains(feature) {
         startObservation(feature, connection: connection)
       }
     } else {
@@ -100,7 +119,9 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
 
   private func restartObservations(for connection: HomeAssistantConnectionState) {
     cancelObservations()
-    Feature.allCases.forEach { startObservation($0, connection: connection) }
+    HomeAssistantObservedFeature.allCases.forEach {
+      startObservation($0, connection: connection)
+    }
   }
 
   private func cancelObservations() {
@@ -188,7 +209,7 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   }
 
   private func startObservation(
-    _ feature: Feature,
+    _ feature: HomeAssistantObservedFeature,
     connection: HomeAssistantConnectionState
   ) {
     observationTasks[feature]?.cancel()
@@ -226,9 +247,49 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     }
   }
 
-  private func finishObservation(_ feature: Feature, generation: UUID) {
+  private func finishObservation(
+    _ feature: HomeAssistantObservedFeature,
+    generation: UUID
+  ) {
     guard observationGenerations[feature] == generation else { return }
     observationTasks[feature] = nil
     activeFeatures.remove(feature)
+  }
+}
+
+extension HomeAssistantObservationCoordinator {
+  func observeUpdates(
+    while isActive: Bool,
+    registrationDidBegin: @MainActor @Sendable () -> Void = {}
+  ) async {
+    await updateActivity.observeUpdates(
+      while: isActive,
+      registrationDidBegin: registrationDidBegin
+    )
+  }
+
+  private func suspendUpdates() async {
+    observationGeneration = UUID()
+    isRefreshing = false
+    cancelObservations()
+    serverStatusGeneration = UUID()
+    serverStatusTask?.cancel()
+    serverStatusTask = nil
+    if case .connected = connection {
+      serverStatus = HomeAssistantServerStatus(
+        phase: .updating,
+        lastSuccessfulUpdate: serverStatus.lastSuccessfulUpdate
+      )
+    }
+    await resetStateFeed()
+  }
+
+  private func resumeUpdates() {
+    guard !isTransitioning, let connection else { return }
+    updateServerStatus(for: connection)
+    startServerStatusObservation(for: connection)
+    HomeAssistantObservedFeature.allCases.forEach {
+      startObservation($0, connection: connection)
+    }
   }
 }

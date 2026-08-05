@@ -4,6 +4,7 @@ struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
   @EnvironmentObject private var homeAssistantCoordinator: HomeAssistantObservationCoordinator
   #if os(macOS)
+    @Environment(\.controlActiveState) private var controlActiveState
     @Environment(\.openSettings) private var openSettings
   #else
     @EnvironmentObject private var sceneDelegate: BruceSceneDelegate
@@ -38,6 +39,13 @@ struct ContentView: View {
       .task(id: presentation.connection) {
         await homeAssistantCoordinator.synchronize(with: presentation.connection)
       }
+      #if os(macOS)
+        .task(id: controlActiveState != .inactive) {
+          await homeAssistantCoordinator.observeUpdates(
+            while: controlActiveState != .inactive
+          )
+        }
+      #endif
       .onChange(of: scenePhase) { _, newScenePhase in
         HomeAssistantRefreshCoordinator.sceneDidChange(
           to: newScenePhase,

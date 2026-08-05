@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class ObservationCoordinatorLifecycleTests: XCTestCase {
   func testConnectedObservationCancelledBeforeStartDoesNotOpenStream() async {
-    let loader = LifecycleTemperatureLoader()
+    let loader = ObservationTestTemperatureLoader()
     loader.started.isInverted = true
     let coordinator = makeCoordinator(temperatureLoader: loader)
 
@@ -21,7 +21,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
   }
 
   func testCoordinatorTeardownCancelsOwnedObservationTasks() async {
-    let loader = LifecycleTemperatureLoader()
+    let loader = ObservationTestTemperatureLoader()
     var coordinator: HomeAssistantObservationCoordinator? = makeCoordinator(
       temperatureLoader: loader
     )
@@ -36,7 +36,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
   }
 
   func testConnectionTransitionWaitsForSharedFeedReset() async {
-    let loader = LifecycleTemperatureLoader()
+    let loader = ObservationTestTemperatureLoader()
     let reset = ControlledStateFeedReset()
     let coordinator = makeCoordinator(
       temperatureLoader: loader,
@@ -56,7 +56,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
   }
 
   func testCancelledTransitionCanRetryTheSameConnection() async {
-    let loader = LifecycleTemperatureLoader()
+    let loader = ObservationTestTemperatureLoader()
     let reset = ControlledStateFeedReset()
     let coordinator = makeCoordinator(
       temperatureLoader: loader,
@@ -78,7 +78,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
   }
 
   func testBlockedReplacementCanReturnToTheActiveConnection() async {
-    let loader = LifecycleTemperatureLoader()
+    let loader = ObservationTestTemperatureLoader()
     loader.started.assertForOverFulfill = false
     let reset = ControlledStateFeedReset(blockingCall: 2)
     let coordinator = makeCoordinator(
@@ -102,7 +102,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
   }
 
   func testCancelledReplacementCanRetryThePreviousConnection() async {
-    let loader = LifecycleTemperatureLoader()
+    let loader = ObservationTestTemperatureLoader()
     loader.started.assertForOverFulfill = false
     let reset = ControlledStateFeedReset(blockingCall: 2)
     let coordinator = makeCoordinator(
@@ -126,7 +126,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
   }
 
   func testRefreshIsIgnoredDuringConnectionTransition() async {
-    let loader = LifecycleTemperatureLoader()
+    let loader = ObservationTestTemperatureLoader()
     loader.started.assertForOverFulfill = false
     let reset = ControlledStateFeedReset(blockingCall: 2)
     let refresh = ControlledStateFeedRefresh()
@@ -153,7 +153,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
   }
 
   func testSupersededRefreshCannotRestartReplacementConnection() async {
-    let loader = LifecycleTemperatureLoader()
+    let loader = ObservationTestTemperatureLoader()
     loader.started.assertForOverFulfill = false
     let refresh = ControlledStateFeedRefresh()
     let coordinator = makeCoordinator(
@@ -177,17 +177,17 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
   }
 
   private func makeCoordinator(
-    temperatureLoader: LifecycleTemperatureLoader,
+    temperatureLoader: ObservationTestTemperatureLoader,
     refreshStateFeed: @escaping @Sendable () async -> Bool = { false },
     resetStateFeed: @escaping @Sendable () async -> Void = {}
   ) -> HomeAssistantObservationCoordinator {
     HomeAssistantObservationCoordinator(
       temperatureStore: HomeAssistantTemperatureStore(loader: temperatureLoader),
-      chargingStore: HomeAssistantEVChargingStore(client: LifecycleEVChargingClient()),
+      chargingStore: HomeAssistantEVChargingStore(client: ObservationTestChargingClient()),
       garageDoorStore: HomeAssistantGarageDoorStore(
         loader: TestGarageDoorLoader()
       ),
-      homeEnergyStore: HomeAssistantHomeEnergyStore(loader: LifecycleEnergyLoader()),
+      homeEnergyStore: HomeAssistantHomeEnergyStore(loader: ObservationTestEnergyLoader()),
       refreshStateFeed: refreshStateFeed,
       resetStateFeed: resetStateFeed
     )
@@ -224,143 +224,4 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
       clientID: HomeAssistantOAuthConfiguration.release.clientID
     )
   }
-}
-
-private final class LifecycleTemperatureLoader:
-  HomeAssistantTemperatureLoading, @unchecked Sendable
-{
-  let providesContinuousTemperatureUpdates = true
-  let started = XCTestExpectation(description: "Temperature observation started")
-  let cancelled = XCTestExpectation(description: "Temperature observation cancelled")
-  private let lock = NSLock()
-  private var storedStartCount = 0
-  private var startExpectations: [Int: XCTestExpectation] = [:]
-
-  var startCount: Int {
-    lock.withLock { storedStartCount }
-  }
-
-  func expectStartCount(_ count: Int) -> XCTestExpectation {
-    let expectation = XCTestExpectation(
-      description: "Temperature observation reached \(count) starts"
-    )
-    let reached = lock.withLock {
-      if storedStartCount >= count { return true }
-      startExpectations[count] = expectation
-      return false
-    }
-    if reached {
-      expectation.fulfill()
-    }
-    return expectation
-  }
-
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
-      let expectation = lock.withLock {
-        storedStartCount += 1
-        return startExpectations.removeValue(forKey: storedStartCount)
-      }
-      started.fulfill()
-      expectation?.fulfill()
-      continuation.onTermination = { _ in
-        self.cancelled.fulfill()
-      }
-    }
-  }
-}
-
-private final class ControlledStateFeedRefresh: @unchecked Sendable {
-  let started = XCTestExpectation(description: "State feed refresh started")
-  private let lock = NSLock()
-  private var continuation: CheckedContinuation<Bool, Never>?
-
-  func call() async -> Bool {
-    started.fulfill()
-    return await withCheckedContinuation { continuation in
-      lock.withLock {
-        self.continuation = continuation
-      }
-    }
-  }
-
-  func resume() {
-    let continuation = lock.withLock {
-      let continuation = self.continuation
-      self.continuation = nil
-      return continuation
-    }
-    continuation?.resume(returning: false)
-  }
-}
-
-private final class ControlledStateFeedReset: @unchecked Sendable {
-  let started = XCTestExpectation(description: "State feed reset started")
-  private let blockingCall: Int
-  private let lock = NSLock()
-  private var continuation: CheckedContinuation<Void, Never>?
-  private var callCount = 0
-
-  init(blockingCall: Int = 1) {
-    self.blockingCall = blockingCall
-  }
-
-  func call() async {
-    let shouldBlock = lock.withLock {
-      callCount += 1
-      return callCount == blockingCall
-    }
-    guard shouldBlock else { return }
-    await withCheckedContinuation { continuation in
-      lock.withLock {
-        self.continuation = continuation
-      }
-      started.fulfill()
-    }
-  }
-
-  func resume() {
-    let continuation = lock.withLock {
-      let continuation = self.continuation
-      self.continuation = nil
-      return continuation
-    }
-    continuation?.resume()
-  }
-}
-
-private struct LifecycleEVChargingClient: HomeAssistantEVCharging {
-  let providesContinuousUpdates = true
-
-  func evChargingUpdates() -> HomeAssistantEVChargingUpdateStream {
-    HomeAssistantEVChargingUpdateStream { _ in }
-  }
-
-  func loadEVChargingMode() async throws -> HomeAssistantEVChargingMode {
-    throw LifecycleObservationError.unexpectedRequest
-  }
-
-  func setEVChargingMode(
-    _ mode: HomeAssistantEVChargingMode
-  ) async throws -> HomeAssistantEVChargingMode {
-    throw LifecycleObservationError.unexpectedRequest
-  }
-}
-
-private struct LifecycleEnergyLoader: HomeAssistantHomeEnergyLoading {
-  let providesContinuousEnergyUpdates = true
-
-  func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
-    throw LifecycleObservationError.unexpectedRequest
-  }
-
-  func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
-    HomeAssistantHomeEnergyUpdateStream { _ in }
-  }
-}
-
-private enum LifecycleObservationError: Error {
-  case unexpectedRequest
 }
