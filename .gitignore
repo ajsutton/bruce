@@ -18,6 +18,10 @@ DerivedData/
 build/
 .swiftpm/
 
+# Fastlane generated output
+fastlane/README.md
+fastlane/report.xml
+
 # Local configuration
 .env
 .codex/config.toml
