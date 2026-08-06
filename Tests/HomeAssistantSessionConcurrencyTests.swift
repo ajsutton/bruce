@@ -296,6 +296,15 @@ private actor BlockingDeleteCredentialStore: HomeAssistantCredentialStoring {
     value = credentials
   }
 
+  func replace(
+    _ credentials: HomeAssistantCredentials?,
+    ifCurrentIs original: HomeAssistantCredentials?
+  ) -> Bool {
+    guard value == original else { return false }
+    value = credentials
+    return true
+  }
+
   func delete() async {
     deleteStarted.fulfill()
     await withCheckedContinuation { continuation in

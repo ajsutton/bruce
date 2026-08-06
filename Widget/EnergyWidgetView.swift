@@ -16,8 +16,10 @@ struct EnergyWidgetView: View {
   @ViewBuilder
   var body: some View {
     switch family {
-    case .accessoryRectangular:
-      accessoryContent
+    #if os(iOS)
+      case .accessoryRectangular:
+        accessoryContent
+    #endif
     case .systemSmall:
       smallContent
     case .systemMedium:
@@ -29,38 +31,40 @@ struct EnergyWidgetView: View {
     }
   }
 
-  private var accessoryContent: some View {
-    Group {
-      if let snapshot = entry.snapshot {
-        let metrics = snapshot.stableMetrics(copy: copy)
-        VStack(alignment: .leading, spacing: 2) {
-          HStack {
-            HStack(spacing: 4) {
-              Image(systemName: metrics[0].icon)
-                .accessibilityHidden(true)
-              Text(metrics[0].value)
+  #if os(iOS)
+    private var accessoryContent: some View {
+      Group {
+        if let snapshot = entry.snapshot {
+          let metrics = snapshot.stableMetrics(copy: copy)
+          VStack(alignment: .leading, spacing: 2) {
+            HStack {
+              HStack(spacing: 4) {
+                Image(systemName: metrics[0].icon)
+                  .accessibilityHidden(true)
+                Text(metrics[0].value)
+              }
+              .font(.headline)
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel(metrics[0].accessibilityLabel)
+              .accessibilityValue(accessibilityValue(for: metrics[0]))
+              Spacer(minLength: 4)
+              freshnessLabel(compact: true)
             }
-            .font(.headline)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(metrics[0].accessibilityLabel)
-            .accessibilityValue(accessibilityValue(for: metrics[0]))
-            Spacer(minLength: 4)
-            freshnessLabel(compact: true)
+            HStack(spacing: 8) {
+              accessoryMetric(metrics[1])
+              accessoryMetric(metrics[2])
+            }
+            .font(.caption2)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
           }
-          HStack(spacing: 8) {
-            accessoryMetric(metrics[1])
-            accessoryMetric(metrics[2])
-          }
-          .font(.caption2)
-          .lineLimit(1)
-          .minimumScaleFactor(0.7)
+        } else {
+          Label(copy.energyUnavailable, systemImage: "bolt.slash")
+            .font(.caption)
         }
-      } else {
-        Label(copy.energyUnavailable, systemImage: "bolt.slash")
-          .font(.caption)
       }
     }
-  }
+  #endif
 
   private var smallContent: some View {
     VStack(alignment: .leading, spacing: 5) {

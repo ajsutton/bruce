@@ -5,11 +5,16 @@ final class SourceScopedTaskCoalescerTests: XCTestCase {
     let coalescer = SourceScopedTaskCoalescer<String>()
     let gate = AsyncGate()
     let oldSourceStarted = expectation(description: "Old source refresh started")
+    let oldSourceCancelled = expectation(description: "Old source refresh cancelled")
     let oldRequest = Task {
       await coalescer.value(for: "old-source") {
-        oldSourceStarted.fulfill()
-        await gate.wait()
-        return "old-value"
+        await withTaskCancellationHandler {
+          oldSourceStarted.fulfill()
+          await gate.wait()
+          return "old-value"
+        } onCancel: {
+          oldSourceCancelled.fulfill()
+        }
       }
     }
     await fulfillment(of: [oldSourceStarted], timeout: 1)
@@ -19,6 +24,7 @@ final class SourceScopedTaskCoalescerTests: XCTestCase {
     }
 
     XCTAssertEqual(replacementValue, "replacement-value")
+    await fulfillment(of: [oldSourceCancelled], timeout: 1)
     await gate.open()
     let oldValue = await oldRequest.value
     XCTAssertEqual(oldValue, "old-value")

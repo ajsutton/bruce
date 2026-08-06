@@ -16,20 +16,25 @@ struct EnergyWidget: Widget {
     }
     .configurationDisplayName(LocalizedStringKey("widget.galleryName"))
     .description(LocalizedStringKey("widget.galleryDescription"))
-    .supportedFamilies([
-      .accessoryRectangular,
-      .systemSmall,
-      .systemMedium,
-      .systemLarge,
-    ])
+    .supportedFamilies(Self.supportedFamilies)
+  }
+
+  private static var supportedFamilies: [WidgetFamily] {
+    #if os(iOS)
+      [.accessoryRectangular, .systemSmall, .systemMedium, .systemLarge]
+    #else
+      [.systemSmall, .systemMedium, .systemLarge]
+    #endif
   }
 }
 
-#Preview(as: .accessoryRectangular) {
-  EnergyWidget()
-} timeline: {
-  EnergyWidgetEntry.preview
-}
+#if os(iOS)
+  #Preview(as: .accessoryRectangular) {
+    EnergyWidget()
+  } timeline: {
+    EnergyWidgetEntry.preview
+  }
+#endif
 
 #Preview(as: .systemSmall) {
   EnergyWidget()
@@ -67,11 +72,13 @@ struct EnergyWidget: Widget {
   EnergyWidgetEntry.fullBruceEdgePreview
 }
 
-#Preview("Last known accessory", as: .accessoryRectangular) {
-  EnergyWidget()
-} timeline: {
-  EnergyWidgetEntry.lastKnownPreview
-}
+#if os(iOS)
+  #Preview("Last known accessory", as: .accessoryRectangular) {
+    EnergyWidget()
+  } timeline: {
+    EnergyWidgetEntry.lastKnownPreview
+  }
+#endif
 
 #Preview("Unavailable", as: .systemSmall) {
   EnergyWidget()

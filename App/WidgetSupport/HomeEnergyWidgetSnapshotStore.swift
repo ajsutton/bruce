@@ -29,6 +29,23 @@ struct HomeEnergyWidgetSnapshotStore {
     )
   }
 
+  func saveAndLoadNewest(
+    _ snapshot: HomeEnergyWidgetSnapshot,
+    writer: Writer
+  ) throws -> HomeEnergyWidgetSnapshot {
+    try save(snapshot, writer: writer)
+    return try load(sourceIdentifier: snapshot.sourceIdentifier) ?? snapshot
+  }
+
+  func loadNewer(
+    than snapshot: HomeEnergyWidgetSnapshot?,
+    sourceIdentifier: String?
+  ) throws -> HomeEnergyWidgetSnapshot? {
+    guard let newest = try load(sourceIdentifier: sourceIdentifier) else { return nil }
+    guard let snapshot else { return newest }
+    return newest.capturedAt > snapshot.capturedAt ? newest : nil
+  }
+
   func clear() {
     for writer in Writer.allCases {
       defaults.removeObject(forKey: Self.snapshotKey(writer: writer))

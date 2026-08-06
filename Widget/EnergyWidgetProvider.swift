@@ -99,8 +99,7 @@ private struct EnergyWidgetRefreshCoordinator: Sendable {
     let now = Date()
     let store = HomeEnergyWidgetSnapshotStore()
     let credentialStore = WidgetHomeAssistantCredentialStore()
-    let isFullBruce =
-      BruceSharedContainer.defaults()?.bool(forKey: "bruceMode") ?? false
+    let isFullBruce = BruceSharedContainer.defaults()?.bool(forKey: "bruceMode") ?? false
     let sourceIdentifier = initialState.sourceIdentifier
     let cachedSnapshot = initialState.snapshot
     do {
@@ -112,10 +111,11 @@ private struct EnergyWidgetRefreshCoordinator: Sendable {
           isFullBruce: isFullBruce
         )
       }
-      try store?.save(snapshot, writer: .widget)
+      let newestSnapshot =
+        try store?.saveAndLoadNewest(snapshot, writer: .widget) ?? snapshot
       return EnergyWidgetEntry(
         date: now,
-        snapshot: snapshot,
+        snapshot: newestSnapshot,
         freshness: .current,
         isFullBruce: isFullBruce
       )
@@ -123,14 +123,47 @@ private struct EnergyWidgetRefreshCoordinator: Sendable {
       EnergyWidgetProvider.logger.error(
         "Energy widget refresh failed; displaying cached data: \(String(describing: error), privacy: .private)"
       )
-      guard (try? credentialStore.load()?.sourceIdentifier) == sourceIdentifier else {
-        return latestEntryAfterConnectionChange(
-          store: store,
-          date: now,
-          isFullBruce: isFullBruce
-        )
-      }
-      return lastKnownEntry(cachedSnapshot, date: now, isFullBruce: isFullBruce)
+      return failedRefreshEntry(
+        initialState: initialState,
+        store: store,
+        credentialStore: credentialStore,
+        date: now,
+        isFullBruce: isFullBruce
+      )
+    }
+  }
+
+  private static func failedRefreshEntry(
+    initialState: InitialState,
+    store: HomeEnergyWidgetSnapshotStore?,
+    credentialStore: WidgetHomeAssistantCredentialStore,
+    date: Date,
+    isFullBruce: Bool
+  ) -> EnergyWidgetEntry {
+    guard let sourceIdentifier = initialState.sourceIdentifier,
+      let reloadedSourceIdentifier = try? credentialStore.load()?.sourceIdentifier,
+      reloadedSourceIdentifier == sourceIdentifier
+    else {
+      return latestEntryAfterConnectionChange(
+        store: store,
+        date: date,
+        isFullBruce: isFullBruce
+      )
+    }
+    switch EnergyWidgetRefreshReconciliation.afterFailure(
+      cachedSnapshot: initialState.snapshot,
+      sourceIdentifier: sourceIdentifier,
+      store: store
+    ) {
+    case .current(let newerSnapshot):
+      return EnergyWidgetEntry(
+        date: date,
+        snapshot: newerSnapshot,
+        freshness: .current,
+        isFullBruce: isFullBruce
+      )
+    case .lastKnown(let snapshot):
+      return lastKnownEntry(snapshot, date: date, isFullBruce: isFullBruce)
     }
   }
 

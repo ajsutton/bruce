@@ -148,9 +148,27 @@ final class HomeEnergyWidgetSnapshotTests: XCTestCase {
     let older = makeSnapshot(capturedAt: Date(timeIntervalSince1970: 1_000))
 
     try store.save(newer, writer: .app)
-    try store.save(older, writer: .widget)
+    let selectedSnapshot = try store.saveAndLoadNewest(older, writer: .widget)
 
     XCTAssertEqual(try store.load(), newer)
+    XCTAssertEqual(selectedSnapshot, newer)
+  }
+
+  func testStoreFindsNewerAppSnapshotAfterWidgetRefreshStarts() throws {
+    let suiteName = "BruceTests.\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let store = try XCTUnwrap(HomeEnergyWidgetSnapshotStore(defaults: defaults))
+    let cached = makeSnapshot(capturedAt: Date(timeIntervalSince1970: 1_000))
+    let appPublication = makeSnapshot(capturedAt: Date(timeIntervalSince1970: 2_000))
+    try store.save(cached, writer: .widget)
+
+    try store.save(appPublication, writer: .app)
+
+    XCTAssertEqual(
+      try store.loadNewer(than: cached, sourceIdentifier: cached.sourceIdentifier),
+      appPublication
+    )
   }
 
   func testStoreOnlyReturnsSnapshotsForTheConnectedHome() throws {
@@ -176,36 +194,34 @@ final class HomeEnergyWidgetSnapshotTests: XCTestCase {
     XCTAssertThrowsError(try store.load())
   }
 
-  #if os(iOS)
-    func testPublisherReloadsOnlyWhenDisplayedReadingsChange() throws {
-      let suiteName = "BruceTests.\(UUID().uuidString)"
-      let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-      defer { defaults.removePersistentDomain(forName: suiteName) }
-      let store = try XCTUnwrap(HomeEnergyWidgetSnapshotStore(defaults: defaults))
-      var reloadCount = 0
-      let publisher = HomeEnergyWidgetSnapshotPublisher(
-        store: store,
-        sourceIdentifier: { "test" },
-        reloadTimelines: { reloadCount += 1 }
-      )
-      let snapshot = HomeAssistantHomeEnergySnapshot(
-        pvPowerKilowatts: 6.4,
-        batteryStateOfCharge: 78,
-        homeConsumptionKilowatts: 2.2,
-        gridPowerKilowatts: -3.2,
-        generalPriceDollarsPerKilowattHour: 0.284,
-        feedInPriceDollarsPerKilowattHour: 0.08,
-        importCostTodayDollars: 2.43,
-        feedInEarningsTodayDollars: 4.19
-      )
+  func testPublisherReloadsOnlyWhenDisplayedReadingsChange() throws {
+    let suiteName = "BruceTests.\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let store = try XCTUnwrap(HomeEnergyWidgetSnapshotStore(defaults: defaults))
+    var reloadCount = 0
+    let publisher = HomeEnergyWidgetSnapshotPublisher(
+      store: store,
+      sourceIdentifier: { "test" },
+      reloadTimelines: { reloadCount += 1 }
+    )
+    let snapshot = HomeAssistantHomeEnergySnapshot(
+      pvPowerKilowatts: 6.4,
+      batteryStateOfCharge: 78,
+      homeConsumptionKilowatts: 2.2,
+      gridPowerKilowatts: -3.2,
+      generalPriceDollarsPerKilowattHour: 0.284,
+      feedInPriceDollarsPerKilowattHour: 0.08,
+      importCostTodayDollars: 2.43,
+      feedInEarningsTodayDollars: 4.19
+    )
 
-      publisher.publish(snapshot, capturedAt: Date(timeIntervalSince1970: 1_000))
-      publisher.publish(snapshot, capturedAt: Date(timeIntervalSince1970: 2_000))
+    publisher.publish(snapshot, capturedAt: Date(timeIntervalSince1970: 1_000))
+    publisher.publish(snapshot, capturedAt: Date(timeIntervalSince1970: 2_000))
 
-      XCTAssertEqual(reloadCount, 1)
-      XCTAssertEqual(try store.load()?.capturedAt, Date(timeIntervalSince1970: 2_000))
-    }
-  #endif
+    XCTAssertEqual(reloadCount, 1)
+    XCTAssertEqual(try store.load()?.capturedAt, Date(timeIntervalSince1970: 2_000))
+  }
 
   private func makeSnapshot(capturedAt: Date) -> HomeEnergyWidgetSnapshot {
     HomeEnergyWidgetSnapshot(

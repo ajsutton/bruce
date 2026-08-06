@@ -16,6 +16,7 @@ actor SourceScopedTaskCoalescer<Value: Sendable> {
     if let inFlight, inFlight.sourceIdentifier == sourceIdentifier {
       return await inFlight.task.value
     }
+    inFlight?.task.cancel()
     let id = UUID()
     let task = Task { await operation() }
     inFlight = InFlight(id: id, sourceIdentifier: sourceIdentifier, task: task)

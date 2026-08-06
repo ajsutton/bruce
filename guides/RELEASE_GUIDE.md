@@ -24,6 +24,10 @@ The manual setup instructions in `plans/RELEASE_AUTOMATION_PLAN.md` must be comp
   associated with `group.net.symphonious.bruce`, include the shared Keychain access group, and
   have current App Store distribution profiles. After changing these capabilities, an explicitly
   approved operator runs `bundle exec fastlane ios force_certificates` before the next release.
+- Both macOS identifiers are associated with `group.net.symphonious.bruce`, include the shared
+  Keychain access group, and have current Developer ID profiles. After changing these capabilities,
+  an explicitly approved operator runs `bundle exec fastlane mac force_certificates` before the
+  next release.
 - The App Store Connect Bruce record exists.
 - A team App Store Connect API key has been validated for upload, review submission, Match, and
   notarisation.

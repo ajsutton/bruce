@@ -8,8 +8,8 @@ actor HomeAssistantSession {
   private let refreshLeeway: TimeInterval
   private let persistenceGate: HomeAssistantPersistenceGate
 
-  private var credentials: HomeAssistantCredentials?
-  private var credentialGeneration = 0, authenticationSessionEpoch = 0
+  private(set) var credentials: HomeAssistantCredentials?
+  private(set) var credentialGeneration = 0, authenticationSessionEpoch = 0
   private var rejectedCredentialGeneration: Int?, successfulRouteSourceGeneration: Int?
 
   init(
@@ -44,15 +44,21 @@ actor HomeAssistantSession {
 
   func install(_ newCredentials: HomeAssistantCredentials) async throws {
     let generation = reserveCredentialGeneration()
+    let previousCredentials = credentials
     await tokenRefresher.cancel()
     try await withHomeAssistantPersistence(gate: persistenceGate) {
       try await credentialStore.save(newCredentials)
-      try await HomeAssistantCredentialRecovery.checkCancellation(
-        credentials: credentials,
-        store: credentialStore
+      try await checkPersistenceCancellation(
+        restoring: previousCredentials,
+        replacing: newCredentials,
+        generation: generation
       )
       guard credentialGeneration == generation else {
-        try await HomeAssistantCredentialRecovery.repair(credentials, in: credentialStore)
+        _ = try await HomeAssistantCredentialRecovery.repair(
+          credentials,
+          replacing: newCredentials,
+          in: credentialStore
+        )
         throw HomeAssistantAPIError.staleOperation
       }
       credentials = newCredentials
@@ -64,6 +70,7 @@ actor HomeAssistantSession {
     validate: @escaping @Sendable (Data) throws -> Void
   ) async throws {
     let generation = reserveCredentialGeneration()
+    let previousCredentials = credentials
     await tokenRefresher.cancel()
     let response = try await transport.getFirstAvailable(
       path: "api/",
@@ -75,12 +82,17 @@ actor HomeAssistantSession {
     verifiedCredentials.lastSuccessfulURL = response.baseURL
     try await withHomeAssistantPersistence(gate: persistenceGate) {
       try await credentialStore.save(verifiedCredentials)
-      try await HomeAssistantCredentialRecovery.checkCancellation(
-        credentials: credentials,
-        store: credentialStore
+      try await checkPersistenceCancellation(
+        restoring: previousCredentials,
+        replacing: verifiedCredentials,
+        generation: generation
       )
       guard credentialGeneration == generation else {
-        try await HomeAssistantCredentialRecovery.repair(credentials, in: credentialStore)
+        _ = try await HomeAssistantCredentialRecovery.repair(
+          credentials,
+          replacing: verifiedCredentials,
+          in: credentialStore
+        )
         throw HomeAssistantAPIError.staleOperation
       }
       credentials = verifiedCredentials
@@ -103,7 +115,11 @@ actor HomeAssistantSession {
       try await withHomeAssistantPersistence(gate: persistenceGate) {
         try await credentialStore.delete()
         if credentialGeneration != disconnectedGeneration {
-          try await HomeAssistantCredentialRecovery.repair(credentials, in: credentialStore)
+          _ = try await HomeAssistantCredentialRecovery.repair(
+            credentials,
+            replacing: nil,
+            in: credentialStore
+          )
         }
       }
     } catch {
@@ -138,166 +154,10 @@ actor HomeAssistantSession {
     )
   }
 
-  private func installRefreshedToken(
-    _ token: HomeAssistantToken,
-    successfulURL: URL,
-    original: HomeAssistantCredentials,
-    generation: Int
-  ) async throws {
-    let refreshed = HomeAssistantCredentialUpdates.refreshed(original, token, successfulURL)
-    if credentials == refreshed {
-      return
-    }
-    guard credentialGeneration == generation, credentials == original else {
-      throw HomeAssistantAPIError.staleOperation
-    }
-    try await withHomeAssistantPersistence(gate: persistenceGate) {
-      if credentials == refreshed {
-        return
-      }
-      guard credentialGeneration == generation, credentials == original else {
-        throw HomeAssistantAPIError.staleOperation
-      }
-      try await credentialStore.save(refreshed)
-      try await HomeAssistantCredentialRecovery.checkCancellation(
-        credentials: credentials,
-        store: credentialStore
-      )
-      guard credentialGeneration == generation, credentials == original else {
-        try await HomeAssistantCredentialRecovery.repair(credentials, in: credentialStore)
-        throw HomeAssistantAPIError.staleOperation
-      }
-      credentials = refreshed
-      successfulRouteSourceGeneration = nil
-      credentialGeneration += 1
-    }
-  }
-
-  private func rejectCredentials(generation: Int) async throws -> Never {
-    if credentials == nil, rejectedCredentialGeneration == generation {
-      throw HomeAssistantAPIError.reauthenticationRequired
-    }
-    guard credentialGeneration == generation else {
-      throw HomeAssistantAPIError.staleOperation
-    }
-    credentials = nil
-    credentialGeneration += 1
-    authenticationSessionEpoch += 1
-    rejectedCredentialGeneration = generation
-    successfulRouteSourceGeneration = nil
-    let rejectedGeneration = credentialGeneration
-    try await withHomeAssistantPersistence(gate: persistenceGate) {
-      try await credentialStore.delete()
-      if credentialGeneration != rejectedGeneration {
-        try await HomeAssistantCredentialRecovery.repair(credentials, in: credentialStore)
-        throw HomeAssistantAPIError.staleOperation
-      }
-    }
-    throw HomeAssistantAPIError.reauthenticationRequired
-  }
-
-  private func rememberSuccessful(
-    _ baseURL: URL,
-    original: HomeAssistantCredentials,
-    generation: Int
-  ) async throws {
-    let updated = HomeAssistantCredentialUpdates.recording(baseURL, in: original)
-    if credentials == updated, successfulRouteSourceGeneration == generation {
-      return
-    }
-    guard credentialGeneration == generation, credentials == original else {
-      throw HomeAssistantAPIError.staleOperation
-    }
-    guard original.lastSuccessfulURL != baseURL else {
-      return
-    }
-    try await withHomeAssistantPersistence(gate: persistenceGate) {
-      if credentials == updated, successfulRouteSourceGeneration == generation {
-        return
-      }
-      guard credentialGeneration == generation, credentials == original else {
-        try await HomeAssistantCredentialRecovery.repair(credentials, in: credentialStore)
-        throw HomeAssistantAPIError.staleOperation
-      }
-      try await credentialStore.save(updated)
-      try await HomeAssistantCredentialRecovery.checkCancellation(
-        credentials: credentials,
-        store: credentialStore
-      )
-      guard credentialGeneration == generation, credentials == original else {
-        try await HomeAssistantCredentialRecovery.repair(credentials, in: credentialStore)
-        throw HomeAssistantAPIError.staleOperation
-      }
-      credentials = updated
-      successfulRouteSourceGeneration = generation
-      credentialGeneration += 1
-    }
-  }
-
-  private func reserveCredentialGeneration() -> Int {
-    credentialGeneration += 1
-    authenticationSessionEpoch += 1
-    rejectedCredentialGeneration = nil
-    successfulRouteSourceGeneration = nil
-    return credentialGeneration
-  }
-
 }
 
 extension HomeAssistantSession {
-  func performRequest(
-    path: String,
-    queryItems: [URLQueryItem] = [],
-    body: Data?,
-    canRefreshAfterUnauthorized: Bool,
-    routeSelection: RouteSelection = .ordered
-  ) async throws -> Data {
-    guard let credentials else {
-      throw HomeAssistantAPIError.noCredentials
-    }
-    let generation = credentialGeneration
-    let sessionEpoch = authenticationSessionEpoch
-    do {
-      let response = try await loadResponse(
-        path: path,
-        queryItems: queryItems,
-        body: body,
-        credentials: credentials,
-        routeSelection: routeSelection
-      )
-      try Task.checkCancellation()
-      if body == nil {
-        try await rememberSuccessful(
-          response.baseURL,
-          original: credentials,
-          generation: generation
-        )
-      }
-      return response.data
-    } catch HomeAssistantAPIError.unauthorized {
-      guard canRefreshAfterUnauthorized else {
-        throw HomeAssistantAPIError.unauthorized
-      }
-      guard authenticationSessionEpoch == sessionEpoch else {
-        throw HomeAssistantAPIError.staleOperation
-      }
-      guard let currentCredentials = self.credentials else {
-        throw HomeAssistantAPIError.noCredentials
-      }
-      if currentCredentials.accessToken == credentials.accessToken {
-        try await refreshIfNeeded(force: true)
-      }
-      return try await performRequest(
-        path: path,
-        queryItems: queryItems,
-        body: body,
-        canRefreshAfterUnauthorized: false,
-        routeSelection: routeSelection
-      )
-    }
-  }
-
-  private func loadResponse(
+  func loadResponse(
     path: String,
     queryItems: [URLQueryItem],
     body: Data?,
@@ -325,54 +185,179 @@ extension HomeAssistantSession {
     )
   }
 
-  func authenticatedWebSocketAccesses() async throws -> [HomeAssistantWebSocketAccess] {
-    try await refreshIfNeeded(force: false)
-    guard let credentials else {
-      throw HomeAssistantAPIError.noCredentials
-    }
-    return try HomeAssistantWebSocketAccess.candidates(
-      credentials: credentials,
-      credentialGeneration: credentialGeneration,
-      authenticationSessionEpoch: authenticationSessionEpoch
-    )
-  }
-
-  func refreshRejectedWebSocketAccess(
-    _ access: HomeAssistantWebSocketAccess
+  private func installRefreshedToken(
+    _ token: HomeAssistantToken,
+    successfulURL: URL,
+    original: HomeAssistantCredentials,
+    generation: Int
   ) async throws {
-    guard let credentials,
-      access.authenticationSessionEpoch == authenticationSessionEpoch
-    else {
+    let refreshed = HomeAssistantCredentialUpdates.refreshed(original, token, successfulURL)
+    if credentials == refreshed {
+      return
+    }
+    guard credentialGeneration == generation, credentials == original else {
       throw HomeAssistantAPIError.staleOperation
     }
-    guard credentials.accessToken == access.accessToken else { return }
-    try await refreshIfNeeded(force: true)
+    try await withHomeAssistantPersistence(gate: persistenceGate) {
+      if credentials == refreshed {
+        return
+      }
+      guard credentialGeneration == generation, credentials == original else {
+        throw HomeAssistantAPIError.staleOperation
+      }
+      guard try await credentialStore.replace(refreshed, ifCurrentIs: original) else {
+        try await reconcilePersistedCredentials(
+          ifCurrentIs: original,
+          generation: generation
+        )
+        throw HomeAssistantAPIError.staleOperation
+      }
+      try await checkPersistenceCancellation(
+        restoring: original,
+        replacing: refreshed,
+        generation: generation
+      )
+      guard credentialGeneration == generation, credentials == original else {
+        _ = try await HomeAssistantCredentialRecovery.repair(
+          credentials,
+          replacing: refreshed,
+          in: credentialStore
+        )
+        throw HomeAssistantAPIError.staleOperation
+      }
+      credentials = refreshed
+      successfulRouteSourceGeneration = nil
+      credentialGeneration += 1
+    }
   }
 
-  func rememberSuccessfulWebSocketAccess(
-    _ access: HomeAssistantWebSocketAccess
+  private func rejectCredentials(generation: Int) async throws -> Never {
+    if credentials == nil, rejectedCredentialGeneration == generation {
+      throw HomeAssistantAPIError.reauthenticationRequired
+    }
+    guard credentialGeneration == generation, let rejectedCredentials = credentials else {
+      throw HomeAssistantAPIError.staleOperation
+    }
+    try await withHomeAssistantPersistence(gate: persistenceGate) {
+      guard
+        try await credentialStore.replace(nil, ifCurrentIs: rejectedCredentials)
+      else {
+        try await reconcilePersistedCredentials(
+          ifCurrentIs: rejectedCredentials,
+          generation: generation
+        )
+        throw HomeAssistantAPIError.staleOperation
+      }
+      try await checkPersistenceCancellation(
+        restoring: rejectedCredentials,
+        replacing: nil,
+        generation: generation
+      )
+      guard credentialGeneration == generation, credentials == rejectedCredentials else {
+        _ = try await HomeAssistantCredentialRecovery.repair(
+          credentials,
+          replacing: nil,
+          in: credentialStore
+        )
+        throw HomeAssistantAPIError.staleOperation
+      }
+      credentials = nil
+      credentialGeneration += 1
+      authenticationSessionEpoch += 1
+      rejectedCredentialGeneration = generation
+      successfulRouteSourceGeneration = nil
+    }
+    throw HomeAssistantAPIError.reauthenticationRequired
+  }
+
+  func rememberSuccessful(
+    _ baseURL: URL,
+    original: HomeAssistantCredentials,
+    generation: Int
   ) async throws {
-    guard let credentials else {
-      throw HomeAssistantAPIError.noCredentials
+    let updated = HomeAssistantCredentialUpdates.recording(baseURL, in: original)
+    if credentials == updated, successfulRouteSourceGeneration == generation {
+      return
     }
-    guard
-      access.accessToken == credentials.accessToken,
-      access.credentialGeneration == credentialGeneration
-    else {
+    guard credentialGeneration == generation, credentials == original else {
       throw HomeAssistantAPIError.staleOperation
     }
-    try await rememberSuccessful(
-      access.baseURL,
-      original: credentials,
-      generation: access.credentialGeneration
-    )
+    guard original.lastSuccessfulURL != baseURL else {
+      return
+    }
+    try await withHomeAssistantPersistence(gate: persistenceGate) {
+      if credentials == updated, successfulRouteSourceGeneration == generation {
+        return
+      }
+      guard credentialGeneration == generation, credentials == original else {
+        throw HomeAssistantAPIError.staleOperation
+      }
+      guard try await credentialStore.replace(updated, ifCurrentIs: original) else {
+        try await reconcilePersistedCredentials(
+          ifCurrentIs: original,
+          generation: generation
+        )
+        throw HomeAssistantAPIError.staleOperation
+      }
+      try await checkPersistenceCancellation(
+        restoring: original,
+        replacing: updated,
+        generation: generation
+      )
+      guard credentialGeneration == generation, credentials == original else {
+        _ = try await HomeAssistantCredentialRecovery.repair(
+          credentials,
+          replacing: updated,
+          in: credentialStore
+        )
+        throw HomeAssistantAPIError.staleOperation
+      }
+      credentials = updated
+      successfulRouteSourceGeneration = generation
+      credentialGeneration += 1
+    }
   }
 
-  func validateWebSocketAccess(_ access: HomeAssistantWebSocketAccess) throws {
-    guard credentials != nil,
-      access.authenticationSessionEpoch == authenticationSessionEpoch
-    else {
-      throw HomeAssistantAPIError.staleOperation
+  private func reserveCredentialGeneration() -> Int {
+    credentialGeneration += 1
+    authenticationSessionEpoch += 1
+    rejectedCredentialGeneration = nil
+    successfulRouteSourceGeneration = nil
+    return credentialGeneration
+  }
+
+  private func reconcilePersistedCredentials(
+    ifCurrentIs expectedCredentials: HomeAssistantCredentials?,
+    generation: Int
+  ) async throws {
+    let persistedCredentials = try await credentialStore.load()
+    guard credentialGeneration == generation, credentials == expectedCredentials else {
+      return
     }
+    credentials = persistedCredentials
+    credentialGeneration += 1
+    authenticationSessionEpoch += 1
+    rejectedCredentialGeneration = nil
+    successfulRouteSourceGeneration = nil
+  }
+
+  private func checkPersistenceCancellation(
+    restoring previousCredentials: HomeAssistantCredentials?,
+    replacing persistedCredentials: HomeAssistantCredentials?,
+    generation: Int
+  ) async throws {
+    guard Task.isCancelled else { return }
+    let didRestore = try await HomeAssistantCredentialRecovery.repair(
+      previousCredentials,
+      replacing: persistedCredentials,
+      in: credentialStore
+    )
+    if !didRestore {
+      try await reconcilePersistedCredentials(
+        ifCurrentIs: previousCredentials,
+        generation: generation
+      )
+    }
+    throw CancellationError()
   }
 }

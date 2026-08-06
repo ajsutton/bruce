@@ -23,13 +23,12 @@ struct WidgetHomeAssistantCredentials: Codable, Equatable, Sendable {
   }
 
   var candidateURLs: [URL] {
-    var urls = [BruceSharedHomeAssistant.preferredWidgetRoute(for: sourceIdentifier)]
-      .compactMap(\.self)
-    if !urls.contains(lastSuccessfulURL) {
-      urls.append(lastSuccessfulURL)
-    }
-    for url in [internalURL, externalURL].compactMap(\.self)
-    where !urls.contains(url) {
+    let configuredURLs = [internalURL, externalURL].compactMap(\.self)
+    var urls = [
+      BruceSharedHomeAssistant.preferredWidgetRoute(for: sourceIdentifier),
+      lastSuccessfulURL,
+    ].compactMap(\.self).filter(configuredURLs.contains)
+    for url in configuredURLs where !urls.contains(url) {
       urls.append(url)
     }
     return urls
@@ -41,7 +40,7 @@ struct WidgetHomeAssistantCredentialStore {
     guard let accessGroup = BruceSharedKeychain.accessGroup() else {
       throw WidgetHomeEnergyError.credentialsUnavailable
     }
-    let query: [String: Any] = [
+    var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: BruceSharedKeychain.credentialService,
       kSecAttrAccount as String: BruceSharedKeychain.credentialAccount,
@@ -50,6 +49,9 @@ struct WidgetHomeAssistantCredentialStore {
       kSecReturnData as String: true,
       kSecMatchLimit as String: kSecMatchLimitOne,
     ]
+    #if os(macOS)
+      query[kSecUseDataProtectionKeychain as String] = true
+    #endif
     var result: CFTypeRef?
     let status = SecItemCopyMatching(query as CFDictionary, &result)
     if status == errSecItemNotFound {
@@ -79,13 +81,16 @@ struct WidgetHomeAssistantCredentialStore {
       guard try load() == originalCredentials,
         let accessGroup = BruceSharedKeychain.accessGroup()
       else { return false }
-      let query: [String: Any] = [
+      var query: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
         kSecAttrService as String: BruceSharedKeychain.credentialService,
         kSecAttrAccount as String: BruceSharedKeychain.credentialAccount,
         kSecAttrAccessGroup as String: accessGroup,
         kSecAttrSynchronizable as String: kCFBooleanFalse as Any,
       ]
+      #if os(macOS)
+        query[kSecUseDataProtectionKeychain as String] = true
+      #endif
       let status = SecItemUpdate(
         query as CFDictionary,
         [kSecValueData as String: try JSONEncoder().encode(credentials)] as CFDictionary

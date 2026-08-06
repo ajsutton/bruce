@@ -187,19 +187,25 @@ Names may be adjusted during review, but the responsibilities and safety gates m
 2. Configure the iOS target's Release settings with:
    - `CODE_SIGN_STYLE: Manual`;
    - `CODE_SIGN_IDENTITY: Apple Distribution`;
-   - `CODE_SIGN_ENTITLEMENTS: App/Bruce.entitlements`; and
+   - `CODE_SIGN_ENTITLEMENTS: App/Bruce-iOS.entitlements`; and
    - `PROVISIONING_PROFILE_SPECIFIER: ${IOS_PROVISIONING_PROFILE}`.
-3. Configure the macOS target's Release settings with:
+3. Configure the iOS widget extension's Release settings with the same distribution identity,
+   `CODE_SIGN_ENTITLEMENTS: Widget/EnergyWidget.entitlements`, and
+   `PROVISIONING_PROFILE_SPECIFIER: ${IOS_WIDGET_PROVISIONING_PROFILE}`.
+4. Configure the macOS target's Release settings with:
    - `CODE_SIGN_STYLE: Manual`;
    - `CODE_SIGN_IDENTITY: Developer ID Application`;
    - `CODE_SIGN_ENTITLEMENTS: App/Bruce.entitlements`;
    - `PROVISIONING_PROFILE_SPECIFIER: ${MAC_PROVISIONING_PROFILE}`; and
    - `ENABLE_HARDENED_RUNTIME: YES`.
-4. Keep signing settings scoped to application targets so they do not leak into test or package
-   targets.
-5. Add a Release-only pre-build guard that rejects the placeholder build number `1`. Fastlane
+5. Configure the macOS widget extension's Release settings with the same distribution identity,
+   `CODE_SIGN_ENTITLEMENTS: Widget/EnergyWidget-macOS.entitlements`, and hardened runtime, plus
+   `PROVISIONING_PROFILE_SPECIFIER: ${MAC_WIDGET_PROVISIONING_PROFILE}`.
+6. Keep signing settings scoped to application and extension targets so they do not leak into test
+   or package targets.
+7. Add a Release-only pre-build guard that rejects the placeholder build number `1`. Fastlane
    must set a real build number before either distribution build can succeed.
-6. Continue generating `Bruce.xcodeproj` from `project.yml`; never check in or edit the generated
+8. Continue generating `Bruce.xcodeproj` from `project.yml`; never check in or edit the generated
    project directly.
 
 ### Fastlane iOS work
@@ -207,10 +213,12 @@ Names may be adjusted during review, but the responsibilities and safety gates m
 1. Configure App Store Connect API-key authentication from environment variables.
 2. Require a team App Store Connect API key. An individual key is not valid for the provisioning
    and notarisation operations used by this pipeline.
-3. Add `ios certificates` using Match type `appstore` for `net.symphonious.bruce`.
+3. Add `ios certificates` using Match type `appstore` for `net.symphonious.bruce` and
+   `net.symphonious.bruce.energy-widget`.
 4. Keep Match read-only in CI; certificate/profile creation is a separately approved bootstrap
    action.
-5. Bake Match's profile name into `IOS_PROVISIONING_PROFILE` and regenerate the project.
+5. Bake Match's profile names into `IOS_PROVISIONING_PROFILE` and
+   `IOS_WIDGET_PROVISIONING_PROFILE`, then regenerate the project.
 6. Query `latest_testflight_build_number` immediately before allocation, increment it by one, and
    apply it after the final project generation.
 7. Build scheme `Bruce-iOS` with export method `app-store`.
@@ -225,8 +233,9 @@ Names may be adjusted during review, but the responsibilities and safety gates m
 ### Fastlane macOS work
 
 1. Add `mac certificates` using Match type `developer_id`, platform `macos`, for
-   `net.symphonious.bruce`.
-2. Bake Match's profile name into `MAC_PROVISIONING_PROFILE` and regenerate the project.
+   `net.symphonious.bruce` and `net.symphonious.bruce.energy-widget`.
+2. Bake Match's profile names into `MAC_PROVISIONING_PROFILE` and
+   `MAC_WIDGET_PROVISIONING_PROFILE`, then regenerate the project.
 3. Apply the build number captured from the iOS lane after the final project generation.
 4. Build scheme `Bruce-macOS`, configuration `Release`, with export method `developer-id`.
 5. Confirm `Bruce.app` exists and fail clearly if it does not.
@@ -267,8 +276,9 @@ Names may be adjusted during review, but the responsibilities and safety gates m
 15. Optionally retain the IPA as a short-lived Actions artefact for diagnostics. The IPA is not a
    public GitHub release asset.
 
-The workflow must not include Moolah's CloudKit schema gates, Mac extension profiles, or monthly
-automatic tagging because Bruce has no corresponding use case.
+The workflow must not include Moolah's CloudKit schema gates or monthly automatic tagging because
+Bruce has no corresponding use case. It must include both Bruce host-app and widget-extension
+profiles.
 
 ### GitHub Actions final workflow
 
@@ -352,14 +362,17 @@ lanes are exercised only after Milestones 2 and 3.
 
 1. Confirm the Apple Developer Program membership and team represented by `DEVELOPMENT_TEAM` are
    active.
-2. Register or confirm the explicit identifier `net.symphonious.bruce`.
-3. Enable Associated Domains for that identifier so the production profile accepts
+2. Register or confirm the explicit identifiers `net.symphonious.bruce` and
+   `net.symphonious.bruce.energy-widget`.
+3. Associate both identifiers with App Group `group.net.symphonious.bruce`, and ensure their
+   profiles authorize shared Keychain group `P8LX6DFJM4.net.symphonious.bruce.shared`.
+4. Enable Associated Domains for the host identifier so the production profile accepts
    `webcredentials:bruce.symphonious.net`.
-4. Confirm the public Apple association file contains the same Team ID and bundle identifier.
-5. Create or confirm an Apple Distribution certificate and App Store provisioning profile for
-   iOS distribution.
-6. Create or confirm a Developer ID Application certificate and Developer ID provisioning
-   profile for direct Mac distribution.
+5. Confirm the public Apple association file contains the same Team ID and bundle identifier.
+6. Create or confirm an Apple Distribution certificate and App Store provisioning profiles for
+   both identifiers for iOS distribution.
+7. Create or confirm a Developer ID Application certificate and Developer ID provisioning
+   profiles for both identifiers for direct Mac distribution.
 
 ### Manual App Store Connect setup
 
@@ -387,8 +400,10 @@ lanes are exercised only after Milestones 2 and 3.
 3. Ensure the operator has writable access to the Bruce Match repository.
 4. From a trusted local machine, run the checked-in writable certificate/profile lanes only after
    reviewing the identifiers and Apple team.
-5. Confirm the Bruce Match repository now contains the App Store and Developer ID profiles for
-   `net.symphonious.bruce` without exposing their contents in logs or commits in Bruce.
+5. Confirm the Bruce Match repository now contains App Store and Developer ID profiles for both
+   `net.symphonious.bruce` and `net.symphonious.bruce.energy-widget` without exposing their
+   contents in logs or commits in Bruce. Confirm the profiles authorize the shared App Group and
+   Keychain access group before relying on them for a release.
 6. Return CI to read-only Match operation.
 
 The user may explicitly authorize Codex to execute the bootstrap commands, but that approval must
@@ -516,7 +531,12 @@ then cut the next RC number.
 5. Confirm Gatekeeper does not show an unidentified-developer or damaged-app warning.
 6. Confirm launch, authentication, Keychain access, local-network discovery, reconnection, and
    representative controls work on macOS.
-7. Confirm both apps report the expected marketing version and build number.
+7. On iOS, confirm Energy Now appears in the widget gallery, can be added, reads the shared
+   credentials and snapshot, refreshes live data, and continues working after relaunching Bruce.
+8. On macOS, confirm Energy Now appears in the widget gallery, can be added to the desktop, reads
+   the shared credentials and snapshot, refreshes live data, and continues working after
+   relaunching Bruce.
+9. Confirm both apps report the expected marketing version and build number.
 
 The RC pipeline is accepted when the first RC workflow is green, the expected GitHub assets exist,
 the iOS build is available to the intended TestFlight testers, and both platform smoke tests pass.

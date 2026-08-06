@@ -102,6 +102,9 @@ struct SecurityHomeAssistantKeychain: HomeAssistantKeychainAccessing {
     ]
     if let accessGroup {
       query[kSecAttrAccessGroup as String] = accessGroup
+      #if os(macOS)
+        query[kSecUseDataProtectionKeychain as String] = true
+      #endif
     }
     return query
   }
@@ -203,6 +206,25 @@ actor KeychainHomeAssistantCredentialStore: HomeAssistantCredentialStoring {
     connectionDidChange(credentials)
   }
 
+  func replace(
+    _ credentials: HomeAssistantCredentials?,
+    ifCurrentIs original: HomeAssistantCredentials?
+  ) throws -> Bool {
+    let didReplace = try withCredentialLock {
+      guard try loadScoped() == original else { return false }
+      if let credentials {
+        try saveScopedWithoutLock(credentials)
+      } else {
+        try keychain.delete(service: service, account: account, accessGroup: accessGroup)
+      }
+      return true
+    }
+    if didReplace {
+      connectionDidChange(credentials)
+    }
+    return didReplace
+  }
+
   private func saveScoped(_ credentials: HomeAssistantCredentials) throws {
     try withCredentialLock {
       try saveScopedWithoutLock(credentials)
@@ -250,11 +272,22 @@ actor KeychainHomeAssistantCredentialStore: HomeAssistantCredentialStoring {
     connectionDidChange(nil)
   }
 
-  private func withCredentialLock(_ operation: () throws -> Void) throws {
+  private func loadScoped() throws -> HomeAssistantCredentials? {
+    guard
+      let data = try keychain.load(
+        service: service,
+        account: account,
+        accessGroup: accessGroup
+      )
+    else { return nil }
+    return try decode(data)
+  }
+
+  private func withCredentialLock<Result>(_ operation: () throws -> Result) throws -> Result {
     guard accessGroup != nil, keychain is SecurityHomeAssistantKeychain else {
       return try operation()
     }
-    try BruceSharedCredentialLock.withLock(operation)
+    return try BruceSharedCredentialLock.withLock(operation)
   }
 
   private func recordLegacyMigrationIfNeeded() throws {

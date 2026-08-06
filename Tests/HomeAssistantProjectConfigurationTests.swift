@@ -57,6 +57,15 @@ final class HomeAssistantProjectConfigurationTests: XCTestCase {
     }
   }
 
+  func testMacAppProvidesTheSharedWidgetKeychainGroup() throws {
+    let propertyList = try loadPropertyList("Info-macOS.plist")
+
+    XCTAssertEqual(
+      propertyList["BruceSharedKeychainAccessGroup"] as? String,
+      "$(SHARED_KEYCHAIN_ACCESS_GROUP)"
+    )
+  }
+
   func testReleaseAndDebugAssociatedDomainsMatchTheOAuthCallbackHost() throws {
     let releaseEntitlements = try loadPropertyList("Bruce.entitlements")
     XCTAssertEqual(
@@ -70,28 +79,40 @@ final class HomeAssistantProjectConfigurationTests: XCTestCase {
     )
   }
 
-  func testIOSAppAndWidgetShareOnlyTheirMatchingContainers() throws {
+  func testAppsAndWidgetsShareOnlyTheirMatchingContainersAndKeychains() throws {
+    let releaseMacApp = try loadPropertyList("Bruce.entitlements")
+    let debugMacApp = try loadPropertyList("Bruce-Debug.entitlements")
     let releaseApp = try loadPropertyList("Bruce-iOS.entitlements")
     let debugApp = try loadPropertyList("Bruce-iOS-Debug.entitlements")
     let releaseWidget = try loadPropertyList("EnergyWidget.entitlements")
     let debugWidget = try loadPropertyList("EnergyWidget-Debug.entitlements")
+    let releaseMacWidget = try loadPropertyList("EnergyWidget-macOS.entitlements")
+    let debugMacWidget = try loadPropertyList("EnergyWidget-macOS-Debug.entitlements")
 
-    XCTAssertEqual(
-      releaseApp["com.apple.security.application-groups"] as? [String],
-      ["group.net.symphonious.bruce"]
-    )
-    XCTAssertEqual(
-      releaseWidget["com.apple.security.application-groups"] as? [String],
-      ["group.net.symphonious.bruce"]
-    )
-    XCTAssertEqual(
-      debugApp["com.apple.security.application-groups"] as? [String],
-      ["group.net.symphonious.bruce.debug"]
-    )
-    XCTAssertEqual(
-      debugWidget["com.apple.security.application-groups"] as? [String],
-      ["group.net.symphonious.bruce.debug"]
-    )
+    for entitlements in [releaseMacApp, releaseApp, releaseWidget, releaseMacWidget] {
+      XCTAssertEqual(
+        entitlements["com.apple.security.application-groups"] as? [String],
+        ["group.net.symphonious.bruce"]
+      )
+      XCTAssertEqual(
+        entitlements["keychain-access-groups"] as? [String],
+        ["$(AppIdentifierPrefix)net.symphonious.bruce.shared"]
+      )
+    }
+    for entitlements in [debugMacApp, debugApp, debugWidget, debugMacWidget] {
+      XCTAssertEqual(
+        entitlements["com.apple.security.application-groups"] as? [String],
+        ["group.net.symphonious.bruce.debug"]
+      )
+      XCTAssertEqual(
+        entitlements["keychain-access-groups"] as? [String],
+        ["$(AppIdentifierPrefix)net.symphonious.bruce.debug.shared"]
+      )
+    }
+    for entitlements in [releaseMacWidget, debugMacWidget] {
+      XCTAssertEqual(entitlements["com.apple.security.app-sandbox"] as? Bool, true)
+      XCTAssertEqual(entitlements["com.apple.security.network.client"] as? Bool, true)
+    }
   }
 
   func testProjectEmbedsEnergyWidgetWithDistinctReleaseAndDebugIdentities() throws {
@@ -101,7 +122,13 @@ final class HomeAssistantProjectConfigurationTests: XCTestCase {
     )
 
     XCTAssertTrue(project.contains("BruceEnergyWidget:"))
-    XCTAssertTrue(project.contains("embed: true"))
+    XCTAssertTrue(project.contains("BruceEnergyWidget_macOS:"))
+    XCTAssertEqual(
+      project.split(separator: "\n").count {
+        $0.trimmingCharacters(in: .whitespaces) == "embed: true"
+      },
+      2
+    )
     XCTAssertTrue(
       project.contains(
         "PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.energy-widget"
@@ -110,6 +137,11 @@ final class HomeAssistantProjectConfigurationTests: XCTestCase {
     XCTAssertTrue(
       project.contains(
         "PRODUCT_BUNDLE_IDENTIFIER: net.symphonious.bruce.debug.energy-widget"
+      )
+    )
+    XCTAssertTrue(
+      project.contains(
+        "PROVISIONING_PROFILE_SPECIFIER: ${MAC_WIDGET_PROVISIONING_PROFILE}"
       )
     )
   }

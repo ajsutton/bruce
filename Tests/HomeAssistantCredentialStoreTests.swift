@@ -60,6 +60,39 @@ final class HomeAssistantCredentialStoreTests: XCTestCase {
     XCTAssertEqual(observer.instanceIDs, ["first-home", "second-home", nil])
   }
 
+  func testConditionalReplacementPreservesNewerSharedCredentials() async throws {
+    let keychain = RecordingHomeAssistantKeychain()
+    let store = KeychainHomeAssistantCredentialStore(keychain: keychain)
+    let original = credentials(accessToken: "original")
+    let newer = credentials(accessToken: "widget-refreshed")
+    try await store.save(original)
+    try await store.save(newer)
+
+    let didReplace = try await store.replace(
+      credentials(accessToken: "app-refreshed"),
+      ifCurrentIs: original
+    )
+
+    XCTAssertFalse(didReplace)
+    let loaded = try await store.load()
+    XCTAssertEqual(loaded, newer)
+  }
+
+  func testConditionalDeletionPreservesNewerSharedCredentials() async throws {
+    let keychain = RecordingHomeAssistantKeychain()
+    let store = KeychainHomeAssistantCredentialStore(keychain: keychain)
+    let original = credentials(accessToken: "original")
+    let newer = credentials(accessToken: "widget-refreshed")
+    try await store.save(original)
+    try await store.save(newer)
+
+    let didDelete = try await store.replace(nil, ifCurrentIs: original)
+
+    XCTAssertFalse(didDelete)
+    let loaded = try await store.load()
+    XCTAssertEqual(loaded, newer)
+  }
+
   func testLegacyCredentialMigratesToBundleScopedService() async throws {
     let keychain = RecordingHomeAssistantKeychain()
     let legacyStore = KeychainHomeAssistantCredentialStore(

@@ -302,6 +302,31 @@ final class WidgetRoutePreferenceTests: XCTestCase {
     XCTAssertEqual(BruceSharedHomeAssistant.preferredWidgetRoute(for: "old-source"), route)
     XCTAssertNil(BruceSharedHomeAssistant.preferredWidgetRoute(for: "replacement-source"))
   }
+
+  func testCandidateURLsDiscardRemovedPreferredRouteForSameInstance() throws {
+    defer { BruceSharedHomeAssistant.clearWidgetRoute() }
+    let removedRoute = try XCTUnwrap(URL(string: "https://old.example"))
+    let currentRoute = try XCTUnwrap(URL(string: "https://new.example"))
+    let credentials = WidgetHomeAssistantCredentials(
+      schemaVersion: 1,
+      instanceID: "same-instance",
+      instanceName: "Home",
+      internalURL: currentRoute,
+      externalURL: nil,
+      lastSuccessfulURL: removedRoute,
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
+      tokenType: "Bearer",
+      accessTokenExpiresAt: .distantFuture,
+      clientID: try XCTUnwrap(URL(string: "https://bruce.example"))
+    )
+    BruceSharedHomeAssistant.rememberWidgetRoute(
+      removedRoute,
+      for: credentials.sourceIdentifier
+    )
+
+    XCTAssertEqual(credentials.candidateURLs, [currentRoute])
+  }
 }
 
 enum WidgetTestURLAction: Sendable {

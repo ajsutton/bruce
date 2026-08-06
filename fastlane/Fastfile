@@ -14,16 +14,19 @@ def app_store_api_key
   )
 end
 
-def bake_profile(environment_variable, profile_name)
-  ENV[environment_variable] = profile_name
-  sh("cd .. && just generate")
-end
-
 def bake_ios_profiles
   ENV["IOS_PROVISIONING_PROFILE"] =
     ENV["sigh_net.symphonious.bruce_appstore_profile-name"]
   ENV["IOS_WIDGET_PROVISIONING_PROFILE"] =
     ENV["sigh_net.symphonious.bruce.energy-widget_appstore_profile-name"]
+  sh("cd .. && just generate")
+end
+
+def bake_mac_profiles
+  ENV["MAC_PROVISIONING_PROFILE"] =
+    ENV["sigh_net.symphonious.bruce_developer_id_macos_profile-name"]
+  ENV["MAC_WIDGET_PROVISIONING_PROFILE"] =
+    ENV["sigh_net.symphonious.bruce.energy-widget_developer_id_macos_profile-name"]
   sh("cd .. && just generate")
 end
 
@@ -142,7 +145,10 @@ platform :mac do
   lane :certificates do
     match(
       type: "developer_id",
-      app_identifier: "net.symphonious.bruce",
+      app_identifier: [
+        "net.symphonious.bruce",
+        "net.symphonious.bruce.energy-widget"
+      ],
       platform: "macos",
       api_key: app_store_api_key,
       readonly: is_ci
@@ -153,7 +159,10 @@ platform :mac do
   lane :force_certificates do
     match(
       type: "developer_id",
-      app_identifier: "net.symphonious.bruce",
+      app_identifier: [
+        "net.symphonious.bruce",
+        "net.symphonious.bruce.energy-widget"
+      ],
       platform: "macos",
       api_key: app_store_api_key,
       force: true
@@ -167,10 +176,7 @@ platform :mac do
 
     certificates
     api_key = app_store_api_key
-    bake_profile(
-      "MAC_PROVISIONING_PROFILE",
-      ENV["sigh_net.symphonious.bruce_developer_id_macos_profile-name"]
-    )
+    bake_mac_profiles
     increment_build_number(build_number: build_number)
 
     build_directory = File.expand_path("../build", __dir__)

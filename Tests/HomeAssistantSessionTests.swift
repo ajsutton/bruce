@@ -236,6 +236,15 @@ actor InMemoryHomeAssistantCredentialStore: HomeAssistantCredentialStoring {
     value = credentials
   }
 
+  func replace(
+    _ credentials: HomeAssistantCredentials?,
+    ifCurrentIs original: HomeAssistantCredentials?
+  ) -> Bool {
+    guard value == original else { return false }
+    value = credentials
+    return true
+  }
+
   func delete() {
     value = nil
   }
