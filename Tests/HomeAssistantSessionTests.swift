@@ -301,12 +301,15 @@ final class QueueHomeAssistantLoader: HomeAssistantHTTPDataLoading, @unchecked S
 }
 
 final class BlockingHomeAssistantLoader: HomeAssistantHTTPDataLoading, @unchecked Sendable {
+  private typealias LoaderResult = Result<(Data, HTTPURLResponse), any Error>
+
   let started = XCTestExpectation(description: "Request started")
 
   private let honorsCancellation: Bool
   private let lock = NSLock()
   private var continuations: [CheckedContinuation<(Data, HTTPURLResponse), any Error>] = []
   private var storedRequests: [URLRequest] = []
+  private var completedResult: LoaderResult?
   private var cancellationRequested = false
 
   var requests: [URLRequest] {
@@ -324,20 +327,23 @@ final class BlockingHomeAssistantLoader: HomeAssistantHTTPDataLoading, @unchecke
   func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
     try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
-        let state = lock.withLock {
+        let state: (isFirstRequest: Bool, result: LoaderResult?) = lock.withLock {
           let isFirstRequest = storedRequests.isEmpty
           storedRequests.append(request)
           if cancellationRequested {
-            return (shouldCancel: true, isFirstRequest: isFirstRequest)
+            return (isFirstRequest, .failure(CancellationError()))
+          }
+          if let completedResult {
+            return (isFirstRequest, completedResult)
           }
           continuations.append(continuation)
-          return (shouldCancel: false, isFirstRequest: isFirstRequest)
+          return (isFirstRequest, nil)
         }
         if state.isFirstRequest {
           started.fulfill()
         }
-        if state.shouldCancel {
-          continuation.resume(throwing: CancellationError())
+        if let result = state.result {
+          continuation.resume(with: result)
         }
       }
     } onCancel: {
@@ -356,25 +362,25 @@ final class BlockingHomeAssistantLoader: HomeAssistantHTTPDataLoading, @unchecke
   }
 
   func succeed(with data: Data, statusCode: Int) {
-    let continuations = lock.withLock {
-      let continuations = self.continuations
-      self.continuations.removeAll()
-      return continuations
-    }
-    guard
-      let requestURL = requests.first?.url,
+    let result: LoaderResult
+    if let requestURL = requests.first?.url,
       let response = HTTPURLResponse(
         url: requestURL,
         statusCode: statusCode,
         httpVersion: nil,
         headerFields: nil
       )
-    else {
-      continuations.forEach {
-        $0.resume(throwing: HomeAssistantAPIError.invalidResponse)
-      }
-      return
+    {
+      result = .success((data, response))
+    } else {
+      result = .failure(HomeAssistantAPIError.invalidResponse)
     }
-    continuations.forEach { $0.resume(returning: (data, response)) }
+    let continuations = lock.withLock {
+      completedResult = result
+      let continuations = self.continuations
+      self.continuations.removeAll()
+      return continuations
+    }
+    continuations.forEach { $0.resume(with: result) }
   }
 }

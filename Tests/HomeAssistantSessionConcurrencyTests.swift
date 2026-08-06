@@ -45,6 +45,23 @@ final class HomeAssistantSessionConcurrencyTests: XCTestCase {
     XCTAssertNil(storedCredentials)
   }
 
+  func testReadAfterRejectedRefreshRequiresReauthentication() async throws {
+    let fixture = SessionFixture()
+    let refreshLoader = BlockingHomeAssistantLoader()
+    let session = makeSession(fixture: fixture, refreshLoader: refreshLoader)
+    try await session.install(fixture.credentials(expiresAt: fixture.past))
+    async let rejected = Self.reauthenticationResult(from: session, path: "api/first")
+    await fulfillment(of: [refreshLoader.started], timeout: 1)
+    refreshLoader.succeed(with: Data(#"{"error":"invalid_grant"}"#.utf8), statusCode: 400)
+    let rejectedResult = await rejected
+    XCTAssertTrue(rejectedResult)
+
+    let laterRead = await Self.reauthenticationResult(from: session, path: "api/later")
+
+    XCTAssertTrue(laterRead)
+    XCTAssertEqual(refreshLoader.requests.count, 2)
+  }
+
   func testInstallingNewCredentialsCancelsOldRefreshWithoutReplacingCredentials() async throws {
     let fixture = SessionFixture()
     let refreshLoader = BlockingHomeAssistantLoader(honorsCancellation: false)

@@ -131,6 +131,9 @@ actor HomeAssistantSession {
 
   func refreshIfNeeded(force: Bool) async throws {
     guard let credentials else {
+      if rejectedCredentialGeneration != nil {
+        throw HomeAssistantAPIError.reauthenticationRequired
+      }
       throw HomeAssistantAPIError.noCredentials
     }
     if !force, credentials.accessTokenExpiresAt > now().addingTimeInterval(refreshLeeway) {
@@ -239,6 +242,9 @@ extension HomeAssistantSession {
       throw HomeAssistantAPIError.staleOperation
     }
     try await withHomeAssistantPersistence(gate: persistenceGate) {
+      if credentials == nil, rejectedCredentialGeneration == generation {
+        throw HomeAssistantAPIError.reauthenticationRequired
+      }
       guard
         try await credentialStore.replace(nil, ifCurrentIs: rejectedCredentials)
       else {

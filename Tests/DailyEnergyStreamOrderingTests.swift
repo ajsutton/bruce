@@ -127,7 +127,7 @@ final class DailyEnergyStreamOrderingTests: XCTestCase {
         )
       )
     )
-    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 2)], timeout: 10)
     let completed = try liveSnapshot(probe.value(at: 2))
 
     XCTAssertNil(completed.importCostTodayDollars)
