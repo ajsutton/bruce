@@ -34,12 +34,13 @@ extension EnergyWidgetView {
         if !compact {
           Text("·")
             .accessibilityHidden(true)
-          Text(copy.minutesAgo(freshnessMinutes))
+          freshnessAge
         }
       } else {
         Image(systemName: "clock")
           .accessibilityHidden(true)
-        Text(copy.minutesAgo(freshnessMinutes))
+        Text(copy.updated)
+        freshnessAge
       }
     }
     .font(.caption2)
@@ -47,6 +48,20 @@ extension EnergyWidgetView {
     .lineLimit(1)
     .fixedSize(horizontal: false, vertical: true)
     .layoutPriority(1)
+    .accessibilityElement(children: .combine)
+  }
+
+  private var freshnessAge: Text {
+    guard let freshnessCaptureDate else { return Text("") }
+    return Text(
+      .now,
+      format: .reference(
+        to: freshnessCaptureDate,
+        allowedFields: [.minute],
+        maxFieldCount: 1,
+        thresholdField: .minute
+      )
+    )
   }
 
   func accessoryMetric(_ metric: EnergyWidgetMetric) -> some View {

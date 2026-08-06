@@ -17,6 +17,7 @@ struct EnergyWidgetCopy {
   var feedInPrice: String { text("widget.feedInPrice") }
   var feedInCharge: String { text("widget.feedInCharge") }
   var lastKnown: String { text("widget.lastKnown") }
+  var updated: String { text("widget.updated") }
   var upToDate: String { text("widget.upToDate") }
   var unavailable: String { text("homeEnergy.unavailable") }
   var refresh: String { text("homeEnergy.refresh") }
@@ -36,10 +37,6 @@ struct EnergyWidgetCopy {
   var generalPriceAccessibility: String { text("homeEnergy.generalPriceAccessibility") }
   var feedInPriceAccessibility: String { text("homeEnergy.feedInPriceAccessibility") }
   var feedInChargeAccessibility: String { text("homeEnergy.feedInChargeAccessibility") }
-
-  func minutesAgo(_ minutes: Int) -> String {
-    String(format: text("widget.minutesAgo %lld"), locale: locale, Int64(minutes))
-  }
 
   private func text(_ key: String.LocalizationValue) -> String {
     String(

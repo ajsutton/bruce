@@ -6630,6 +6630,22 @@
         }
       }
     },
+    "widget.updated" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated"
+          }
+        }
+      }
+    },
     "widget.upToDate" : {
       "extractionState" : "stale",
       "localizations" : {
