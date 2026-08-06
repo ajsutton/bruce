@@ -15,11 +15,22 @@ struct HomeEnergyWidgetSnapshotStore {
   }
 
   func load(sourceIdentifier: String? = nil) throws -> HomeEnergyWidgetSnapshot? {
-    try Writer.allCases.compactMap(load(writer:)).filter {
+    try Writer.allCases.compactMap(loadUnfiltered(writer:)).filter {
       sourceIdentifier == nil || $0.sourceIdentifier == sourceIdentifier
     }.max {
       $0.capturedAt < $1.capturedAt
     }
+  }
+
+  func load(
+    writer: Writer,
+    sourceIdentifier: String? = nil
+  ) throws -> HomeEnergyWidgetSnapshot? {
+    let snapshot = try loadUnfiltered(writer: writer)
+    guard sourceIdentifier == nil || snapshot?.sourceIdentifier == sourceIdentifier else {
+      return nil
+    }
+    return snapshot
   }
 
   func save(_ snapshot: HomeEnergyWidgetSnapshot, writer: Writer) throws {
@@ -52,7 +63,7 @@ struct HomeEnergyWidgetSnapshotStore {
     }
   }
 
-  private func load(writer: Writer) throws -> HomeEnergyWidgetSnapshot? {
+  private func loadUnfiltered(writer: Writer) throws -> HomeEnergyWidgetSnapshot? {
     guard let data = defaults.data(forKey: Self.snapshotKey(writer: writer)) else {
       return nil
     }

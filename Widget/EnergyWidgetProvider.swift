@@ -102,6 +102,15 @@ private struct EnergyWidgetRefreshCoordinator: Sendable {
     let isFullBruce = BruceSharedContainer.defaults()?.bool(forKey: "bruceMode") ?? false
     let sourceIdentifier = initialState.sourceIdentifier
     let cachedSnapshot = initialState.snapshot
+    if let appEntry = currentAppEntry(
+      initialState: initialState,
+      store: store,
+      credentialStore: credentialStore,
+      date: now,
+      isFullBruce: isFullBruce
+    ) {
+      return appEntry
+    }
     do {
       let snapshot = try await WidgetHomeEnergyClient().loadSnapshot(previous: cachedSnapshot)
       guard try credentialStore.load()?.sourceIdentifier == sourceIdentifier else {
@@ -131,6 +140,39 @@ private struct EnergyWidgetRefreshCoordinator: Sendable {
         isFullBruce: isFullBruce
       )
     }
+  }
+
+  private static func currentAppEntry(
+    initialState: InitialState,
+    store: HomeEnergyWidgetSnapshotStore?,
+    credentialStore: WidgetHomeAssistantCredentialStore,
+    date: Date,
+    isFullBruce: Bool
+  ) -> EnergyWidgetEntry? {
+    let currentSourceIdentifier = try? credentialStore.load()?.sourceIdentifier
+    if initialState.sourceIdentifier != nil,
+      currentSourceIdentifier != initialState.sourceIdentifier
+    {
+      return latestEntryAfterConnectionChange(
+        store: store,
+        date: date,
+        isFullBruce: isFullBruce
+      )
+    }
+    guard
+      let snapshot = EnergyWidgetRefreshReconciliation.currentLiveAppSnapshot(
+        initialState.appSnapshot,
+        expectedSourceIdentifier: initialState.sourceIdentifier,
+        currentSourceIdentifier: currentSourceIdentifier,
+        at: date
+      )
+    else { return nil }
+    return EnergyWidgetEntry(
+      date: date,
+      snapshot: snapshot,
+      freshness: .current,
+      isFullBruce: isFullBruce
+    )
   }
 
   private static func failedRefreshEntry(
@@ -177,13 +219,16 @@ private struct EnergyWidgetRefreshCoordinator: Sendable {
         sourceIdentifier: credentials?.sourceIdentifier,
         snapshot: try credentials.flatMap {
           try store?.load(sourceIdentifier: $0.sourceIdentifier)
+        },
+        appSnapshot: try credentials.flatMap {
+          try store?.load(writer: .app, sourceIdentifier: $0.sourceIdentifier)
         }
       )
     } catch {
       EnergyWidgetProvider.logger.error(
         "Could not decode the Energy widget cache: \(String(describing: error), privacy: .private)"
       )
-      return InitialState(sourceIdentifier: nil, snapshot: nil)
+      return InitialState(sourceIdentifier: nil, snapshot: nil, appSnapshot: nil)
     }
   }
 
@@ -215,6 +260,7 @@ private struct EnergyWidgetRefreshCoordinator: Sendable {
   private struct InitialState: Sendable {
     let sourceIdentifier: String?
     let snapshot: HomeEnergyWidgetSnapshot?
+    let appSnapshot: HomeEnergyWidgetSnapshot?
   }
 }
 

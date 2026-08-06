@@ -23,11 +23,7 @@ extension EnergyWidgetView {
 
   func freshnessLabel(compact: Bool) -> some View {
     HStack(spacing: 3) {
-      if freshnessMinutes == 0 {
-        Image(systemName: "checkmark.circle")
-          .accessibilityHidden(true)
-        Text(copy.upToDate)
-      } else if hasLastKnownValues {
+      if hasLastKnownValues {
         Image(systemName: entry.freshness == .lastKnown ? "clock" : "clock.arrow.circlepath")
           .accessibilityHidden(true)
         Text(copy.lastKnown)
@@ -36,6 +32,10 @@ extension EnergyWidgetView {
             .accessibilityHidden(true)
           freshnessAge
         }
+      } else if freshnessMinutes == 0 {
+        Image(systemName: "checkmark.circle")
+          .accessibilityHidden(true)
+        Text(copy.upToDate)
       } else {
         Image(systemName: "clock")
           .accessibilityHidden(true)

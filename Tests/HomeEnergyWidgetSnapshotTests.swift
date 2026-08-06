@@ -194,6 +194,23 @@ final class HomeEnergyWidgetSnapshotTests: XCTestCase {
     XCTAssertThrowsError(try store.load())
   }
 
+  func testStoreLoadsAppSnapshotWhenWidgetSnapshotIsNewer() throws {
+    let suiteName = "BruceTests.\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let store = try XCTUnwrap(HomeEnergyWidgetSnapshotStore(defaults: defaults))
+    let appSnapshot = makeSnapshot(capturedAt: Date(timeIntervalSince1970: 1_000))
+    let widgetSnapshot = makeSnapshot(capturedAt: Date(timeIntervalSince1970: 2_000))
+    try store.save(appSnapshot, writer: .app)
+    try store.save(widgetSnapshot, writer: .widget)
+
+    XCTAssertEqual(
+      try store.load(writer: .app, sourceIdentifier: appSnapshot.sourceIdentifier),
+      appSnapshot
+    )
+    XCTAssertEqual(try store.load(), widgetSnapshot)
+  }
+
   func testPublisherReloadsOnlyWhenDisplayedReadingsChange() throws {
     let suiteName = "BruceTests.\(UUID().uuidString)"
     let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

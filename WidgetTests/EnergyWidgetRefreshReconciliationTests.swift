@@ -37,6 +37,70 @@ final class EnergyWidgetRefreshReconciliationTests: XCTestCase {
     XCTAssertEqual(result, .lastKnown(nil))
   }
 
+  func testRecentFullyCurrentAppSnapshotCanSatisfyWidgetRefresh() {
+    let capturedAt = Date(timeIntervalSince1970: 1_000)
+    let appSnapshot = snapshot(capturedAt: capturedAt)
+
+    XCTAssertEqual(
+      EnergyWidgetRefreshReconciliation.currentLiveAppSnapshot(
+        appSnapshot,
+        expectedSourceIdentifier: appSnapshot.sourceIdentifier,
+        currentSourceIdentifier: appSnapshot.sourceIdentifier,
+        at: capturedAt.addingTimeInterval(59)
+      ),
+      appSnapshot
+    )
+  }
+
+  func testOldOrPartialAppSnapshotRequiresWidgetRefresh() {
+    let capturedAt = Date(timeIntervalSince1970: 1_000)
+    let currentSnapshot = snapshot(capturedAt: capturedAt)
+    let partialSnapshot = HomeEnergyWidgetSnapshot(
+      sourceIdentifier: currentSnapshot.sourceIdentifier,
+      capturedAt: capturedAt,
+      pvPowerKilowatts: currentSnapshot.pvPowerKilowatts,
+      batteryStateOfCharge: currentSnapshot.batteryStateOfCharge,
+      homeConsumptionKilowatts: currentSnapshot.homeConsumptionKilowatts,
+      gridPowerKilowatts: currentSnapshot.gridPowerKilowatts,
+      generalPriceDollarsPerKilowattHour: currentSnapshot.generalPriceDollarsPerKilowattHour,
+      feedInPriceDollarsPerKilowattHour: currentSnapshot.feedInPriceDollarsPerKilowattHour,
+      importCostTodayDollars: currentSnapshot.importCostTodayDollars,
+      feedInEarningsTodayDollars: currentSnapshot.feedInEarningsTodayDollars,
+      importCostIsCurrent: false
+    )
+
+    XCTAssertNil(
+      EnergyWidgetRefreshReconciliation.currentLiveAppSnapshot(
+        currentSnapshot,
+        expectedSourceIdentifier: currentSnapshot.sourceIdentifier,
+        currentSourceIdentifier: currentSnapshot.sourceIdentifier,
+        at: capturedAt.addingTimeInterval(60)
+      )
+    )
+    XCTAssertNil(
+      EnergyWidgetRefreshReconciliation.currentLiveAppSnapshot(
+        partialSnapshot,
+        expectedSourceIdentifier: partialSnapshot.sourceIdentifier,
+        currentSourceIdentifier: partialSnapshot.sourceIdentifier,
+        at: capturedAt.addingTimeInterval(1)
+      )
+    )
+  }
+
+  func testRecentAppSnapshotCannotCrossConnectionReplacement() {
+    let capturedAt = Date(timeIntervalSince1970: 1_000)
+    let appSnapshot = snapshot(capturedAt: capturedAt)
+
+    XCTAssertNil(
+      EnergyWidgetRefreshReconciliation.currentLiveAppSnapshot(
+        appSnapshot,
+        expectedSourceIdentifier: appSnapshot.sourceIdentifier,
+        currentSourceIdentifier: "replacement-source",
+        at: capturedAt.addingTimeInterval(1)
+      )
+    )
+  }
+
   private func snapshot(capturedAt: Date) -> HomeEnergyWidgetSnapshot {
     HomeEnergyWidgetSnapshot(
       sourceIdentifier: "test-source",
