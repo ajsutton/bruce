@@ -11,24 +11,44 @@ final class HomeAssistantPresentationTests: XCTestCase {
     XCTAssertFalse(presentation.isConnecting)
     XCTAssertNil(presentation.connectionProblem)
     XCTAssertEqual(presentation.connection, .connected(credentials))
-    XCTAssertTrue(presentation.shouldRefresh(when: .active))
-    XCTAssertFalse(presentation.shouldRefresh(when: .background))
   }
 
-  func testSceneActivationRefreshesLocalAndLiveHomeData() {
-    let presentation = makePresentation(step: .connected(credentials), state: .succeeded)
+  func testSceneActivationRefreshesLocalPreferences() {
     var refreshedLocalPreferences = false
-    var requestedHomeRefresh = false
 
     HomeAssistantRefreshCoordinator.sceneDidChange(
       to: .active,
-      presentation: presentation,
-      refreshLocalPreferences: { refreshedLocalPreferences = true },
-      requestHomeRefresh: { requestedHomeRefresh = true }
+      refreshLocalPreferences: { refreshedLocalPreferences = true }
     )
 
     XCTAssertTrue(refreshedLocalPreferences)
-    XCTAssertTrue(requestedHomeRefresh)
+  }
+
+  func testInactiveSceneSuspendsUpdatesEvenWhenWindowControlsRemainActive() {
+    XCTAssertFalse(
+      HomeAssistantRefreshCoordinator.shouldObserveUpdates(
+        while: .inactive,
+        controlsAreActive: true
+      )
+    )
+  }
+
+  func testActiveSceneObservesUpdatesWhenWindowControlsAreActive() {
+    XCTAssertTrue(
+      HomeAssistantRefreshCoordinator.shouldObserveUpdates(
+        while: .active,
+        controlsAreActive: true
+      )
+    )
+  }
+
+  func testInactiveWindowControlsSuspendUpdatesInActiveScene() {
+    XCTAssertFalse(
+      HomeAssistantRefreshCoordinator.shouldObserveUpdates(
+        while: .active,
+        controlsAreActive: false
+      )
+    )
   }
 
   func testRestoringShowsPanelLoadingState() {
@@ -69,7 +89,6 @@ final class HomeAssistantPresentationTests: XCTestCase {
 
     XCTAssertEqual(presentation.screen, .setup)
     XCTAssertEqual(presentation.connection, .disconnected)
-    XCTAssertFalse(presentation.shouldRefresh(when: .active))
   }
 
   func testSmartChargingLabelDoesNotImplyTheBatteryIsThePowerSource() {

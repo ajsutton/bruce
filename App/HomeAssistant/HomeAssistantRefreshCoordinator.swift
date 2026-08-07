@@ -2,16 +2,18 @@ import SwiftUI
 
 @MainActor
 enum HomeAssistantRefreshCoordinator {
+  static func shouldObserveUpdates(
+    while scenePhase: ScenePhase,
+    controlsAreActive: Bool = true
+  ) -> Bool {
+    scenePhase == .active && controlsAreActive
+  }
+
   static func sceneDidChange(
     to scenePhase: ScenePhase,
-    presentation: HomeAssistantPresentation,
-    refreshLocalPreferences: () -> Void,
-    requestHomeRefresh: () -> Void
+    refreshLocalPreferences: () -> Void
   ) {
     guard scenePhase == .active else { return }
     refreshLocalPreferences()
-    if presentation.shouldRefresh(when: scenePhase) {
-      requestHomeRefresh()
-    }
   }
 }

@@ -1,5 +1,3 @@
-import SwiftUI
-
 struct HomeAssistantPresentation: Equatable {
   enum Screen: Equatable {
     case setup
@@ -40,10 +38,6 @@ struct HomeAssistantPresentation: Equatable {
       connectionCheckState: connectionCheckState
     )
     connection = Self.connection(for: step)
-  }
-
-  func shouldRefresh(when scenePhase: ScenePhase) -> Bool {
-    scenePhase == .active && canRefresh
   }
 
   private static func screen(

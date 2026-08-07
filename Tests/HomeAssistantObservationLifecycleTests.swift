@@ -206,7 +206,7 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
     withExtendedLifetime(historySubscription) {}
   }
 
-  func testForegroundRefreshPreservesQuickResumeHistoryReuse() async throws {
+  func testExplicitRefreshAfterQuickResumePreservesHistoryReuse() async throws {
     let fixture = makeFixture()
     let firstSubscription = fixture.source.expectSubscriptionCount(1)
     let historiesReady = fixture.historyLoader.expectRequestCount(3)

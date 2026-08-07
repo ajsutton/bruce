@@ -39,19 +39,15 @@ struct ContentView: View {
       .task(id: presentation.connection) {
         await homeAssistantCoordinator.synchronize(with: presentation.connection)
       }
-      #if os(macOS)
-        .task(id: controlActiveState != .inactive) {
-          await homeAssistantCoordinator.observeUpdates(
-            while: controlActiveState != .inactive
-          )
-        }
-      #endif
+      .task(id: shouldObserveHomeUpdates) {
+        await homeAssistantCoordinator.observeUpdates(
+          while: shouldObserveHomeUpdates
+        )
+      }
       .onChange(of: scenePhase) { _, newScenePhase in
         HomeAssistantRefreshCoordinator.sceneDidChange(
           to: newScenePhase,
-          presentation: presentation,
-          refreshLocalPreferences: modeController.requestLocalPreferenceRefresh,
-          requestHomeRefresh: requestHomeRefresh
+          refreshLocalPreferences: modeController.requestLocalPreferenceRefresh
         )
       }
       .alert(
@@ -126,6 +122,17 @@ struct ContentView: View {
       step: setupStore.step,
       connectionCheckState: setupStore.connectionCheckState
     )
+  }
+
+  private var shouldObserveHomeUpdates: Bool {
+    #if os(macOS)
+      HomeAssistantRefreshCoordinator.shouldObserveUpdates(
+        while: scenePhase,
+        controlsAreActive: controlActiveState != .inactive
+      )
+    #else
+      HomeAssistantRefreshCoordinator.shouldObserveUpdates(while: scenePhase)
+    #endif
   }
 
   private func manageConnection() {
