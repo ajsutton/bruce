@@ -43,7 +43,6 @@ struct EVChargingCopy {
   var homeBatteryUnavailable: String { text(.homeBatteryUnavailable) }
   var pausedForAfternoonPeak: String { text(.pausedForAfternoonPeak) }
   var homeBatteryHasEnoughReserve: String { text(.homeBatteryHasEnoughReserve) }
-  var protectingHomeBatteryReserve: String { text(.protectingHomeBatteryReserve) }
   var overnightForecastUnavailable: String { text(.overnightForecastUnavailable) }
   var enoughEnergyUntilMorning: String { text(.enoughEnergyUntilMorning) }
   var waitingForSafeOvernightStart: String { text(.waitingForSafeOvernightStart) }
@@ -75,12 +74,34 @@ struct EVChargingCopy {
       .replacingOccurrences(of: "%@", with: priceText(price, locale: locale))
   }
 
-  func waitingForHomeBattery(stateOfCharge: Double, locale: Locale) -> String {
+  func waitingForHomeBattery(
+    restartThreshold: Double,
+    stateOfCharge: Double,
+    locale: Locale
+  ) -> String {
+    let threshold = restartThreshold.formatted(
+      .number.locale(locale).precision(.fractionLength(0))
+    )
     let percentage = stateOfCharge.formatted(
       .number.locale(locale).precision(.fractionLength(0))
     )
-    return text(.waitingForHomeBattery)
-      .replacingOccurrences(of: "%@", with: "\(percentage)%")
+    return String(
+      format: text(.waitingForHomeBattery),
+      locale: locale,
+      "\(threshold)%",
+      "\(percentage)%"
+    )
+  }
+
+  func protectingHomeBatteryReserve(threshold: Double, locale: Locale) -> String {
+    let percentage = threshold.formatted(
+      .number.locale(locale).precision(.fractionLength(0))
+    )
+    return String(
+      format: text(.protectingHomeBatteryReserve),
+      locale: locale,
+      "\(percentage)%"
+    )
   }
 
   func chargingModeTitle(_ mode: HomeAssistantEVChargingMode) -> String {

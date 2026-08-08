@@ -128,6 +128,9 @@ struct EVChargingDecisionPresentation {
 }
 
 private struct EVChargingExplanationResolver {
+  private static let homeBatteryReserve = 15.0
+  private static let daytimeRestartThreshold = 20.0
+
   let decision: HomeAssistantEVChargingDecision
   let chargingMode: HomeAssistantEVChargingMode
   let date: Date
@@ -182,18 +185,25 @@ private struct EVChargingExplanationResolver {
 
   private func daytimeText(stateOfCharge: Double) -> String {
     if decision.isChargingDesired == true {
-      return stateOfCharge >= 20
+      return stateOfCharge >= Self.homeBatteryReserve
         ? copy.homeBatteryHasEnoughReserve
         : copy.chargingDecisionUpdating
     }
-    return stateOfCharge <= 25
-      ? copy.waitingForHomeBattery(stateOfCharge: stateOfCharge, locale: locale)
+    return stateOfCharge <= Self.daytimeRestartThreshold
+      ? copy.waitingForHomeBattery(
+        restartThreshold: Self.daytimeRestartThreshold,
+        stateOfCharge: stateOfCharge,
+        locale: locale
+      )
       : copy.chargingDecisionUpdating
   }
 
   private func overnightText(stateOfCharge: Double) -> String {
-    if stateOfCharge <= 20 {
-      return copy.protectingHomeBatteryReserve
+    if stateOfCharge <= Self.homeBatteryReserve {
+      return copy.protectingHomeBatteryReserve(
+        threshold: Self.homeBatteryReserve,
+        locale: locale
+      )
     }
     guard let safeMinutes = decision.overnightSafeChargingMinutes else {
       return copy.overnightForecastUnavailable

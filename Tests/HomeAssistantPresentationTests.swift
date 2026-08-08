@@ -175,13 +175,36 @@ final class HomeAssistantPresentationTests: XCTestCase {
   func testChargingDecisionExplainsDaytimeBatteryRestartThreshold() {
     let presentation = chargingDecisionPresentation(
       desired: false,
-      batteryStateOfCharge: 24,
+      batteryStateOfCharge: 20,
       hour: 10
     )
 
     XCTAssertEqual(
       presentation.explanation,
-      "Waiting for home battery above 25% · now 24%"
+      "Waiting for home battery above 20% · now 20%"
+    )
+  }
+
+  func testChargingDecisionUsesUpdatedDaytimeBatteryReserve() {
+    let presentation = chargingDecisionPresentation(
+      desired: true,
+      batteryStateOfCharge: 15,
+      hour: 10
+    )
+
+    XCTAssertEqual(presentation.explanation, "Home battery has enough reserve")
+  }
+
+  func testChargingDecisionExplainsUpdatedOvernightBatteryReserve() {
+    let presentation = chargingDecisionPresentation(
+      desired: false,
+      batteryStateOfCharge: 15,
+      hour: 22
+    )
+
+    XCTAssertEqual(
+      presentation.explanation,
+      "Protecting the 15% home-battery reserve"
     )
   }
 
