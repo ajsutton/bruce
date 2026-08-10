@@ -2,11 +2,8 @@ import SwiftUI
 
 @MainActor
 enum HomeAssistantRefreshCoordinator {
-  static func shouldObserveUpdates(
-    while scenePhase: ScenePhase,
-    controlsAreActive: Bool = true
-  ) -> Bool {
-    scenePhase == .active && controlsAreActive
+  static func shouldObserveUpdates(while scenePhase: ScenePhase) -> Bool {
+    scenePhase == .active
   }
 
   static func sceneDidChange(

@@ -5,6 +5,8 @@ import SwiftUI
 struct BruceApp: App {
   #if os(iOS)
     @UIApplicationDelegateAdaptor(BruceAppDelegate.self) private var appDelegate
+  #else
+    @NSApplicationDelegateAdaptor(BruceAppDelegate.self) private var appDelegate
   #endif
   @StateObject private var modeController = BruceModeController()
   @StateObject private var setupStore: HomeAssistantSetupStore
@@ -26,6 +28,12 @@ struct BruceApp: App {
     _homeEnergyStore = StateObject(wrappedValue: dependencies.homeEnergyStore)
     _temperatureStore = StateObject(wrappedValue: dependencies.temperatureStore)
     _observationCoordinator = StateObject(wrappedValue: dependencies.observationCoordinator)
+    #if os(macOS)
+      appDelegate.configure(
+        setupStore: dependencies.setupStore,
+        observationCoordinator: dependencies.observationCoordinator
+      )
+    #endif
   }
 
   var body: some Scene {

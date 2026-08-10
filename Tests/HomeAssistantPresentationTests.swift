@@ -24,29 +24,18 @@ final class HomeAssistantPresentationTests: XCTestCase {
     XCTAssertTrue(refreshedLocalPreferences)
   }
 
-  func testInactiveSceneSuspendsUpdatesEvenWhenWindowControlsRemainActive() {
+  func testInactiveSceneSuspendsUpdatesByDefault() {
     XCTAssertFalse(
       HomeAssistantRefreshCoordinator.shouldObserveUpdates(
-        while: .inactive,
-        controlsAreActive: true
+        while: .inactive
       )
     )
   }
 
-  func testActiveSceneObservesUpdatesWhenWindowControlsAreActive() {
+  func testActiveSceneObservesUpdates() {
     XCTAssertTrue(
       HomeAssistantRefreshCoordinator.shouldObserveUpdates(
-        while: .active,
-        controlsAreActive: true
-      )
-    )
-  }
-
-  func testInactiveWindowControlsSuspendUpdatesInActiveScene() {
-    XCTAssertFalse(
-      HomeAssistantRefreshCoordinator.shouldObserveUpdates(
-        while: .active,
-        controlsAreActive: false
+        while: .active
       )
     )
   }

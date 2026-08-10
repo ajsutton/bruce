@@ -4,7 +4,6 @@ struct ContentView: View {
   @Environment(\.scenePhase) private var scenePhase
   @EnvironmentObject private var homeAssistantCoordinator: HomeAssistantObservationCoordinator
   #if os(macOS)
-    @Environment(\.controlActiveState) private var controlActiveState
     @Environment(\.openSettings) private var openSettings
   #else
     @EnvironmentObject private var sceneDelegate: BruceSceneDelegate
@@ -34,16 +33,20 @@ struct ContentView: View {
       .preferredColorScheme(mode.isFullBruce ? .dark : nil)
       .task {
         await modeController.restore()
-        await setupStore.restoreSavedConnection()
+        #if os(iOS)
+          await setupStore.restoreSavedConnection()
+        #endif
       }
-      .task(id: presentation.connection) {
-        await homeAssistantCoordinator.synchronize(with: presentation.connection)
-      }
-      .task(id: shouldObserveHomeUpdates) {
-        await homeAssistantCoordinator.observeUpdates(
-          while: shouldObserveHomeUpdates
-        )
-      }
+      #if os(iOS)
+        .task(id: presentation.connection) {
+          await homeAssistantCoordinator.synchronize(with: presentation.connection)
+        }
+        .task(id: shouldObserveHomeUpdates) {
+          await homeAssistantCoordinator.observeUpdates(
+            while: shouldObserveHomeUpdates
+          )
+        }
+      #endif
       .onChange(of: scenePhase) { _, newScenePhase in
         HomeAssistantRefreshCoordinator.sceneDidChange(
           to: newScenePhase,
@@ -125,14 +128,7 @@ struct ContentView: View {
   }
 
   private var shouldObserveHomeUpdates: Bool {
-    #if os(macOS)
-      HomeAssistantRefreshCoordinator.shouldObserveUpdates(
-        while: scenePhase,
-        controlsAreActive: controlActiveState != .inactive
-      )
-    #else
-      HomeAssistantRefreshCoordinator.shouldObserveUpdates(while: scenePhase)
-    #endif
+    HomeAssistantRefreshCoordinator.shouldObserveUpdates(while: scenePhase)
   }
 
   private func manageConnection() {

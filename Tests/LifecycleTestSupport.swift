@@ -13,10 +13,16 @@ final class ObservationTestTemperatureLoader:
   let cancelled = XCTestExpectation(description: "Temperature observation cancelled")
   private let lock = NSLock()
   private var storedStartCount = 0
+  private var storedCancellationCount = 0
   private var startExpectations: [Int: XCTestExpectation] = [:]
+  private var cancellationExpectations: [Int: XCTestExpectation] = [:]
 
   var startCount: Int {
     lock.withLock { storedStartCount }
+  }
+
+  var cancellationCount: Int {
+    lock.withLock { storedCancellationCount }
   }
 
   func expectStartCount(_ count: Int) -> XCTestExpectation {
@@ -40,6 +46,21 @@ final class ObservationTestTemperatureLoader:
     }
   }
 
+  func expectCancellationCount(_ count: Int) -> XCTestExpectation {
+    let expectation = XCTestExpectation(
+      description: "Temperature observation reached \(count) cancellations"
+    )
+    let reached = lock.withLock {
+      if storedCancellationCount >= count { return true }
+      cancellationExpectations[count] = expectation
+      return false
+    }
+    if reached {
+      expectation.fulfill()
+    }
+    return expectation
+  }
+
   func temperatureUpdates() -> AsyncThrowingStream<
     HomeAssistantTemperatureUpdate, any Error
   > {
@@ -51,7 +72,14 @@ final class ObservationTestTemperatureLoader:
       started.fulfill()
       expectation?.fulfill()
       continuation.onTermination = { _ in
+        let expectation = self.lock.withLock {
+          self.storedCancellationCount += 1
+          return self.cancellationExpectations.removeValue(
+            forKey: self.storedCancellationCount
+          )
+        }
         self.cancelled.fulfill()
+        expectation?.fulfill()
       }
     }
   }
