@@ -69,6 +69,39 @@
       )
     }
 
+    func testWakingMacRestartsHomeAssistantObservation() async {
+      let loader = ObservationTestTemperatureLoader()
+      loader.started.assertForOverFulfill = false
+      let coordinator = makeCoordinator(temperatureLoader: loader)
+      let setupStore = HomeAssistantSetupStore(
+        discovery: ApplicationObservationDiscovery(),
+        connection: ApplicationObservationConnection(credentials: credentials)
+      )
+      let delegate = BruceAppDelegate()
+      delegate.configure(
+        setupStore: setupStore,
+        observationCoordinator: coordinator
+      )
+      delegate.applicationDidFinishLaunching(
+        Notification(name: NSApplication.didFinishLaunchingNotification)
+      )
+      await fulfillment(of: [loader.started], timeout: 1)
+      let restarted = loader.expectStartCount(2)
+
+      await Task.detached {
+        NSWorkspace.shared.notificationCenter.post(
+          name: NSWorkspace.didWakeNotification,
+          object: nil
+        )
+      }.value
+
+      await fulfillment(of: [restarted], timeout: 1)
+      XCTAssertEqual(loader.startCount, 2)
+      delegate.applicationWillTerminate(
+        Notification(name: NSApplication.willTerminateNotification)
+      )
+    }
+
     private func makeCoordinator(
       temperatureLoader: ObservationTestTemperatureLoader,
       resetStateFeed: @escaping @Sendable () async -> Void = {}
