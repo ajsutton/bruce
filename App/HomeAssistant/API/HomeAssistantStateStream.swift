@@ -6,6 +6,8 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
   private let connector: any HomeAssistantWebSocketConnecting
   let retryDelays: [Duration]
   let sleep: @Sendable (Duration) async throws -> Void
+  let heartbeatInterval: Duration
+  let heartbeatSleep: @Sendable (Duration) async throws -> Void
   private let orderingCache = HomeAssistantStateOrderingCache()
 
   init(
@@ -21,6 +23,10 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
     ],
     sleep: @escaping @Sendable (Duration) async throws -> Void = {
       try await Task.sleep(for: $0)
+    },
+    heartbeatInterval: Duration = .seconds(30),
+    heartbeatSleep: @escaping @Sendable (Duration) async throws -> Void = {
+      try await Task.sleep(for: $0)
     }
   ) {
     self.session = session
@@ -28,6 +34,8 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
     self.connector = connector
     self.retryDelays = retryDelays
     self.sleep = sleep
+    self.heartbeatInterval = heartbeatInterval
+    self.heartbeatSleep = heartbeatSleep
   }
 
   func stateUpdates() async -> HomeAssistantBufferedUpdateStream<
@@ -52,45 +60,45 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
       HomeAssistantStateUpdate
     >.Continuation
   ) async throws {
-    let observation = try await beginObservation()
     var recoveryState = HomeAssistantReconnectState()
-    var latestSnapshot = observation.snapshot
+    var observation: HomeAssistantStateOrderingCache.Observation?
+    var latestSnapshot = HomeAssistantStateOrderingCache.Snapshot()
     var hasPublishedSnapshot = false
     while !Task.isCancelled {
-      let generation = UUID()
-      var publishedSnapshot = false
-      var attemptedAccess: HomeAssistantWebSocketAccess?
+      var attempt = HomeAssistantReconnectAttempt.starting(
+        hasPublishedSnapshot: hasPublishedSnapshot,
+        latestStates: latestSnapshot.states
+      )
       do {
+        let activeObservation = try await activeObservation(observation)
+        if observation == nil {
+          observation = activeObservation
+          latestSnapshot = activeObservation.snapshot
+        }
         let accesses = try await session.authenticatedWebSocketAccesses()
         let access = try preferredAccess(
           from: accesses,
           avoiding: recoveryState.lastFailedURL
         )
-        try validateObservation(access, identity: observation.identity)
-        attemptedAccess = access
+        try validateObservation(access, identity: activeObservation.identity)
+        attempt.attemptedAccess = access
         try await subscribe(
           using: access,
-          generation: generation,
+          generation: attempt.generation,
           previousStates: latestSnapshot.states,
           previousRemovals: latestSnapshot.removals
         ) { states, removals, eventGeneration in
-          (publishedSnapshot, hasPublishedSnapshot) = (true, true)
+          (attempt.publishedSnapshot, hasPublishedSnapshot) = (true, true)
+          attempt.latestStates = states
           recoveryState.refreshedAfterUnauthorized = false
           latestSnapshot = .init(states: states, removals: removals)
-          try await cache(latestSnapshot, for: observation.id, access: access)
+          try await cache(latestSnapshot, for: activeObservation.id, access: access)
           Self.yieldLive(states, generation: eventGeneration, to: continuation)
         }
       } catch is CancellationError {
         continuation.finish()
         return
       } catch {
-        let attempt = HomeAssistantReconnectAttempt(
-          publishedSnapshot: publishedSnapshot,
-          hasPublishedSnapshot: hasPublishedSnapshot,
-          attemptedAccess: attemptedAccess,
-          latestStates: latestSnapshot.states,
-          generation: generation
-        )
         guard
           await recoverSubscription(
             from: error,
@@ -104,42 +112,6 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
     continuation.finish()
   }
 
-  private func cache(
-    _ snapshot: HomeAssistantStateOrderingCache.Snapshot,
-    for observation: UUID,
-    access: HomeAssistantWebSocketAccess
-  ) async throws {
-    try await session.validateWebSocketAccess(access)
-    await orderingCache.store(snapshot, observation: observation)
-    try await session.validateWebSocketAccess(access)
-  }
-
-  private func validateObservation(
-    _ access: HomeAssistantWebSocketAccess,
-    identity: HomeAssistantObservationIdentity
-  ) throws {
-    guard access.observationIdentity == identity else {
-      throw HomeAssistantAPIError.staleOperation
-    }
-  }
-
-  private func beginObservation() async throws -> HomeAssistantStateOrderingCache.Observation {
-    let access = try await session.authenticatedWebSocketAccess()
-    let observation = await orderingCache.beginObservation(for: access.observationIdentity)
-    try await session.validateWebSocketAccess(access)
-    return observation
-  }
-
-  private func preferredAccess(
-    from accesses: [HomeAssistantWebSocketAccess],
-    avoiding failedURL: URL?
-  ) throws -> HomeAssistantWebSocketAccess {
-    guard !accesses.isEmpty else {
-      throw HomeAssistantAPIError.invalidServerURL
-    }
-    return accesses.first(where: { $0.baseURL != failedURL }) ?? accesses[0]
-  }
-
   private func subscribe(
     using access: HomeAssistantWebSocketAccess,
     generation initialGeneration: UUID,
@@ -148,43 +120,45 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
     publish: ([HomeAssistantState], [String: Date], UUID) async throws -> Void
   ) async throws {
     let connection = connector.connect(to: access.url)
+    let heartbeatMonitor = HomeAssistantHeartbeatMonitor()
+    let heartbeat = Task {
+      await monitorLiveness(of: connection, monitor: heartbeatMonitor)
+    }
     try await withTaskCancellationHandler {
       defer {
+        heartbeat.cancel()
         connection.cancel()
       }
-      try await authenticate(connection, accessToken: access.accessToken)
-      try await subscribeToHomeAssistantEvents(over: connection)
-      try await session.rememberSuccessfulWebSocketAccess(access)
-      var snapshot = try Self.mergedSnapshot(
-        try await apiClient.loadHomeAssistantStates(),
-        previousStates: previousStates,
-        previousRemovals: previousRemovals
-      )
-      var generation = initialGeneration
-      try await session.validateWebSocketAccess(access)
-      try await publish(snapshot.orderedStates, snapshot.removals, generation)
+      do {
+        try await authenticate(connection, accessToken: access.accessToken)
+        try await subscribeToHomeAssistantEvents(over: connection)
+        try await session.rememberSuccessfulWebSocketAccess(access)
+        var snapshot = try Self.mergedSnapshot(
+          try await apiClient.loadHomeAssistantStates(),
+          previousStates: previousStates,
+          previousRemovals: previousRemovals
+        )
+        var generation = initialGeneration
+        try await session.validateWebSocketAccess(access)
+        try await publish(snapshot.orderedStates, snapshot.removals, generation)
 
-      while !Task.isCancelled {
-        let data = try await connection.receive()
-        let event = try decode(HomeAssistantEventMessage.self, from: data)
-        guard
-          event.type == "event",
-          let subscribedEventType = Self.eventTypeBySubscriptionID[event.id],
-          event.event.eventType == subscribedEventType
-        else {
-          throw HomeAssistantAPIError.invalidResponse
+        while !Task.isCancelled {
+          try await receiveUpdate(
+            over: connection,
+            snapshot: &snapshot,
+            generation: &generation,
+            publish: publish
+          )
         }
-        if subscribedEventType == "state_changed" {
-          let stateChange = try decode(HomeAssistantStateChangedMessage.self, from: data)
-          try Self.apply(stateChange.event.data, to: &snapshot)
-          try await publish(snapshot.orderedStates, snapshot.removals, generation)
-        } else {
-          generation = UUID()
-          try await publish(snapshot.orderedStates, snapshot.removals, generation)
+        throw CancellationError()
+      } catch {
+        if let heartbeatFailure = await heartbeatMonitor.failure {
+          throw heartbeatFailure
         }
+        throw error
       }
-      throw CancellationError()
     } onCancel: {
+      heartbeat.cancel()
       connection.cancel()
     }
   }
@@ -214,6 +188,28 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
       }
       throw HomeAssistantAPIError.invalidResponse
     }
+  }
+
+  private func receiveUpdate(
+    over connection: any HomeAssistantWebSocketConnection,
+    snapshot: inout HomeAssistantStateStream.Snapshot,
+    generation: inout UUID,
+    publish: ([HomeAssistantState], [String: Date], UUID) async throws -> Void
+  ) async throws {
+    let data = try await connection.receive()
+    let event = try decode(HomeAssistantEventMessage.self, from: data)
+    guard
+      event.type == "event",
+      let eventType = Self.eventTypeBySubscriptionID[event.id],
+      event.event.eventType == eventType
+    else { throw HomeAssistantAPIError.invalidResponse }
+    if eventType == "state_changed" {
+      let stateChange = try decode(HomeAssistantStateChangedMessage.self, from: data)
+      try Self.apply(stateChange.event.data, to: &snapshot)
+    } else {
+      generation = UUID()
+    }
+    try await publish(snapshot.orderedStates, snapshot.removals, generation)
   }
 
   private func subscribeToHomeAssistantEvents(
@@ -262,6 +258,53 @@ struct HomeAssistantStateStream: HomeAssistantStateLoading {
 }
 
 extension HomeAssistantStateStream {
+  private func activeObservation(
+    _ observation: HomeAssistantStateOrderingCache.Observation?
+  ) async throws -> HomeAssistantStateOrderingCache.Observation {
+    if let observation {
+      return observation
+    }
+    return try await beginObservation()
+  }
+
+  private func cache(
+    _ snapshot: HomeAssistantStateOrderingCache.Snapshot,
+    for observation: UUID,
+    access: HomeAssistantWebSocketAccess
+  ) async throws {
+    try await session.validateWebSocketAccess(access)
+    await orderingCache.store(snapshot, observation: observation)
+    try await session.validateWebSocketAccess(access)
+  }
+
+  private func validateObservation(
+    _ access: HomeAssistantWebSocketAccess,
+    identity: HomeAssistantObservationIdentity
+  ) throws {
+    guard access.observationIdentity == identity else {
+      throw HomeAssistantAPIError.staleOperation
+    }
+  }
+
+  private func beginObservation() async throws -> HomeAssistantStateOrderingCache.Observation {
+    let access = try await session.authenticatedWebSocketAccess()
+    let observation = await orderingCache.beginObservation(for: access.observationIdentity)
+    try await session.validateWebSocketAccess(access)
+    return observation
+  }
+
+  private func preferredAccess(
+    from accesses: [HomeAssistantWebSocketAccess],
+    avoiding failedURL: URL?
+  ) throws -> HomeAssistantWebSocketAccess {
+    guard !accesses.isEmpty else {
+      throw HomeAssistantAPIError.invalidServerURL
+    }
+    return accesses.first(where: { $0.baseURL != failedURL }) ?? accesses[0]
+  }
+}
+
+extension HomeAssistantStateStream {
   fileprivate static let eventTypeBySubscriptionID: [Int: String] = [
     1: "state_changed",
     2: "entity_registry_updated",
@@ -290,94 +333,4 @@ extension HomeAssistantStateStream {
     yield(.live(states, generation: generation), to: continuation)
   }
 
-}
-
-private struct HomeAssistantSubscriptionMessageKind: Decodable {
-  let type: String
-}
-
-private struct HomeAssistantSubscriptionAuthentication: Encodable {
-  let type: String
-  let accessToken: String
-
-  enum CodingKeys: String, CodingKey {
-    case type
-    case accessToken = "access_token"
-  }
-}
-
-private struct HomeAssistantEventSubscription: Encodable {
-  let id: Int
-  let type: String
-  let eventType: String
-
-  enum CodingKeys: String, CodingKey {
-    case id
-    case type
-    case eventType = "event_type"
-  }
-}
-
-private struct HomeAssistantSubscriptionResult: Decodable {
-  let id: Int
-  let type: String
-  let success: Bool
-}
-
-private struct HomeAssistantStateChangedMessage: Decodable {
-  let id: Int
-  let type: String
-  let event: HomeAssistantStateChangedEvent
-}
-
-private struct HomeAssistantEventMessage: Decodable {
-  let id: Int
-  let type: String
-  let event: HomeAssistantEvent
-}
-
-private struct HomeAssistantEvent: Decodable {
-  let eventType: String
-
-  enum CodingKeys: String, CodingKey {
-    case eventType = "event_type"
-  }
-}
-
-private struct HomeAssistantStateChangedEvent: Decodable {
-  let eventType: String
-  let data: HomeAssistantStateChangedData
-
-  enum CodingKeys: String, CodingKey {
-    case eventType = "event_type"
-    case data
-  }
-}
-
-struct HomeAssistantStateChangedData: Decodable {
-  let entityID: String
-  let newState: HomeAssistantState?
-  let oldState: HomeAssistantState?
-
-  init(from decoder: any Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    guard container.contains(.newState), container.contains(.oldState) else {
-      throw DecodingError.keyNotFound(
-        container.contains(.newState) ? CodingKeys.oldState : CodingKeys.newState,
-        .init(
-          codingPath: container.codingPath,
-          debugDescription: "State changes require both new_state and old_state."
-        )
-      )
-    }
-    entityID = try container.decode(String.self, forKey: .entityID)
-    newState = try container.decodeIfPresent(HomeAssistantState.self, forKey: .newState)
-    oldState = try container.decodeIfPresent(HomeAssistantState.self, forKey: .oldState)
-  }
-
-  enum CodingKeys: String, CodingKey {
-    case entityID = "entity_id"
-    case newState = "new_state"
-    case oldState = "old_state"
-  }
 }

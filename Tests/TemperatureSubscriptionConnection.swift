@@ -45,6 +45,7 @@ final class TemperatureSubscriptionConnection:
   let blockedReceiveStarted = XCTestExpectation(
     description: "Temperature WebSocket receive blocked"
   )
+  let pingStarted = XCTestExpectation(description: "Temperature WebSocket ping started")
 
   private let lock = NSLock()
   private var messages: [Message]
@@ -52,9 +53,11 @@ final class TemperatureSubscriptionConnection:
   private var continuation: CheckedContinuation<Data, any Error>?
   private var cancellationRequested = false
   private var reportedBlockedReceive = false
+  private let pingError: (any Error)?
 
-  init(messages: [Message]) {
+  init(messages: [Message], pingError: (any Error)? = nil) {
     self.messages = messages
+    self.pingError = pingError
   }
 
   var sentMessageTypes: [String] {
@@ -143,6 +146,13 @@ final class TemperatureSubscriptionConnection:
       return continuation
     }
     continuation?.resume(throwing: CancellationError())
+  }
+
+  func ping() async throws {
+    pingStarted.fulfill()
+    if let pingError {
+      throw pingError
+    }
   }
 
   func fail(with error: any Error) {

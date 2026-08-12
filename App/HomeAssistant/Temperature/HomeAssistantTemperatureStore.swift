@@ -100,13 +100,13 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     controlProblem = nil
     presentedControlProblemSequence = nil
   }
-  func synchronize(with connection: HomeAssistantConnectionState) async {
-    switch connection {
-    case .connected:
+  func synchronize(with access: HomeAssistantAccessState) async {
+    switch access.phase {
+    case .ready:
       await load()
-    case .disconnected:
+    case .signedOut:
       reset()
-    case .connecting, .unavailable:
+    case .loading, .requiresUserAction:
       invalidateLoad()
       invalidateControls()
       publishReadings()

@@ -18,7 +18,7 @@ final class HomeAssistantRefreshRecoveryTests: XCTestCase {
       )
     )
     let observation = Task {
-      await store.synchronize(with: .connected(credentials))
+      await store.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [source.started], timeout: 1)
     let liveStates = try chargingStates()

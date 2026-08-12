@@ -21,9 +21,9 @@
         observationCoordinator: coordinator
       )
 
-      delegate.synchronize(with: .connected(credentials))
+      delegate.synchronize(with: .ready(credentials))
       await fulfillment(of: [reset.started], timeout: 1)
-      delegate.synchronize(with: .disconnected)
+      delegate.synchronize(with: .signedOut)
       reset.resume()
 
       await fulfillment(of: [loader.started], timeout: 0.1)
@@ -69,13 +69,16 @@
       )
     }
 
-    func testWakingMacRestartsHomeAssistantObservation() async {
+    func testFailedConnectionRemovalRestartsApplicationObservation() async {
       let loader = ObservationTestTemperatureLoader()
       loader.started.assertForOverFulfill = false
       let coordinator = makeCoordinator(temperatureLoader: loader)
       let setupStore = HomeAssistantSetupStore(
         discovery: ApplicationObservationDiscovery(),
-        connection: ApplicationObservationConnection(credentials: credentials)
+        connection: ApplicationObservationConnection(
+          credentials: credentials,
+          disconnectError: HomeAssistantCredentialStoreError.keychainFailure(-1)
+        )
       )
       let delegate = BruceAppDelegate()
       delegate.configure(
@@ -86,16 +89,13 @@
         Notification(name: NSApplication.didFinishLaunchingNotification)
       )
       await fulfillment(of: [loader.started], timeout: 1)
+      let cancelled = loader.expectCancellationCount(1)
       let restarted = loader.expectStartCount(2)
 
-      await Task.detached {
-        NSWorkspace.shared.notificationCenter.post(
-          name: NSWorkspace.didWakeNotification,
-          object: nil
-        )
-      }.value
+      setupStore.disconnect()
+      await fulfillment(of: [cancelled, restarted], timeout: 1)
 
-      await fulfillment(of: [restarted], timeout: 1)
+      XCTAssertEqual(setupStore.connectionCheckState, .disconnectFailed)
       XCTAssertEqual(loader.startCount, 2)
       delegate.applicationWillTerminate(
         Notification(name: NSApplication.willTerminateNotification)
@@ -141,9 +141,14 @@
   @MainActor
   private final class ApplicationObservationConnection: HomeAssistantConnecting {
     private let credentials: HomeAssistantCredentials
+    private let disconnectError: (any Error)?
 
-    init(credentials: HomeAssistantCredentials) {
+    init(
+      credentials: HomeAssistantCredentials,
+      disconnectError: (any Error)? = nil
+    ) {
       self.credentials = credentials
+      self.disconnectError = disconnectError
     }
 
     func connect(
@@ -154,7 +159,11 @@
 
     func restore() async throws -> HomeAssistantCredentials? { credentials }
     func testConnection() async throws -> HomeAssistantCredentials { credentials }
-    func disconnect() async throws {}
+    func disconnect() async throws {
+      if let disconnectError {
+        throw disconnectError
+      }
+    }
     func cancel() {}
   }
 #endif

@@ -57,7 +57,6 @@ struct HomeAssistantSetupContentView: View {
         store: store,
         mode: mode,
         credentials: credentials,
-        isConnected: false,
         showsDisconnectConfirmation: $showsDisconnectConfirmation,
         reauthenticate: beginReauthentication
       )
@@ -66,7 +65,14 @@ struct HomeAssistantSetupContentView: View {
         store: store,
         mode: mode,
         credentials: credentials,
-        isConnected: true,
+        showsDisconnectConfirmation: $showsDisconnectConfirmation,
+        reauthenticate: beginReauthentication
+      )
+    case .disconnecting(let credentials):
+      HomeAssistantConnectionSummaryView(
+        store: store,
+        mode: mode,
+        credentials: credentials,
         showsDisconnectConfirmation: $showsDisconnectConfirmation,
         reauthenticate: beginReauthentication
       )

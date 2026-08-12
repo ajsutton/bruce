@@ -71,7 +71,7 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
     )
     await store.load()
 
-    await store.synchronize(with: .disconnected)
+    await store.synchronize(with: .signedOut)
 
     XCTAssertTrue(store.readings.isEmpty)
     XCTAssertNil(store.lastChecked)
@@ -82,11 +82,11 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
     let loader = ControlledTemperatureLoader(requestCount: 1)
     let store = HomeAssistantTemperatureStore(loader: loader)
     let load = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await fulfillment(of: [loader.started(at: 0)], timeout: 1)
 
-    await store.synchronize(with: .unavailable)
+    await store.synchronize(with: .requiresUserAction)
     loader.succeedRequest(0, with: [reading(id: "late")])
     await load.value
 

@@ -127,7 +127,7 @@ final class GarageDoorControlConcurrencyTests: XCTestCase {
     let lockStarted = await setup.controller.expectLock()
     let lock = Task { await setup.store.toggleLock(for: setup.store.doors[0]) }
     await fulfillment(of: [lockStarted], timeout: 1)
-    await setup.store.synchronize(with: .unavailable)
+    await setup.store.synchronize(with: .requiresUserAction)
     XCTAssertEqual(setup.store.doors.first?.lockState, .unlocked)
     XCTAssertFalse(setup.store.isControlling(.lock, for: "cover.garage"))
     await setup.controller.succeedLock()
@@ -142,7 +142,7 @@ final class GarageDoorControlConcurrencyTests: XCTestCase {
     let loader = StreamingGarageDoorLoader()
     let controller = BlockingGarageDoorController()
     let store = HomeAssistantGarageDoorStore(loader: loader, controller: controller)
-    let observation = Task { await store.synchronize(with: .connected(credentials)) }
+    let observation = Task { await store.synchronize(with: .ready(credentials)) }
     await fulfillment(of: [loader.started], timeout: 1)
     loader.yield(.live([door]))
     await waitForValue(store.$isLive, matching: true)

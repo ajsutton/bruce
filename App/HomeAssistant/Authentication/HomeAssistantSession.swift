@@ -102,31 +102,25 @@ actor HomeAssistantSession {
   func currentCredentials() -> HomeAssistantCredentials? { credentials }
 
   func disconnect() async throws {
-    let disconnectedCredentials = credentials
+    let generation = credentialGeneration
+    try await withHomeAssistantPersistence(gate: persistenceGate) {
+      try await credentialStore.delete()
+      guard credentialGeneration == generation else {
+        _ = try await HomeAssistantCredentialRecovery.repair(
+          credentials,
+          replacing: nil,
+          in: credentialStore
+        )
+        throw HomeAssistantAPIError.staleOperation
+      }
+    }
     credentials = nil
     credentialGeneration += 1
     authenticationSessionEpoch += 1
     rejectedCredentialGeneration = nil
     successfulRouteSourceGeneration = nil
-    let disconnectedGeneration = credentialGeneration
     await tokenRefresher.cancel()
     await transport.cancelAll()
-    do {
-      try await withHomeAssistantPersistence(gate: persistenceGate) {
-        try await credentialStore.delete()
-        if credentialGeneration != disconnectedGeneration {
-          _ = try await HomeAssistantCredentialRecovery.repair(
-            credentials,
-            replacing: nil,
-            in: credentialStore
-          )
-        }
-      }
-    } catch {
-      credentials =
-        credentialGeneration == disconnectedGeneration ? disconnectedCredentials : credentials
-      throw error
-    }
   }
 
   func refreshIfNeeded(force: Bool) async throws {

@@ -132,10 +132,10 @@ final class HomeAssistantEVChargingStore: ObservableObject {
       )
     )
   }
-  func synchronize(with connection: HomeAssistantConnectionState) async {
-    switch connection {
-    case .connected: await observeUpdates()
-    case .disconnected:
+  func synchronize(with access: HomeAssistantAccessState) async {
+    switch access.phase {
+    case .ready: await observeUpdates()
+    case .signedOut:
       invalidateConnection()
       (mode, activity, decision) = (nil, .unavailable, .unavailable)
       (isActivityLive, isDecisionLive, isLoading, isLive, isRefreshing) = (
@@ -143,14 +143,14 @@ final class HomeAssistantEVChargingStore: ObservableObject {
       )
       finishProgress()
       problem = nil
-    case .connecting:
+    case .loading:
       invalidateConnection()
       (isLoading, isLive, isActivityLive, isDecisionLive, isRefreshing) = (
         true, false, false, false, false
       )
       finishProgress()
       problem = nil
-    case .unavailable:
+    case .requiresUserAction:
       invalidateConnection()
       finishLoad(isLive: false)
       if problem != .signInRequired { problem = .connectionNeedsManagement }

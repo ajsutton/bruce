@@ -16,13 +16,10 @@ struct HomeAssistantPresentation: Equatable {
   let screen: Screen
   let isConnecting: Bool
   let connectionProblem: ConnectionProblem?
-  let connection: HomeAssistantConnectionState
+  let access: HomeAssistantAccessState
 
   var canRefresh: Bool {
-    if case .connected = connection {
-      return true
-    }
-    return false
+    access.isReady
   }
 
   init(
@@ -37,14 +34,14 @@ struct HomeAssistantPresentation: Equatable {
       for: step,
       connectionCheckState: connectionCheckState
     )
-    connection = Self.connection(for: step)
+    access = Self.access(for: step, connectionCheckState: connectionCheckState)
   }
 
   private static func screen(
     for step: HomeAssistantSetupStore.Step
   ) -> Screen {
     switch step {
-    case .restoring, .restoreFailed, .configured, .connected:
+    case .restoring, .restoreFailed, .configured, .connected, .disconnecting:
       .panels
     case .introduction, .chooseServer, .manualEntry, .confirmation, .unencryptedWarning,
       .onboardingRequired, .readyForAuthentication, .authenticationFailed, .cancelled:
@@ -52,19 +49,22 @@ struct HomeAssistantPresentation: Equatable {
     }
   }
 
-  private static func connection(
-    for step: HomeAssistantSetupStore.Step
-  ) -> HomeAssistantConnectionState {
+  private static func access(
+    for step: HomeAssistantSetupStore.Step,
+    connectionCheckState: HomeAssistantSetupStore.ConnectionCheckState
+  ) -> HomeAssistantAccessState {
     switch step {
     case .connected(let credentials):
-      .connected(credentials)
+      .ready(credentials)
+    case .disconnecting:
+      .loading
     case .restoring:
-      .connecting
+      .loading
     case .restoreFailed, .configured:
-      .unavailable
+      .requiresUserAction
     case .introduction, .chooseServer, .manualEntry, .confirmation, .unencryptedWarning,
       .onboardingRequired, .readyForAuthentication, .authenticationFailed, .cancelled:
-      .disconnected
+      .signedOut
     }
   }
 
@@ -79,11 +79,26 @@ struct HomeAssistantPresentation: Equatable {
       .restoreFailed
     case .configured:
       configuredConnectionProblem(connectionCheckState)
-    case .connected where connectionCheckState == .disconnectFailed:
-      .disconnectFailed
-    case .restoring, .introduction, .chooseServer, .manualEntry, .confirmation,
+    case .connected:
+      connectedConnectionProblem(connectionCheckState)
+    case .restoring, .disconnecting, .introduction, .chooseServer, .manualEntry, .confirmation,
       .unencryptedWarning, .onboardingRequired, .readyForAuthentication, .authenticationFailed,
-      .connected, .cancelled:
+      .cancelled:
+      nil
+    }
+  }
+
+  private static func connectedConnectionProblem(
+    _ connectionCheckState: HomeAssistantSetupStore.ConnectionCheckState
+  ) -> ConnectionProblem? {
+    switch connectionCheckState {
+    case .failed(.networkUnavailable):
+      .unavailable
+    case .failed:
+      .needsAttention
+    case .disconnectFailed:
+      .disconnectFailed
+    case .idle, .checking, .succeeded, .reauthenticationRequired:
       nil
     }
   }

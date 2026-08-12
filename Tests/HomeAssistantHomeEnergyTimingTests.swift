@@ -92,7 +92,7 @@ final class HomeAssistantHomeEnergyTimingTests: XCTestCase {
     }
     await fulfillment(of: [progressShown], timeout: 1)
 
-    await store.synchronize(with: .unavailable)
+    await store.synchronize(with: .requiresUserAction)
 
     XCTAssertFalse(store.showsProgress)
     XCTAssertFalse(store.isLoading)
@@ -106,7 +106,7 @@ final class HomeAssistantHomeEnergyTimingTests: XCTestCase {
     let loader = StreamingHomeEnergyLoader()
     let store = HomeAssistantHomeEnergyStore(loader: loader)
     let connection = Task {
-      await store.synchronize(with: .connected(credentials))
+      await store.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [loader.started], timeout: 1)
     let initialSnapshotPublished = expectation(description: "Initial energy snapshot published")

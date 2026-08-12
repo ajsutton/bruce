@@ -5,23 +5,17 @@ import XCTest
 
 @MainActor
 final class HomeAssistantRestoreRemovalTests: XCTestCase {
-  func testSavedConnectionDetailsAreAvailableWhileConnectionCheckIsRunning() async {
+  func testSavedConnectionDetailsAreAvailableWithoutAConnectionCheck() async {
     let connection = RestoreCancellationConnection()
     connection.blocksRestore = false
     connection.restoredCredentials = credentials
-    connection.blocksConnectionCheck = true
     let store = makeStore(connection: connection)
-    let restore = Task {
-      await store.restoreSavedConnection()
-    }
-    await fulfillment(of: [connection.connectionCheckStarted], timeout: 1)
 
-    XCTAssertEqual(store.step, .configured(credentials))
+    await store.restoreSavedConnection()
+
+    XCTAssertEqual(store.step, .connected(credentials))
     XCTAssertEqual(store.connectedCredentials, credentials)
-    XCTAssertEqual(store.connectionCheckState, .checking)
-
-    connection.completeConnectionCheck(with: credentials)
-    _ = await restore.value
+    XCTAssertEqual(store.connectionCheckState, .idle)
   }
 
   func testRemovingConnectionDuringRestoreCancelsRestore() async {
@@ -159,17 +153,14 @@ final class HomeAssistantRestoreRemovalTests: XCTestCase {
 @MainActor
 private final class RestoreCancellationConnection: HomeAssistantConnecting {
   let restoreStarted = XCTestExpectation(description: "Restore started")
-  let connectionCheckStarted = XCTestExpectation(description: "Connection check started")
   let disconnectStarted = XCTestExpectation(description: "Disconnect started")
   var disconnectError: (any Error)?
   var restoredCredentials: HomeAssistantCredentials?
   var blocksRestore = true
-  var blocksConnectionCheck = false
   var blocksDisconnect = false
   private(set) var wasCancelled = false
   private var disconnectContinuation: CheckedContinuation<Void, Never>?
   private var restoreContinuation: CheckedContinuation<HomeAssistantCredentials?, any Error>?
-  private var connectionCheckContinuation: CheckedContinuation<HomeAssistantCredentials, any Error>?
 
   func connect(
     to candidate: HomeAssistantConnectionCandidate
@@ -188,13 +179,7 @@ private final class RestoreCancellationConnection: HomeAssistantConnecting {
   }
 
   func testConnection() async throws -> HomeAssistantCredentials {
-    guard blocksConnectionCheck else {
-      throw HomeAssistantAPIError.noCredentials
-    }
-    connectionCheckStarted.fulfill()
-    return try await withCheckedThrowingContinuation { continuation in
-      connectionCheckContinuation = continuation
-    }
+    throw HomeAssistantAPIError.noCredentials
   }
 
   func disconnect() async throws {
@@ -216,8 +201,6 @@ private final class RestoreCancellationConnection: HomeAssistantConnecting {
     disconnectContinuation = nil
     restoreContinuation?.resume(throwing: CancellationError())
     restoreContinuation = nil
-    connectionCheckContinuation?.resume(throwing: CancellationError())
-    connectionCheckContinuation = nil
   }
 
   func completeDisconnect() {
@@ -225,10 +208,6 @@ private final class RestoreCancellationConnection: HomeAssistantConnecting {
     disconnectContinuation = nil
   }
 
-  func completeConnectionCheck(with credentials: HomeAssistantCredentials) {
-    connectionCheckContinuation?.resume(returning: credentials)
-    connectionCheckContinuation = nil
-  }
 }
 
 private struct EmptyRestoreRemovalDiscovery: HomeAssistantDiscovering {

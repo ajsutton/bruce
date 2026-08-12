@@ -33,6 +33,7 @@ final class HomeAssistantSetupStore: ObservableObject {
     )
     case configured(HomeAssistantCredentials)
     case connected(HomeAssistantCredentials)
+    case disconnecting(HomeAssistantCredentials)
     case cancelled
   }
 
@@ -77,19 +78,11 @@ final class HomeAssistantSetupStore: ObservableObject {
   init(
     discovery: any HomeAssistantDiscovering,
     connection: (any HomeAssistantConnecting)? = nil,
-    webAuthenticationPresenter: HomeAssistantWebAuthenticationPresenter? = nil,
-    connectionRetryDelay: Duration = .seconds(60),
-    sleep: @escaping @Sendable (Duration) async throws -> Void = {
-      try await Task.sleep(for: $0)
-    }
+    webAuthenticationPresenter: HomeAssistantWebAuthenticationPresenter? = nil
   ) {
     self.discovery = discovery
     self.webAuthenticationPresenter = webAuthenticationPresenter
-    connectionController = HomeAssistantConnectionController(
-      connection: connection,
-      connectionRetryDelay: connectionRetryDelay,
-      sleep: sleep
-    )
+    connectionController = HomeAssistantConnectionController(connection: connection)
     connectionController.onStepChange = { [weak self] step in
       self?.step = step
     }
@@ -315,7 +308,7 @@ extension HomeAssistantSetupStore {
       startDiscovery()
     case .restoring, .restoreFailed, .chooseServer, .manualEntry, .confirmation,
       .unencryptedWarning, .onboardingRequired, .readyForAuthentication, .authenticationFailed,
-      .configured, .connected, .cancelled:
+      .configured, .connected, .disconnecting, .cancelled:
       break
     }
   }

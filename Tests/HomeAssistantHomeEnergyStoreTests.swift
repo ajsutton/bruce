@@ -224,7 +224,7 @@ final class HomeAssistantHomeEnergyStoreTests: XCTestCase {
     XCTAssertEqual(store.problem, .signInRequired)
     XCTAssertTrue(requiresAuthentication)
 
-    await store.synchronize(with: .unavailable)
+    await store.synchronize(with: .requiresUserAction)
 
     XCTAssertEqual(store.problem, .signInRequired)
   }
@@ -234,7 +234,7 @@ final class HomeAssistantHomeEnergyStoreTests: XCTestCase {
       loader: ImmediateHomeEnergyLoader(result: .success(.unavailable))
     )
 
-    await store.synchronize(with: .unavailable)
+    await store.synchronize(with: .requiresUserAction)
 
     XCTAssertEqual(store.problem, .connectionNeedsManagement)
     XCTAssertTrue(store.problem?.needsConnectionManagement == true)

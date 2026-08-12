@@ -12,7 +12,7 @@ final class PriceHistoryStoreLifecycleTests: XCTestCase {
     let loader = ControlledHomeEnergyHistoryLoader(historyRequestCount: 2)
     let store = HomeAssistantHomeEnergyStore(loader: loader, now: dates.next)
     let synchronization = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await fulfillment(
       of: [loader.updateStreamStarted, loader.historyStarted(at: 0)],
@@ -45,7 +45,7 @@ final class PriceHistoryStoreLifecycleTests: XCTestCase {
     let loader = ControlledHomeEnergyHistoryLoader(historyRequestCount: 1)
     let store = HomeAssistantHomeEnergyStore(loader: loader)
     let synchronization = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await fulfillment(
       of: [loader.updateStreamStarted, loader.historyStarted(at: 0)],
@@ -72,7 +72,7 @@ final class PriceHistoryStoreLifecycleTests: XCTestCase {
     let loader = ControlledHomeEnergyHistoryLoader(historyRequestCount: 1)
     let store = HomeAssistantHomeEnergyStore(loader: loader, now: dates.next)
     let synchronization = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await fulfillment(
       of: [loader.updateStreamStarted, loader.historyStarted(at: 0)],
@@ -104,7 +104,7 @@ final class PriceHistoryStoreLifecycleTests: XCTestCase {
       }
     )
     let synchronization = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await fulfillment(
       of: [loader.updateStreamStarted, loader.historyStarted(at: 0)],
@@ -155,7 +155,7 @@ final class PriceHistoryStoreLifecycleTests: XCTestCase {
     let loader = ControlledHomeEnergyHistoryLoader(historyRequestCount: 1)
     let store = HomeAssistantHomeEnergyStore(loader: loader)
     let synchronization = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await fulfillment(
       of: [loader.updateStreamStarted, loader.historyStarted(at: 0)],

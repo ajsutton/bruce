@@ -1,11 +1,28 @@
 import Foundation
 
 struct HomeAssistantReconnectAttempt {
-  let publishedSnapshot: Bool
-  let hasPublishedSnapshot: Bool
-  let attemptedAccess: HomeAssistantWebSocketAccess?
-  let latestStates: [HomeAssistantState]
+  var publishedSnapshot: Bool
+  private let previouslyPublishedSnapshot: Bool
+  var attemptedAccess: HomeAssistantWebSocketAccess?
+  var latestStates: [HomeAssistantState]
   let generation: UUID
+
+  var hasPublishedSnapshot: Bool {
+    previouslyPublishedSnapshot || publishedSnapshot
+  }
+
+  static func starting(
+    hasPublishedSnapshot: Bool,
+    latestStates: [HomeAssistantState]
+  ) -> Self {
+    Self(
+      publishedSnapshot: false,
+      previouslyPublishedSnapshot: hasPublishedSnapshot,
+      attemptedAccess: nil,
+      latestStates: latestStates,
+      generation: UUID()
+    )
+  }
 }
 
 struct HomeAssistantReconnectState {
@@ -15,6 +32,25 @@ struct HomeAssistantReconnectState {
 }
 
 extension HomeAssistantStateStream {
+  func monitorLiveness(
+    of connection: any HomeAssistantWebSocketConnection,
+    monitor: HomeAssistantHeartbeatMonitor
+  ) async {
+    while !Task.isCancelled {
+      do {
+        try await heartbeatSleep(heartbeatInterval)
+        try Task.checkCancellation()
+        try await connection.ping()
+      } catch is CancellationError {
+        return
+      } catch {
+        await monitor.record(error)
+        connection.cancel()
+        return
+      }
+    }
+  }
+
   func waitForRetry(_ delay: Duration) async -> Bool {
     do {
       try await sleep(delay)
@@ -137,5 +173,13 @@ extension HomeAssistantStateStream {
       return true
     }
     return false
+  }
+}
+
+actor HomeAssistantHeartbeatMonitor {
+  private(set) var failure: (any Error)?
+
+  func record(_ error: any Error) {
+    failure = error
   }
 }

@@ -208,7 +208,14 @@ final class HomeAssistantSetupAuthenticationTests: XCTestCase {
     await store.restoreSavedConnection()
     let failureShown = expectation(description: "Disconnect failure shown")
     failureShown.assertForOverFulfill = false
-    let subscription = store.objectWillChange.receive(on: RunLoop.main).sink {
+    var observedAccess: [HomeAssistantAccessState] = []
+    let subscription = store.$step.receive(on: RunLoop.main).sink { step in
+      observedAccess.append(
+        HomeAssistantPresentation(
+          step: step,
+          connectionCheckState: store.connectionCheckState
+        ).access
+      )
       if store.connectionCheckState == .disconnectFailed {
         failureShown.fulfill()
       }
@@ -220,6 +227,8 @@ final class HomeAssistantSetupAuthenticationTests: XCTestCase {
     XCTAssertEqual(store.step, .connected(credentials()))
     XCTAssertEqual(store.connectedCredentials, credentials())
     XCTAssertEqual(store.connectionCheckState, .disconnectFailed)
+    XCTAssertTrue(observedAccess.contains(.loading))
+    XCTAssertEqual(observedAccess.last, .ready(credentials()))
     withExtendedLifetime(subscription) {}
   }
 

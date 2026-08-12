@@ -3,7 +3,6 @@ import Foundation
 @MainActor
 enum HomeAssistantConnectionVerification {
   enum Outcome {
-    case noSavedConnection
     case verified(HomeAssistantCredentials)
     case configured(
       HomeAssistantCredentials,

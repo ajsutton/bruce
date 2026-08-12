@@ -18,7 +18,7 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
     .filter { $0 && $1 && $2 }
     .prefix(1)
     .sink { _ in historiesReady.fulfill() }
-    await fixture.coordinator.synchronize(with: .connected(credentials))
+    await fixture.coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [firstSubscription, historiesReady], timeout: 1)
 
     let inactiveWindow = observationTask(fixture.coordinator, isActive: false)
@@ -58,7 +58,7 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
 
     replacementWindow.cancel()
     await replacementWindow.value
-    await fixture.coordinator.synchronize(with: .disconnected)
+    await fixture.coordinator.synchronize(with: .signedOut)
     withExtendedLifetime(historySubscription) {}
   }
 
@@ -80,7 +80,7 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
     .filter { $0 && $1 && $2 }
     .prefix(1)
     .sink { _ in historiesReady.fulfill() }
-    await fixture.coordinator.synchronize(with: .connected(credentials))
+    await fixture.coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [firstSubscription, historiesReady], timeout: 1)
 
     let inactiveWindow = observationTask(fixture.coordinator, isActive: false)
@@ -93,7 +93,7 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
     inactiveWindow.cancel()
     await replacementWindow.value
     await inactiveWindow.value
-    await fixture.coordinator.synchronize(with: .disconnected)
+    await fixture.coordinator.synchronize(with: .signedOut)
     withExtendedLifetime(historySubscription) {}
   }
 
@@ -107,12 +107,12 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
     let fixture = makeFixture(now: dates.next)
     let firstSubscription = fixture.source.expectSubscriptionCount(1)
     let historiesReady = fixture.historyLoader.expectRequestCount(3)
-    await fixture.coordinator.synchronize(with: .connected(credentials))
+    await fixture.coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [firstSubscription, historiesReady], timeout: 1)
 
     let inactiveWindow = observationTask(fixture.coordinator, isActive: false)
     await fulfillment(of: [fixture.source.cancelled], timeout: 1)
-    await fixture.coordinator.synchronize(with: .connected(replacementCredentials))
+    await fixture.coordinator.synchronize(with: .ready(replacementCredentials))
     let historiesReloaded = fixture.historyLoader.expectRequestCount(6)
     let replacementWindow = observationTask(fixture.coordinator, isActive: true)
     await fulfillment(of: [historiesReloaded], timeout: 1)
@@ -121,14 +121,14 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
     inactiveWindow.cancel()
     await replacementWindow.value
     await inactiveWindow.value
-    await fixture.coordinator.synchronize(with: .disconnected)
+    await fixture.coordinator.synchronize(with: .signedOut)
   }
 
   func testSuspensionCancelsBlockedHistoryRequests() async {
     let fixture = makeFixture(blocksHistoryRequests: true)
     let firstSubscription = fixture.source.expectSubscriptionCount(1)
     let historiesStarted = fixture.historyLoader.expectRequestCount(3)
-    await fixture.coordinator.synchronize(with: .connected(credentials))
+    await fixture.coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [firstSubscription, historiesStarted], timeout: 1)
 
     let historiesCancelled = fixture.historyLoader.expectCancellationCount(3)
@@ -140,14 +140,14 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
 
     inactiveWindow.cancel()
     await inactiveWindow.value
-    await fixture.coordinator.synchronize(with: .disconnected)
+    await fixture.coordinator.synchronize(with: .signedOut)
   }
 
   func testShortInactivityReloadsHistoryThatWasAlreadyStale() async {
     let fixture = makeFixture()
     let firstSubscription = fixture.source.expectSubscriptionCount(1)
     let historiesReady = fixture.historyLoader.expectRequestCount(3)
-    await fixture.coordinator.synchronize(with: .connected(credentials))
+    await fixture.coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [firstSubscription, historiesReady], timeout: 1)
     fixture.energyStore.invalidateHistory()
 
@@ -161,7 +161,7 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
     inactiveWindow.cancel()
     await replacementWindow.value
     await inactiveWindow.value
-    await fixture.coordinator.synchronize(with: .disconnected)
+    await fixture.coordinator.synchronize(with: .signedOut)
   }
 
   func testDelayedLiveUpdateReloadsHistoryAfterQuickActivation() async throws {
@@ -169,7 +169,7 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
     let fixture = makeFixture(now: clock.callAsFunction)
     let firstSubscription = fixture.source.expectSubscriptionCount(1)
     let historiesReady = fixture.historyLoader.expectRequestCount(3)
-    await fixture.coordinator.synchronize(with: .connected(credentials))
+    await fixture.coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [firstSubscription, historiesReady], timeout: 1)
 
     let inactiveWindow = observationTask(fixture.coordinator, isActive: false)
@@ -202,7 +202,7 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
     inactiveWindow.cancel()
     await replacementWindow.value
     await inactiveWindow.value
-    await fixture.coordinator.synchronize(with: .disconnected)
+    await fixture.coordinator.synchronize(with: .signedOut)
     withExtendedLifetime(historySubscription) {}
   }
 
@@ -210,7 +210,7 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
     let fixture = makeFixture()
     let firstSubscription = fixture.source.expectSubscriptionCount(1)
     let historiesReady = fixture.historyLoader.expectRequestCount(3)
-    await fixture.coordinator.synchronize(with: .connected(credentials))
+    await fixture.coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [firstSubscription, historiesReady], timeout: 1)
     try await yieldSolar(9.0, subscription: 1, fixture: fixture)
 
@@ -230,7 +230,7 @@ final class HomeAssistantObservationLifecycleTests: XCTestCase {
     inactiveWindow.cancel()
     await replacementWindow.value
     await inactiveWindow.value
-    await fixture.coordinator.synchronize(with: .disconnected)
+    await fixture.coordinator.synchronize(with: .signedOut)
   }
 }
 

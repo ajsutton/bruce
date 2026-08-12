@@ -19,7 +19,7 @@ final class BatteryHistorySamplingTests: XCTestCase {
     )
     let store = HomeAssistantHomeEnergyStore(loader: loader, now: dates.next)
     let synchronization = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await fulfillment(
       of: [loader.updateStreamStarted, loader.batteryStarted(at: 0)],

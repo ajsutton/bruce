@@ -173,12 +173,21 @@ extension HomeAssistantStateStream {
     after error: any Error,
     attempt: HomeAssistantReconnectAttempt
   ) -> Bool {
+    if error is HomeAssistantCredentialStoreError {
+      return false
+    }
+    if let authenticationError = error as? HomeAssistantAuthenticationError {
+      if case .serverRejectedRequest(let statusCode, _) = authenticationError {
+        return statusCode == 429 || statusCode >= 500
+      }
+      return false
+    }
     guard let apiError = error as? HomeAssistantAPIError else {
       return true
     }
     switch apiError {
-    case .server:
-      return true
+    case .server(let statusCode):
+      return statusCode == 429 || statusCode >= 500
     case .invalidResponse:
       return attempt.hasPublishedSnapshot
     case .staleOperation:

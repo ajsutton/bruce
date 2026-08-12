@@ -188,7 +188,7 @@ extension EVChargingReconciliationTests {
     await firstConnection.value
     let restarted = client.expectNextStreamStart()
     let secondConnection = Task {
-      await store.synchronize(with: .connected(credentials))
+      await store.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [restarted], timeout: 1)
     client.yield(.live(.init(mode: .smart, activity: .connected)))
@@ -216,12 +216,12 @@ extension EVChargingReconciliationTests {
     )
     await waitForValue(store.$activity, matching: .switchedOff)
 
-    await store.synchronize(with: .connecting)
+    await store.synchronize(with: .loading)
     client.finishUpdates()
     await firstConnection.value
     let restarted = client.expectNextStreamStart()
     let secondConnection = Task {
-      await store.synchronize(with: .connected(credentials))
+      await store.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [restarted], timeout: 1)
     client.yield(
@@ -260,7 +260,7 @@ extension EVChargingReconciliationTests {
     client.started.assertForOverFulfill = !allowsRestart
     let store = HomeAssistantEVChargingStore(client: client)
     let connection = Task {
-      await store.synchronize(with: .connected(credentials))
+      await store.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [client.started], timeout: 1)
     client.yield(.live(.init(mode: .off, activity: .connected)))
@@ -325,7 +325,7 @@ extension EVChargingReconciliationTests {
     await firstConnection.value
     let restarted = client.expectNextStreamStart()
     let secondConnection = Task {
-      await store.synchronize(with: .connected(credentials))
+      await store.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [restarted], timeout: 1)
     client.yield(
@@ -363,7 +363,7 @@ extension EVChargingReconciliationTests {
     await firstConnection.value
     let restarted = client.expectNextStreamStart()
     let secondConnection = Task {
-      await store.synchronize(with: .connected(credentials))
+      await store.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [restarted], timeout: 1)
     client.yield(

@@ -38,8 +38,8 @@ struct ContentView: View {
         #endif
       }
       #if os(iOS)
-        .task(id: presentation.connection) {
-          await homeAssistantCoordinator.synchronize(with: presentation.connection)
+        .task(id: presentation.access) {
+          await homeAssistantCoordinator.synchronize(with: presentation.access)
         }
         .task(id: shouldObserveHomeUpdates) {
           await homeAssistantCoordinator.observeUpdates(

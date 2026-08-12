@@ -33,7 +33,7 @@ final class PartialObservationRecoveryTests: XCTestCase {
       refreshStateFeed: { await states.refresh() }
     )
     let firstSource = source.expectSubscriptionCount(1)
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [firstSource, temperatureLoader.started], timeout: 1)
     source.yield(.live(try statesFixture(solar: 8.4)))
     await waitForValue(temperatureStore.$isLive, matching: true)
@@ -46,7 +46,7 @@ final class PartialObservationRecoveryTests: XCTestCase {
     let secondSource = source.expectSubscriptionCount(2)
     await coordinator.refresh()
     await fulfillment(of: [restartedTemperature, secondSource], timeout: 1)
-    await waitForValue(temperatureStore.$isRefreshing, matching: true)
+    await waitForRefreshing(temperatureStore, chargingStore, homeEnergyStore)
 
     XCTAssertTrue(chargingStore.isRefreshing)
     XCTAssertTrue(homeEnergyStore.isRefreshing)
@@ -59,7 +59,7 @@ final class PartialObservationRecoveryTests: XCTestCase {
     XCTAssertEqual(temperatureStore.readings.first?.value, 9.1)
     XCTAssertTrue(chargingStore.isLive && homeEnergyStore.isLive)
     XCTAssertEqual(source.subscriptionCount, 2)
-    await coordinator.synchronize(with: .disconnected)
+    await coordinator.synchronize(with: .signedOut)
   }
 
   private func waitForValue<P: Publisher>(
@@ -72,6 +72,16 @@ final class PartialObservationRecoveryTests: XCTestCase {
     }
     await fulfillment(of: [published], timeout: 1)
     withExtendedLifetime(subscription) {}
+  }
+
+  private func waitForRefreshing(
+    _ temperatureStore: HomeAssistantTemperatureStore,
+    _ chargingStore: HomeAssistantEVChargingStore,
+    _ homeEnergyStore: HomeAssistantHomeEnergyStore
+  ) async {
+    await waitForValue(temperatureStore.$isRefreshing, matching: true)
+    await waitForValue(chargingStore.$isRefreshing, matching: true)
+    await waitForValue(homeEnergyStore.$isRefreshing, matching: true)
   }
 
   private func statesFixture(solar: Double) throws -> [HomeAssistantState] {

@@ -41,7 +41,7 @@
         return false
       }
       switch store.step {
-      case .configured, .connected:
+      case .configured, .connected, .disconnecting:
         return true
       case .restoring, .restoreFailed, .introduction, .chooseServer, .manualEntry, .confirmation,
         .unencryptedWarning, .onboardingRequired, .readyForAuthentication, .authenticationFailed,

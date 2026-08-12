@@ -9,8 +9,8 @@ final class CoordinatorLifecycleTests: XCTestCase {
     let source = ControlledStateSource()
     let coordinator = makeCoordinator(serverUpdates: { await source.stateUpdates() })
 
-    await coordinator.synchronize(with: .connected(credentials))
-    await coordinator.synchronize(with: .disconnected)
+    await coordinator.synchronize(with: .ready(credentials))
+    await coordinator.synchronize(with: .signedOut)
     await Task.yield()
 
     XCTAssertEqual(source.subscriptionCount, 0)
@@ -21,7 +21,7 @@ final class CoordinatorLifecycleTests: XCTestCase {
     var coordinator: HomeAssistantObservationCoordinator? = makeCoordinator(
       serverUpdates: { await source.stateUpdates() }
     )
-    await coordinator?.synchronize(with: .connected(credentials))
+    await coordinator?.synchronize(with: .ready(credentials))
     await fulfillment(of: [source.started], timeout: 1)
 
     coordinator = nil

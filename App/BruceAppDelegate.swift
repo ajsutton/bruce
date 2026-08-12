@@ -27,8 +27,6 @@
     private var observationTask: Task<Void, Never>?
     private var restorationTask: Task<Void, Never>?
     private var synchronizationTask: Task<Void, Never>?
-    private var wakeRecoveryTask: Task<Void, Never>?
-    private var wakeObservation: AnyCancellable?
     private var synchronizationGeneration = UUID()
 
     func configure(
@@ -50,22 +48,16 @@
       observationTask = Task {
         await observationCoordinator.observeUpdates(while: true)
       }
-      wakeObservation = NSWorkspace.shared.notificationCenter
-        .publisher(for: NSWorkspace.didWakeNotification)
-        .receive(on: DispatchQueue.main)
-        .sink { [weak self] _ in
-          self?.recoverConnectionAfterWake()
-        }
       connectionObservation = setupStore.$step
         .map { [weak setupStore] step in
           HomeAssistantPresentation(
             step: step,
             connectionCheckState: setupStore?.connectionCheckState ?? .idle
-          ).connection
+          ).access
         }
         .removeDuplicates()
-        .sink { [weak self] connection in
-          self?.synchronize(with: connection)
+        .sink { [weak self] access in
+          self?.synchronize(with: access)
         }
       restorationTask = Task {
         await setupStore.restoreSavedConnection()
@@ -73,9 +65,6 @@
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-      wakeObservation = nil
-      wakeRecoveryTask?.cancel()
-      wakeRecoveryTask = nil
       connectionObservation = nil
       synchronizationGeneration = UUID()
       synchronizationTask?.cancel()
@@ -86,21 +75,12 @@
       observationTask = nil
     }
 
-    private func recoverConnectionAfterWake() {
-      guard wakeRecoveryTask == nil else { return }
-      wakeRecoveryTask = Task { [weak self, weak observationCoordinator] in
-        await observationCoordinator?.refresh()
-        guard !Task.isCancelled else { return }
-        self?.wakeRecoveryTask = nil
-      }
-    }
-
-    func synchronize(with connection: HomeAssistantConnectionState) {
+    func synchronize(with access: HomeAssistantAccessState) {
       let generation = UUID()
       synchronizationGeneration = generation
       synchronizationTask?.cancel()
       synchronizationTask = Task { [weak self, weak observationCoordinator] in
-        await observationCoordinator?.synchronize(with: connection)
+        await observationCoordinator?.synchronize(with: access)
         guard self?.synchronizationGeneration == generation else { return }
         self?.synchronizationTask = nil
       }

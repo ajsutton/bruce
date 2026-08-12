@@ -4,7 +4,6 @@ struct HomeAssistantConnectionSummaryView: View {
   @ObservedObject var store: HomeAssistantSetupStore
   let mode: BruceMode
   let credentials: HomeAssistantCredentials
-  let isConnected: Bool
   @Binding var showsDisconnectConfirmation: Bool
   let reauthenticate: () -> Void
 
@@ -33,9 +32,7 @@ struct HomeAssistantConnectionSummaryView: View {
   }
 
   private var title: String {
-    if !isConnected, store.connectionCheckState == .checking {
-      credentials.instanceName
-    } else if isConnected {
+    if store.connectionCheckState == .succeeded {
       setupCopy.connectedTitle(instanceName: credentials.instanceName)
     } else {
       setupCopy.configuredTitle(instanceName: credentials.instanceName)
@@ -43,10 +40,15 @@ struct HomeAssistantConnectionSummaryView: View {
   }
 
   private var statusIcon: String {
-    if !isConnected, store.connectionCheckState == .checking {
+    switch store.connectionCheckState {
+    case .checking:
       "ellipsis.circle"
-    } else {
-      isConnected ? "checkmark.circle.fill" : "exclamationmark.circle"
+    case .succeeded:
+      "checkmark.circle.fill"
+    case .failed, .reauthenticationRequired, .disconnectFailed:
+      "exclamationmark.circle"
+    case .idle:
+      "house.circle"
     }
   }
 

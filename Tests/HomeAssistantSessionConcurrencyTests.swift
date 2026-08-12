@@ -185,7 +185,7 @@ final class HomeAssistantSessionConcurrencyTests: XCTestCase {
     }
   }
 
-  func testReadStartedDuringDisconnectCannotUseOldCredentials() async throws {
+  func testCredentialsRemainAvailableUntilDisconnectCommits() async throws {
     let fixture = SessionFixture()
     let store = BlockingDeleteCredentialStore()
     let session = HomeAssistantSession(
@@ -203,17 +203,13 @@ final class HomeAssistantSessionConcurrencyTests: XCTestCase {
     }
     await fulfillment(of: [store.deleteStarted], timeout: 1)
 
-    do {
-      _ = try await session.authenticatedGET(path: "api/")
-      XCTFail("Expected credentials to be unavailable during disconnect.")
-    } catch HomeAssistantAPIError.noCredentials {
-    } catch {
-      XCTFail("Unexpected error: \(error)")
-    }
+    let credentialsDuringDelete = await session.currentCredentials()
+    XCTAssertEqual(credentialsDuringDelete, fixture.credentials())
 
     await store.completeDelete()
     try await disconnect.value
-    XCTAssertTrue(fixture.apiLoader.requests.isEmpty)
+    let credentialsAfterDelete = await session.currentCredentials()
+    XCTAssertNil(credentialsAfterDelete)
   }
 
   func testConcurrentFallbackReadsShareTheRecordedExternalRoute() async throws {

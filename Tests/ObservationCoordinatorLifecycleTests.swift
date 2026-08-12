@@ -11,10 +11,10 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
     let coordinator = makeCoordinator(temperatureLoader: loader)
 
     let connection = Task {
-      await coordinator.synchronize(with: .connected(credentials))
+      await coordinator.synchronize(with: .ready(credentials))
     }
     connection.cancel()
-    await coordinator.synchronize(with: .disconnected)
+    await coordinator.synchronize(with: .signedOut)
     await connection.value
 
     await fulfillment(of: [loader.started], timeout: 0.1)
@@ -26,7 +26,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
       temperatureLoader: loader
     )
     weak let weakCoordinator = coordinator
-    await coordinator?.synchronize(with: .connected(credentials))
+    await coordinator?.synchronize(with: .ready(credentials))
     await fulfillment(of: [loader.started], timeout: 1)
 
     coordinator = nil
@@ -43,7 +43,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
       resetStateFeed: reset.call
     )
     let transition = Task {
-      await coordinator.synchronize(with: .connected(credentials))
+      await coordinator.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [reset.started], timeout: 1)
 
@@ -63,7 +63,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
       resetStateFeed: reset.call
     )
     let cancelledTransition = Task {
-      await coordinator.synchronize(with: .connected(credentials))
+      await coordinator.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [reset.started], timeout: 1)
     cancelledTransition.cancel()
@@ -72,7 +72,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
 
     XCTAssertEqual(loader.startCount, 0)
 
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [loader.started], timeout: 1)
     XCTAssertEqual(loader.startCount, 1)
   }
@@ -85,14 +85,14 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
       temperatureLoader: loader,
       resetStateFeed: reset.call
     )
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     let replacement = Task {
-      await coordinator.synchronize(with: .connected(replacementCredentials))
+      await coordinator.synchronize(with: .ready(replacementCredentials))
     }
     await fulfillment(of: [reset.started], timeout: 1)
     let restarted = loader.expectStartCount(2)
 
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [restarted], timeout: 1)
     replacement.cancel()
     reset.resume()
@@ -109,9 +109,9 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
       temperatureLoader: loader,
       resetStateFeed: reset.call
     )
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     let replacement = Task {
-      await coordinator.synchronize(with: .connected(replacementCredentials))
+      await coordinator.synchronize(with: .ready(replacementCredentials))
     }
     await fulfillment(of: [reset.started], timeout: 1)
     replacement.cancel()
@@ -119,7 +119,7 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
     await replacement.value
     let restarted = loader.expectStartCount(2)
 
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [restarted], timeout: 1)
 
     XCTAssertEqual(loader.startCount, 2)
@@ -136,9 +136,9 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
       refreshStateFeed: refresh.call,
       resetStateFeed: reset.call
     )
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     let replacement = Task {
-      await coordinator.synchronize(with: .connected(replacementCredentials))
+      await coordinator.synchronize(with: .ready(replacementCredentials))
     }
     await fulfillment(of: [reset.started], timeout: 1)
 
@@ -160,12 +160,12 @@ final class ObservationCoordinatorLifecycleTests: XCTestCase {
       temperatureLoader: loader,
       refreshStateFeed: refresh.call
     )
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     let secondStart = loader.expectStartCount(2)
     let refreshTask = Task { await coordinator.refresh() }
     await fulfillment(of: [refresh.started], timeout: 1)
 
-    await coordinator.synchronize(with: .connected(replacementCredentials))
+    await coordinator.synchronize(with: .ready(replacementCredentials))
     await fulfillment(of: [secondStart], timeout: 1)
     let unexpectedRestart = loader.expectStartCount(3)
     unexpectedRestart.isInverted = true

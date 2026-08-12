@@ -93,11 +93,11 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
   }
 
   func synchronize(
-    with connection: HomeAssistantConnectionState,
+    with access: HomeAssistantAccessState,
     historyReuseDeadline: Date? = nil
   ) async {
-    switch connection {
-    case .connected:
+    switch access.phase {
+    case .ready:
       let reusesHistory =
         historyReuseDeadline.map { now() < $0 } == true
         && canReuseHistoryAfterSuspension
@@ -110,12 +110,12 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
         reloadHistoryDiscardingReuse()
       }
       await observeUpdates(generation: generation)
-    case .disconnected:
+    case .signedOut:
       reset()
-    case .connecting:
+    case .loading:
       invalidateLoad()
       problem = nil
-    case .unavailable:
+    case .requiresUserAction:
       invalidateLoad()
       if problem != .signInRequired {
         problem = .connectionNeedsManagement

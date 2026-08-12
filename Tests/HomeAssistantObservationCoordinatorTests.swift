@@ -14,7 +14,7 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
     let temperatureStore = fixture.temperatureStore
     let coordinator = fixture.coordinator
     let firstSource = source.expectSubscriptionCount(1)
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [firstSource], timeout: 1)
     source.yield(.live(try coordinatorStates(power: 0, solar: 8.4)))
     await waitForValue(chargingStore.$isLive, matching: true)
@@ -44,7 +44,7 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
       temperatureStore: temperatureStore,
       source: source
     )
-    await coordinator.synchronize(with: .disconnected)
+    await coordinator.synchronize(with: .signedOut)
   }
 
   private func makeRefreshFixture() -> CoordinatorRefreshFixture {
@@ -89,7 +89,7 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
   func testServerStatusRecoversAfterTerminalFeedFailure() async throws {
     let fixture = makeRefreshFixture()
     let firstSource = fixture.source.expectSubscriptionCount(1)
-    await fixture.coordinator.synchronize(with: .connected(credentials))
+    await fixture.coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [firstSource], timeout: 1)
     fixture.source.yield(.live(try coordinatorStates(power: 0, solar: 8.4)))
     await waitForValue(fixture.coordinator.$serverStatus.map(\.phase), matching: .live)
@@ -106,13 +106,13 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
     )
 
     await waitForValue(fixture.coordinator.$serverStatus.map(\.phase), matching: .live)
-    await fixture.coordinator.synchronize(with: .disconnected)
+    await fixture.coordinator.synchronize(with: .signedOut)
   }
 
   func testServerStatusRecoversAfterFeedCompletes() async throws {
     let fixture = makeRefreshFixture()
     let firstSource = fixture.source.expectSubscriptionCount(1)
-    await fixture.coordinator.synchronize(with: .connected(credentials))
+    await fixture.coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [firstSource], timeout: 1)
     fixture.source.yield(.live(try coordinatorStates(power: 0, solar: 8.4)))
     await waitForValue(fixture.coordinator.$serverStatus.map(\.phase), matching: .live)
@@ -129,7 +129,7 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
     )
 
     await waitForValue(fixture.coordinator.$serverStatus.map(\.phase), matching: .live)
-    await fixture.coordinator.synchronize(with: .disconnected)
+    await fixture.coordinator.synchronize(with: .signedOut)
   }
 
   func testCancellingNewestSceneCallerDoesNotStopAppLifetimeObservation() async {
@@ -147,14 +147,14 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
         loader: CoordinatorEnergyLoader()
       )
     )
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [client.started], timeout: 1)
 
     let firstSceneCaller = Task {
-      await coordinator.synchronize(with: .connected(credentials))
+      await coordinator.synchronize(with: .ready(credentials))
     }
     let newestSceneCaller = Task {
-      await coordinator.synchronize(with: .connected(credentials))
+      await coordinator.synchronize(with: .ready(credentials))
     }
     newestSceneCaller.cancel()
     await firstSceneCaller.value
@@ -169,7 +169,7 @@ final class HomeAssistantObservationCoordinatorTests: XCTestCase {
 
     XCTAssertEqual(chargingStore.mode, .smart)
     XCTAssertTrue(chargingStore.isLive)
-    await coordinator.synchronize(with: .disconnected)
+    await coordinator.synchronize(with: .signedOut)
     withExtendedLifetime(subscription) {}
   }
 
@@ -276,7 +276,7 @@ extension HomeAssistantObservationCoordinatorTests {
         loader: CoordinatorEnergyLoader()
       )
     )
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     await fulfillment(of: [client.started], timeout: 1)
     client.finishUpdates()
     await waitForValue(
@@ -288,7 +288,7 @@ extension HomeAssistantObservationCoordinatorTests {
     await coordinator.refresh()
     await fulfillment(of: [restarted], timeout: 1)
 
-    await coordinator.synchronize(with: .disconnected)
+    await coordinator.synchronize(with: .signedOut)
   }
 }
 

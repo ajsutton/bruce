@@ -15,7 +15,7 @@ final class HomeAssistantGarageDoorStoreTests: XCTestCase {
       doors: [original]
     )
     let observation = Task {
-      await store.synchronize(with: .connected(credentials))
+      await store.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [loader.started], timeout: 1)
     loader.yield(.live([original]))
@@ -59,7 +59,7 @@ final class HomeAssistantGarageDoorStoreTests: XCTestCase {
       controller: controller
     )
     let observation = Task {
-      await store.synchronize(with: .connected(credentials))
+      await store.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [loader.started], timeout: 1)
     loader.yield(.live([door(state: .opening)]))
@@ -86,7 +86,7 @@ final class HomeAssistantGarageDoorStoreTests: XCTestCase {
     let store = HomeAssistantGarageDoorStore(loader: loader)
     let observation = Task {
       await store.synchronize(
-        with: .connected(credentials)
+        with: .ready(credentials)
       )
     }
     await fulfillment(of: [loader.started], timeout: 1)
@@ -110,7 +110,7 @@ final class HomeAssistantGarageDoorStoreTests: XCTestCase {
       controller: RecordingGarageDoorController()
     )
     let observation = Task {
-      await store.synchronize(with: .connected(credentials))
+      await store.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [loader.started], timeout: 1)
     loader.yield(.live([door(state: .opening)]))
@@ -128,7 +128,7 @@ final class HomeAssistantGarageDoorStoreTests: XCTestCase {
   func testSuccessfulEmptyDiscoveryIsDistinctFromFailure() async {
     let emptyStore = HomeAssistantGarageDoorStore(loader: TestGarageDoorLoader())
     let emptyObservation = Task {
-      await emptyStore.synchronize(with: .connected(credentials))
+      await emptyStore.synchronize(with: .ready(credentials))
     }
     await waitForValue(emptyStore.$hasCompletedDiscovery, matching: true)
     XCTAssertTrue(emptyStore.doors.isEmpty)
@@ -137,7 +137,7 @@ final class HomeAssistantGarageDoorStoreTests: XCTestCase {
     await emptyObservation.value
 
     let failingStore = HomeAssistantGarageDoorStore(loader: FailingGarageDoorLoader())
-    await failingStore.synchronize(with: .connected(credentials))
+    await failingStore.synchronize(with: .ready(credentials))
     XCTAssertFalse(failingStore.hasCompletedDiscovery)
     XCTAssertEqual(failingStore.problem, .invalidResponse)
   }

@@ -158,7 +158,7 @@ final class HomeEnergyStreamHistoryTests: XCTestCase {
       .prefix(1)
       .sink { _ in historyLoaded.fulfill() }
     let synchronization = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await fulfillment(of: [source.started, historyLoaded], timeout: 1)
     var parentChangeCount = 0

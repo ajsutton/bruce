@@ -13,7 +13,7 @@ final class ObservationActivityRaceTests: XCTestCase {
       temperatureLoader: loader,
       refreshStateFeed: refresh.call
     )
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     let refreshTask = Task { await coordinator.refresh() }
     await fulfillment(of: [refresh.started], timeout: 1)
     let suspended = expectation(description: "Inactive window registered")
@@ -44,7 +44,7 @@ final class ObservationActivityRaceTests: XCTestCase {
       temperatureLoader: loader,
       resetStateFeed: reset.call
     )
-    await coordinator.synchronize(with: .connected(credentials))
+    await coordinator.synchronize(with: .ready(credentials))
     let suspended = expectation(description: "Inactive window registered")
     let inactiveWindow = Task {
       await coordinator.observeUpdates(
@@ -54,7 +54,7 @@ final class ObservationActivityRaceTests: XCTestCase {
     }
     await fulfillment(of: [suspended, loader.cancelled], timeout: 1)
     let replacement = Task {
-      await coordinator.synchronize(with: .connected(replacementCredentials))
+      await coordinator.synchronize(with: .ready(replacementCredentials))
     }
     await fulfillment(of: [reset.started], timeout: 1)
     let activated = expectation(description: "Active window registered")

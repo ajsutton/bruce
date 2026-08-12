@@ -108,7 +108,7 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
       mode: .smart
     )
 
-    await store.synchronize(with: .unavailable)
+    await store.synchronize(with: .requiresUserAction)
 
     XCTAssertEqual(store.mode, .smart)
     XCTAssertFalse(store.isActivityLive)
@@ -128,7 +128,7 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
 
     await store.load()
     await fulfillment(of: [recoveryRequested], timeout: 1)
-    await store.synchronize(with: .unavailable)
+    await store.synchronize(with: .requiresUserAction)
 
     XCTAssertEqual(store.problem, .signInRequired)
     XCTAssertFalse(store.isLive)
@@ -142,7 +142,7 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     }
     await fulfillment(of: [client.loadStarted(at: 0)], timeout: 1)
 
-    await store.synchronize(with: .unavailable)
+    await store.synchronize(with: .requiresUserAction)
     client.succeedLoad(0, with: .charging, activity: .charging(powerWatts: 7_024))
     await load.value
 
@@ -204,7 +204,7 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     }
     await fulfillment(of: [client.setStarted(at: 0)], timeout: 1)
 
-    await store.synchronize(with: .disconnected)
+    await store.synchronize(with: .signedOut)
     client.succeedSet(0, with: .charging)
     await change.value
 
@@ -221,7 +221,7 @@ final class HomeAssistantEVChargingStoreTests: XCTestCase {
     }
     await fulfillment(of: [client.setStarted(at: 0)], timeout: 1)
 
-    await store.synchronize(with: .unavailable)
+    await store.synchronize(with: .requiresUserAction)
     await change.value
 
     XCTAssertEqual(store.mode, .off)

@@ -200,15 +200,15 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
 
 extension OptimisticClimateControlStoreTests {
   func testConnectingInvalidatesPendingControlAndRejectsLateSuccess() async {
-    await assertConnectionTransitionInvalidatesPendingControl(.connecting)
+    await assertAccessTransitionInvalidatesPendingControl(.loading)
   }
 
   func testUnavailableInvalidatesPendingControlAndRejectsLateSuccess() async {
-    await assertConnectionTransitionInvalidatesPendingControl(.unavailable)
+    await assertAccessTransitionInvalidatesPendingControl(.requiresUserAction)
   }
 
-  private func assertConnectionTransitionInvalidatesPendingControl(
-    _ connection: HomeAssistantConnectionState
+  private func assertAccessTransitionInvalidatesPendingControl(
+    _ access: HomeAssistantAccessState
   ) async {
     let loader = ControlledTemperatureLoader(requestCount: 1)
     let controller = BlockingClimateController()
@@ -219,7 +219,7 @@ extension OptimisticClimateControlStoreTests {
     await fulfillment(of: [controller.started], timeout: 1)
     XCTAssertEqual(fixture.store.readings.first?.powerState, .off)
 
-    await fixture.store.synchronize(with: connection)
+    await fixture.store.synchronize(with: access)
     XCTAssertEqual(
       fixture.store.readings.first?.powerState,
       fixture.reading.powerState

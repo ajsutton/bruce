@@ -14,7 +14,12 @@ struct HomeAssistantRestoringView: View {
   }
 
   var body: some View {
-    if store.connectionCheckState == .disconnectFailed {
+    if store.isDisconnecting {
+      HomeAssistantProgressView(
+        title: interfaceCopy.disconnecting,
+        detail: interfaceCopy.disconnectingAccessibility
+      )
+    } else if store.connectionCheckState == .disconnectFailed {
       ContentUnavailableView {
         Label(interfaceCopy.couldNotRemoveConnection, systemImage: "trash.slash")
       } description: {
@@ -30,14 +35,8 @@ struct HomeAssistantRestoringView: View {
           detail: setupCopy.restoringDetail
         )
 
-        if store.isDisconnecting {
-          ProgressView(interfaceCopy.disconnecting)
-            .controlSize(.small)
-            .padding()
-        } else {
-          Button(interfaceCopy.removeConnection, role: .destructive, action: requestRemoval)
-            .padding()
-        }
+        Button(interfaceCopy.removeConnection, role: .destructive, action: requestRemoval)
+          .padding()
       }
     }
   }

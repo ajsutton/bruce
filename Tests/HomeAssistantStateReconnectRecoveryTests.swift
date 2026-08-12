@@ -4,6 +4,82 @@ import XCTest
 @testable import Bruce
 
 final class HomeAssistantStateReconnectRecoveryTests: XCTestCase {
+  func testHeartbeatFailureReplacesHalfOpenConnection() async throws {
+    let fixture = SessionFixture()
+    let session = fixture.makeSession(
+      apiResponses: [
+        .success(temperatureStates(value: 21), statusCode: 200),
+        .success(temperatureStates(value: 23), statusCode: 200),
+      ]
+    )
+    try await session.install(fixture.credentials())
+    let halfOpenConnection = recoveryAuthenticatedConnection(
+      pingError: URLError(.networkConnectionLost)
+    )
+    let recoveredConnection = recoveryAuthenticatedConnection()
+    let heartbeat = RecordingSubscriptionSleeper(blocks: true)
+    heartbeat.started.assertForOverFulfill = false
+    let source = HomeAssistantStateStream(
+      session: session,
+      connector: TemperatureSubscriptionConnector(
+        connections: [halfOpenConnection, recoveredConnection]
+      ),
+      retryDelays: [.zero],
+      heartbeatInterval: .seconds(30),
+      heartbeatSleep: heartbeat.sleep
+    )
+    let probe = AsyncThrowingStreamTestProbe(await source.stateUpdates())
+    await fulfillment(of: [probe.received(at: 0), heartbeat.started], timeout: 1)
+
+    heartbeat.resume()
+    await fulfillment(
+      of: [halfOpenConnection.pingStarted, probe.received(at: 2)],
+      timeout: 1
+    )
+    let reconnecting = try probe.value(at: 1)
+    let recovered = try probe.value(at: 2)
+    recoveredConnection.cancel()
+    heartbeat.cancel()
+
+    XCTAssertEqual(reconnecting.phase, .reconnecting)
+    XCTAssertEqual(recovered.phase, .live)
+    XCTAssertEqual(try temperatureValue(from: recovered), 23)
+  }
+
+  func testTokenRefreshConnectivityFailureBeforeFirstConnectionRetries() async throws {
+    let fixture = SessionFixture()
+    let token = Data(
+      #"{"access_token":"refreshed-access","token_type":"Bearer","expires_in":1800}"#.utf8
+    )
+    let session = fixture.makeSession(
+      apiResponses: [.success(temperatureStates(value: 23), statusCode: 200)],
+      authenticationResponses: [
+        .failure(URLError(.notConnectedToInternet)),
+        .failure(URLError(.notConnectedToInternet)),
+        .success(token, statusCode: 200),
+        .success(token, statusCode: 200),
+      ]
+    )
+    try await session.install(fixture.credentials(expiresAt: fixture.past))
+    let connection = recoveryAuthenticatedConnection()
+    let source = HomeAssistantStateStream(
+      session: session,
+      connector: TemperatureSubscriptionConnector(connections: [connection]),
+      retryDelays: [.zero]
+    )
+    let probe = AsyncThrowingStreamTestProbe(await source.stateUpdates())
+
+    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    let reconnecting = try probe.value(at: 0)
+    let recovered = try probe.value(at: 1)
+    connection.cancel()
+
+    XCTAssertEqual(reconnecting.phase, .reconnecting)
+    XCTAssertTrue(reconnecting.states.isEmpty)
+    XCTAssertEqual(recovered.phase, .live)
+    XCTAssertEqual(try temperatureValue(from: recovered), 23)
+  }
+
   func testInvalidResponseFromPreviouslyLiveConnectionReconnects() async throws {
     let fixture = SessionFixture()
     let session = fixture.makeSession(
@@ -179,7 +255,8 @@ final class HomeAssistantStateReconnectRecoveryTests: XCTestCase {
 }
 
 private func recoveryAuthenticatedConnection(
-  endingWith error: (any Error)? = nil
+  endingWith error: (any Error)? = nil,
+  pingError: (any Error)? = nil
 ) -> TemperatureSubscriptionConnection {
   var messages: [TemperatureSubscriptionConnection.Message] = [
     .success(#"{"type":"auth_required"}"#),
@@ -189,7 +266,7 @@ private func recoveryAuthenticatedConnection(
   if let error {
     messages.append(.failure(error))
   }
-  return TemperatureSubscriptionConnection(messages: messages)
+  return TemperatureSubscriptionConnection(messages: messages, pingError: pingError)
 }
 
 private func temperatureValue(from update: HomeAssistantStateUpdate) throws -> Double {

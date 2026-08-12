@@ -10,7 +10,7 @@ final class HomeAssistantPresentationTests: XCTestCase {
     XCTAssertEqual(presentation.screen, .panels)
     XCTAssertFalse(presentation.isConnecting)
     XCTAssertNil(presentation.connectionProblem)
-    XCTAssertEqual(presentation.connection, .connected(credentials))
+    XCTAssertEqual(presentation.access, .ready(credentials))
   }
 
   func testSceneActivationRefreshesLocalPreferences() {
@@ -46,10 +46,10 @@ final class HomeAssistantPresentationTests: XCTestCase {
     XCTAssertEqual(presentation.screen, .panels)
     XCTAssertTrue(presentation.isConnecting)
     XCTAssertNil(presentation.connectionProblem)
-    XCTAssertEqual(presentation.connection, .connecting)
+    XCTAssertEqual(presentation.access, .loading)
   }
 
-  func testConfiguredNetworkFailureShowsBannerAndPreservesTemperatures() {
+  func testConfiguredStateRequiresUserAction() {
     let presentation = makePresentation(
       step: .configured(credentials),
       state: .failed(.networkUnavailable)
@@ -60,7 +60,17 @@ final class HomeAssistantPresentationTests: XCTestCase {
       presentation.connectionProblem,
       .unavailable
     )
-    XCTAssertEqual(presentation.connection, .unavailable)
+    XCTAssertEqual(presentation.access, .requiresUserAction)
+  }
+
+  func testManualNetworkFailureReportsProblemWithoutRevokingReadyAccess() {
+    let presentation = makePresentation(
+      step: .connected(credentials),
+      state: .failed(.networkUnavailable)
+    )
+
+    XCTAssertEqual(presentation.connectionProblem, .unavailable)
+    XCTAssertEqual(presentation.access, .ready(credentials))
   }
 
   func testConnectionCheckUsesProgressWithoutAProblemBanner() {
@@ -77,7 +87,7 @@ final class HomeAssistantPresentationTests: XCTestCase {
     let presentation = makePresentation(step: .introduction)
 
     XCTAssertEqual(presentation.screen, .setup)
-    XCTAssertEqual(presentation.connection, .disconnected)
+    XCTAssertEqual(presentation.access, .signedOut)
   }
 
   func testSmartChargingLabelDoesNotImplyTheBatteryIsThePowerSource() {

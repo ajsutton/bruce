@@ -10,7 +10,7 @@ final class EVChargingSnapshotOrderingTests: XCTestCase {
     let client = StreamingEVChargingClient()
     let store = HomeAssistantEVChargingStore(client: client)
     let connection = Task {
-      await store.synchronize(with: .connected(credentials))
+      await store.synchronize(with: .ready(credentials))
     }
     await fulfillment(of: [client.started], timeout: 1)
     client.yield(

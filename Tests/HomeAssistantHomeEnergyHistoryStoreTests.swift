@@ -15,7 +15,7 @@ final class HomeAssistantHomeEnergyHistoryStoreTests: XCTestCase {
     let loader = ControlledHomeEnergyHistoryLoader(historyRequestCount: 1)
     let store = makeStore(loader: loader, dates: dates)
     let synchronization = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await waitForInitialRequests(loader)
 
@@ -54,7 +54,7 @@ final class HomeAssistantHomeEnergyHistoryStoreTests: XCTestCase {
     let loader = ControlledHomeEnergyHistoryLoader(historyRequestCount: 1)
     let store = makeStore(loader: loader, dates: dates)
     let synchronization = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await waitForInitialRequests(loader)
 
@@ -81,7 +81,7 @@ final class HomeAssistantHomeEnergyHistoryStoreTests: XCTestCase {
     let loader = ControlledHomeEnergyHistoryLoader(historyRequestCount: 1)
     let store = HomeAssistantHomeEnergyStore(loader: loader)
     let synchronization = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await waitForInitialRequests(loader)
 
@@ -111,7 +111,7 @@ final class HomeAssistantHomeEnergyHistoryStoreTests: XCTestCase {
     let loader = ControlledHomeEnergyHistoryLoader(historyRequestCount: 2)
     let store = makeStore(loader: loader, dates: dates)
     let synchronization = Task {
-      await store.synchronize(with: .connected(credentials()))
+      await store.synchronize(with: .ready(credentials()))
     }
     await waitForInitialRequests(loader)
     await completeHistory(

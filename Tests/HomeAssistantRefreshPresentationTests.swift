@@ -9,7 +9,7 @@ final class HomeAssistantRefreshPresentationTests: XCTestCase {
   func testOneShotChargerDefaultStreamPreservesSuccessfulValue() async {
     let store = HomeAssistantEVChargingStore(client: OneShotEVChargingClient())
 
-    await store.synchronize(with: .connected(credentials))
+    await store.synchronize(with: .ready(credentials))
 
     XCTAssertEqual(store.mode, .smart)
     XCTAssertTrue(store.isLive)
@@ -19,7 +19,7 @@ final class HomeAssistantRefreshPresentationTests: XCTestCase {
   func testOneShotEnergyDefaultStreamPreservesSuccessfulValue() async {
     let store = HomeAssistantHomeEnergyStore(loader: OneShotEnergyLoader())
 
-    await store.synchronize(with: .connected(credentials))
+    await store.synchronize(with: .ready(credentials))
 
     XCTAssertEqual(store.snapshot.pvPowerKilowatts, 8.4)
     XCTAssertTrue(store.isLive)
@@ -127,7 +127,7 @@ final class HomeAssistantRefreshPresentationTests: XCTestCase {
       feedInPriceDollarsPerKilowattHour: 0.127
     )
     let store = HomeAssistantHomeEnergyStore(loader: loader)
-    let observation = Task { await store.synchronize(with: .connected(credentials)) }
+    let observation = Task { await store.synchronize(with: .ready(credentials)) }
     await fulfillment(of: [loader.started], timeout: 1)
     loader.yield(.live(snapshot))
     await waitForValue(store.$isLive, matching: true)
@@ -152,7 +152,7 @@ final class HomeAssistantRefreshPresentationTests: XCTestCase {
   func testChargerRefreshKeepsCachedStatusAndDisablesControls() async {
     let client = StreamingEVChargingClient()
     let store = HomeAssistantEVChargingStore(client: client)
-    let observation = Task { await store.synchronize(with: .connected(credentials)) }
+    let observation = Task { await store.synchronize(with: .ready(credentials)) }
     await fulfillment(of: [client.started], timeout: 1)
     let snapshot = HomeAssistantEVChargingSnapshot(
       mode: .smart,

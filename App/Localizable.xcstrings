@@ -3324,7 +3324,7 @@
         "en-AU" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant knows about %@, but the connection needs a tune-up"
+            "value" : "Home Assistant is set up for %@"
           }
         }
       }

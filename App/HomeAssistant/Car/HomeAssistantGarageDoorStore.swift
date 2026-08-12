@@ -47,19 +47,19 @@ final class HomeAssistantGarageDoorStore: ObservableObject {
     authoritativeDoors = doors
   }
 
-  func synchronize(with connection: HomeAssistantConnectionState) async {
-    switch connection {
-    case .connected:
+  func synchronize(with access: HomeAssistantAccessState) async {
+    switch access.phase {
+    case .ready:
       await observeUpdates()
-    case .disconnected:
+    case .signedOut:
       reset()
-    case .connecting:
+    case .loading:
       invalidateObservation()
       invalidateControls()
       hasCompletedDiscovery = false
       isLoading = true
       problem = nil
-    case .unavailable:
+    case .requiresUserAction:
       invalidateObservation()
       invalidateControls()
       if problem != .signInRequired {
