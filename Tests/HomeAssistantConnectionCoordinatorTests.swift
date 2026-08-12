@@ -104,6 +104,61 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
     XCTAssertEqual(Set(loader.requestedHosts), Set(["existing.local", "existing.example"]))
   }
 
+  func testConnectionCheckRetriesTransientWakeFailure() async throws {
+    let fixture = CoordinatorFixture()
+    let session = fixture.makeSession()
+    let existing = fixture.existingCredentials()
+    let internalURL = try XCTUnwrap(existing.internalURL)
+    let credentials = HomeAssistantCredentials(
+      instanceID: existing.instanceID,
+      instanceName: existing.instanceName,
+      internalURL: internalURL,
+      externalURL: nil,
+      lastSuccessfulURL: internalURL,
+      accessToken: existing.accessToken,
+      refreshToken: existing.refreshToken,
+      tokenType: existing.tokenType,
+      accessTokenExpiresAt: existing.accessTokenExpiresAt,
+      clientID: existing.clientID
+    )
+    try await session.install(credentials)
+    fixture.apiLoader.results = [
+      .failure(URLError(.networkConnectionLost)),
+      .success(fixture.statusResponse, statusCode: 200),
+    ]
+    let coordinator = fixture.makeCoordinator(session: session)
+
+    let checkedCredentials = try await coordinator.testConnection()
+
+    XCTAssertEqual(checkedCredentials, credentials)
+    XCTAssertEqual(fixture.apiLoader.requests.count, 2)
+  }
+
+  func testConnectionCheckRetriesWithCredentialsThatSupersedeFirstAttempt() async throws {
+    let fixture = CoordinatorFixture()
+    let loader = BlockingHomeAssistantLoader(honorsCancellation: false)
+    let session = HomeAssistantSession(
+      credentialStore: fixture.store,
+      authenticationClient: fixture.authenticationClient,
+      loader: loader,
+      now: { [now = fixture.now] in now }
+    )
+    let credentials = fixture.existingCredentials()
+    try await session.install(credentials)
+    let coordinator = fixture.makeCoordinator(session: session)
+    let check = Task { try await coordinator.testConnection() }
+    await fulfillment(of: [loader.started], timeout: 1)
+    var replacement = credentials
+    replacement.accessToken = "replacement-access"
+
+    try await session.install(replacement)
+    loader.succeed(with: fixture.statusResponse, statusCode: 200)
+    let checkedCredentials = try await check.value
+
+    XCTAssertEqual(checkedCredentials, replacement)
+    XCTAssertEqual(loader.requests.count, 4)
+  }
+
   func testNewConnectionUsesExternalRouteWithoutWaitingForInternalRoute() async throws {
     let fixture = CoordinatorFixture()
     fixture.authenticationLoader.results = [.success(fixture.tokenResponse, statusCode: 200)]
@@ -314,35 +369,4 @@ private final class CoordinatorFixture {
       stateGenerator: { "expected-state" }
     )
   }
-}
-
-@MainActor
-private final class StubHomeAssistantWebAuthenticator: HomeAssistantWebAuthenticating {
-  var error: (any Error)?
-  private(set) var authenticationCount = 0
-
-  func authenticate(at url: URL) async throws -> URL {
-    authenticationCount += 1
-    if let error {
-      throw error
-    }
-    guard
-      var components = URLComponents(
-        url: HomeAssistantOAuthConfiguration.release.redirectURI,
-        resolvingAgainstBaseURL: false
-      )
-    else {
-      throw HomeAssistantAuthenticationError.invalidCallback
-    }
-    components.queryItems = [
-      URLQueryItem(name: "code", value: "authorization-code"),
-      URLQueryItem(name: "state", value: "expected-state"),
-    ]
-    guard let callback = components.url else {
-      throw HomeAssistantAuthenticationError.invalidCallback
-    }
-    return callback
-  }
-
-  func cancel() {}
 }

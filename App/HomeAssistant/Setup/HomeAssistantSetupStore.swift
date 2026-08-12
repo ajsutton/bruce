@@ -78,11 +78,15 @@ final class HomeAssistantSetupStore: ObservableObject {
   init(
     discovery: any HomeAssistantDiscovering,
     connection: (any HomeAssistantConnecting)? = nil,
-    webAuthenticationPresenter: HomeAssistantWebAuthenticationPresenter? = nil
+    webAuthenticationPresenter: HomeAssistantWebAuthenticationPresenter? = nil,
+    connectionCheckDidSucceed: @escaping @MainActor @Sendable () async -> Void = {}
   ) {
     self.discovery = discovery
     self.webAuthenticationPresenter = webAuthenticationPresenter
-    connectionController = HomeAssistantConnectionController(connection: connection)
+    connectionController = HomeAssistantConnectionController(
+      connection: connection,
+      connectionCheckDidSucceed: connectionCheckDidSucceed
+    )
     connectionController.onStepChange = { [weak self] step in
       self?.step = step
     }
@@ -93,6 +97,12 @@ final class HomeAssistantSetupStore: ObservableObject {
 
   deinit {
     discoveryTask?.cancel()
+  }
+
+  func setConnectionCheckDidSucceed(
+    _ action: @escaping @MainActor @Sendable () async -> Void
+  ) {
+    connectionController.setConnectionCheckDidSucceed(action)
   }
 
   var canConfirmSelectedInstance: Bool {

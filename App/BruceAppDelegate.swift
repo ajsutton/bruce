@@ -27,6 +27,8 @@
     private var observationTask: Task<Void, Never>?
     private var restorationTask: Task<Void, Never>?
     private var synchronizationTask: Task<Void, Never>?
+    private var wakeRecoveryTask: Task<Void, Never>?
+    private var wakeObservation: AnyCancellable?
     private var synchronizationGeneration = UUID()
 
     func configure(
@@ -48,6 +50,12 @@
       observationTask = Task {
         await observationCoordinator.observeUpdates(while: true)
       }
+      wakeObservation = NSWorkspace.shared.notificationCenter
+        .publisher(for: NSWorkspace.didWakeNotification)
+        .receive(on: DispatchQueue.main)
+        .sink { [weak self] _ in
+          self?.recoverConnectionAfterWake()
+        }
       connectionObservation = setupStore.$step
         .map { [weak setupStore] step in
           HomeAssistantPresentation(
@@ -65,6 +73,9 @@
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+      wakeObservation = nil
+      wakeRecoveryTask?.cancel()
+      wakeRecoveryTask = nil
       connectionObservation = nil
       synchronizationGeneration = UUID()
       synchronizationTask?.cancel()
@@ -73,6 +84,15 @@
       restorationTask = nil
       observationTask?.cancel()
       observationTask = nil
+    }
+
+    private func recoverConnectionAfterWake() {
+      guard wakeRecoveryTask == nil else { return }
+      wakeRecoveryTask = Task { [weak self, weak observationCoordinator] in
+        await observationCoordinator?.refresh()
+        guard !Task.isCancelled else { return }
+        self?.wakeRecoveryTask = nil
+      }
     }
 
     func synchronize(with access: HomeAssistantAccessState) {

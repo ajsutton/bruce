@@ -41,7 +41,7 @@ struct BruceHomeAssistantDependencies {
     self.garageDoorStore = garageDoorStore
     self.homeEnergyStore = homeEnergyStore
     self.temperatureStore = temperatureStore
-    observationCoordinator = HomeAssistantObservationCoordinator(
+    let observationCoordinator = HomeAssistantObservationCoordinator(
       temperatureStore: temperatureStore,
       chargingStore: chargingStore,
       garageDoorStore: garageDoorStore,
@@ -50,6 +50,10 @@ struct BruceHomeAssistantDependencies {
       resetStateFeed: { await context.states.reset() },
       serverUpdates: { await context.states.stateUpdates() }
     )
+    context.setupStore.setConnectionCheckDidSucceed { [weak observationCoordinator] in
+      await observationCoordinator?.refresh()
+    }
+    self.observationCoordinator = observationCoordinator
   }
 
   private static func context() -> Context {
@@ -67,6 +71,10 @@ struct BruceHomeAssistantDependencies {
       authenticationClient: authenticationClient,
       loader: loader
     )
+    let apiClient = HomeAssistantAPIClient(session: session)
+    let states = HomeAssistantStateHub(
+      source: HomeAssistantStateStream(session: session, apiClient: apiClient)
+    )
     let setupStore = HomeAssistantSetupStore(
       discovery: HomeAssistantDiscoveryClient(browser: NetworkHomeAssistantDiscovery()),
       connection: HomeAssistantConnectionCoordinator(
@@ -76,14 +84,11 @@ struct BruceHomeAssistantDependencies {
       ),
       webAuthenticationPresenter: webAuthenticationPresenter
     )
-    let apiClient = HomeAssistantAPIClient(session: session)
     return Context(
       setupStore: setupStore,
       session: session,
       apiClient: apiClient,
-      states: HomeAssistantStateHub(
-        source: HomeAssistantStateStream(session: session, apiClient: apiClient)
-      )
+      states: states
     )
   }
 

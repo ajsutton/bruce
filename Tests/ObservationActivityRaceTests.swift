@@ -36,6 +36,36 @@ final class ObservationActivityRaceTests: XCTestCase {
     await inactiveWindow.value
   }
 
+  func testInvalidatedRefreshCannotClearReplacementRefreshOwnership() async {
+    let loader = ObservationTestTemperatureLoader()
+    loader.started.assertForOverFulfill = false
+    let refresh = SequencedStateFeedRefresh()
+    let coordinator = makeCoordinator(
+      temperatureLoader: loader,
+      refreshStateFeed: refresh.call
+    )
+    await coordinator.synchronize(with: .ready(credentials))
+    let firstRefresh = Task { await coordinator.refresh() }
+    await fulfillment(of: [refresh.firstStarted], timeout: 1)
+    await coordinator.synchronize(with: .ready(replacementCredentials))
+    let secondRefresh = Task { await coordinator.refresh() }
+    await fulfillment(of: [refresh.secondStarted], timeout: 1)
+
+    refresh.resumeFirst()
+    await firstRefresh.value
+    refresh.thirdStarted.isInverted = true
+    let thirdRefresh = Task { await coordinator.refresh() }
+    await fulfillment(of: [refresh.thirdStarted], timeout: 0.1)
+
+    XCTAssertEqual(refresh.callCount, 2)
+    if refresh.callCount == 3 {
+      refresh.resumeThird()
+    }
+    await thirdRefresh.value
+    refresh.resumeSecond()
+    await secondRefresh.value
+  }
+
   func testActivationDuringTransitionWaitsForReplacementConnection() async {
     let loader = ObservationTestTemperatureLoader()
     loader.started.assertForOverFulfill = false
@@ -119,5 +149,38 @@ final class ObservationActivityRaceTests: XCTestCase {
       accessTokenExpiresAt: Date(timeIntervalSince1970: 30_000),
       clientID: HomeAssistantOAuthConfiguration.release.clientID
     )
+  }
+}
+
+private final class SequencedStateFeedRefresh: @unchecked Sendable {
+  let firstStarted = XCTestExpectation(description: "First refresh started")
+  let secondStarted = XCTestExpectation(description: "Second refresh started")
+  let thirdStarted = XCTestExpectation(description: "Third refresh started")
+  private let lock = NSLock()
+  private var continuations: [CheckedContinuation<Bool, Never>] = []
+
+  var callCount: Int { lock.withLock { continuations.count } }
+
+  func call() async -> Bool {
+    await withCheckedContinuation { continuation in
+      let count = lock.withLock {
+        continuations.append(continuation)
+        return continuations.count
+      }
+      switch count {
+      case 1: firstStarted.fulfill()
+      case 2: secondStarted.fulfill()
+      default: thirdStarted.fulfill()
+      }
+    }
+  }
+
+  func resumeFirst() { resume(at: 0) }
+  func resumeSecond() { resume(at: 1) }
+  func resumeThird() { resume(at: 2) }
+
+  private func resume(at index: Int) {
+    let continuation = lock.withLock { continuations[index] }
+    continuation.resume(returning: false)
   }
 }

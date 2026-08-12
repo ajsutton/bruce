@@ -28,6 +28,7 @@ actor HomeAssistantStateHub: HomeAssistantStateLoading {
   }
 
   func refresh() async -> Bool {
+    guard !Task.isCancelled else { return false }
     let hasActiveSubscribers = !continuations.isEmpty
     if hasActiveSubscribers, let latestUpdate {
       let refreshingUpdate = refreshingUpdate(from: latestUpdate)

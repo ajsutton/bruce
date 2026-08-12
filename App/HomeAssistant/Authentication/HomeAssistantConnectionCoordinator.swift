@@ -68,7 +68,14 @@ final class HomeAssistantConnectionCoordinator: HomeAssistantConnecting {
   }
 
   func testConnection() async throws -> HomeAssistantCredentials {
-    _ = try await HomeAssistantAPIClient(session: session).checkConnection()
+    let client = HomeAssistantAPIClient(session: session)
+    do {
+      _ = try await client.checkConnection()
+    } catch {
+      guard Self.shouldRetryConnectionCheck(after: error) else { throw error }
+      try Task.checkCancellation()
+      _ = try await client.checkConnection()
+    }
     guard let credentials = await session.currentCredentials() else {
       throw HomeAssistantAPIError.noCredentials
     }
@@ -134,5 +141,12 @@ final class HomeAssistantConnectionCoordinator: HomeAssistantConnecting {
       .notConnectedToInternet,
       .timedOut,
     ].contains(error.code)
+  }
+
+  private static func shouldRetryConnectionCheck(after error: any Error) -> Bool {
+    if case HomeAssistantAPIError.staleOperation = error {
+      return true
+    }
+    return HomeAssistantRequestRouter.isConnectivityFailure(error)
   }
 }

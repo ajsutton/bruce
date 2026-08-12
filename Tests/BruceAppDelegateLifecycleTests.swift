@@ -69,6 +69,41 @@
       )
     }
 
+    func testWakingMacRefreshesHomeAssistantStateFeed() async {
+      let loader = ObservationTestTemperatureLoader()
+      let refreshStarted = expectation(description: "State feed refresh started")
+      let coordinator = makeCoordinator(
+        temperatureLoader: loader,
+        refreshStateFeed: {
+          refreshStarted.fulfill()
+          return true
+        }
+      )
+      let setupStore = HomeAssistantSetupStore(
+        discovery: ApplicationObservationDiscovery(),
+        connection: ApplicationObservationConnection(credentials: credentials)
+      )
+      let delegate = BruceAppDelegate()
+      delegate.configure(
+        setupStore: setupStore,
+        observationCoordinator: coordinator
+      )
+      delegate.applicationDidFinishLaunching(
+        Notification(name: NSApplication.didFinishLaunchingNotification)
+      )
+      await fulfillment(of: [loader.started], timeout: 1)
+
+      NSWorkspace.shared.notificationCenter.post(
+        name: NSWorkspace.didWakeNotification,
+        object: nil
+      )
+
+      await fulfillment(of: [refreshStarted], timeout: 1)
+      delegate.applicationWillTerminate(
+        Notification(name: NSApplication.willTerminateNotification)
+      )
+    }
+
     func testFailedConnectionRemovalRestartsApplicationObservation() async {
       let loader = ObservationTestTemperatureLoader()
       loader.started.assertForOverFulfill = false
@@ -104,6 +139,7 @@
 
     private func makeCoordinator(
       temperatureLoader: ObservationTestTemperatureLoader,
+      refreshStateFeed: @escaping @Sendable () async -> Bool = { false },
       resetStateFeed: @escaping @Sendable () async -> Void = {}
     ) -> HomeAssistantObservationCoordinator {
       HomeAssistantObservationCoordinator(
@@ -111,6 +147,7 @@
         chargingStore: HomeAssistantEVChargingStore(client: ObservationTestChargingClient()),
         garageDoorStore: HomeAssistantGarageDoorStore(loader: TestGarageDoorLoader()),
         homeEnergyStore: HomeAssistantHomeEnergyStore(loader: ObservationTestEnergyLoader()),
+        refreshStateFeed: refreshStateFeed,
         resetStateFeed: resetStateFeed
       )
     }

@@ -54,6 +54,20 @@ final class HomeAssistantAccessStateTests: XCTestCase {
     withExtendedLifetime(subscription) {}
   }
 
+  func testSuccessfulManualCheckRefreshesLiveData() async {
+    let connection = AccessStateConnection(credentials: credentials)
+    let liveDataRefreshed = expectation(description: "Live data refreshed")
+    let store = makeStore(connection: connection) {
+      liveDataRefreshed.fulfill()
+    }
+    await store.restoreSavedConnection()
+
+    store.testConnection()
+    await fulfillment(of: [liveDataRefreshed], timeout: 1)
+
+    XCTAssertEqual(store.connectionCheckState, .succeeded)
+  }
+
   func testReleasingStoreCancelsBlockedManualCheck() async {
     let connection = AccessStateConnection(credentials: credentials)
     connection.blocksConnectionCheck = true
@@ -70,12 +84,31 @@ final class HomeAssistantAccessStateTests: XCTestCase {
     XCTAssertNil(releasedStore)
   }
 
+  func testReleasingStoreCancelsBlockedSuccessfulCheckRecovery() async {
+    let connection = AccessStateConnection(credentials: credentials)
+    let recovery = AccessStateConnectionCheckGate()
+    var store: HomeAssistantSetupStore? = makeStore(connection: connection) {
+      try? await recovery.wait()
+    }
+    await store?.restoreSavedConnection()
+    weak let releasedStore = store
+
+    store?.testConnection()
+    await fulfillment(of: [recovery.started], timeout: 1)
+    store = nil
+    await fulfillment(of: [recovery.cancelled], timeout: 1)
+
+    XCTAssertNil(releasedStore)
+  }
+
   private func makeStore(
-    connection: AccessStateConnection
+    connection: AccessStateConnection,
+    connectionCheckDidSucceed: @escaping @MainActor @Sendable () async -> Void = {}
   ) -> HomeAssistantSetupStore {
     HomeAssistantSetupStore(
       discovery: EmptyAccessStateDiscovery(),
-      connection: connection
+      connection: connection,
+      connectionCheckDidSucceed: connectionCheckDidSucceed
     )
   }
 
