@@ -17,6 +17,9 @@ Use at least `code-review` after modifying production Swift. Add:
 - `concurrency-review` for async code, tasks, actors, networking, or `Sendable`.
 - `data-access-review` for remote-data clients, streams, live updates, freshness, stale values,
   optimistic writes, or data-backed presentation.
+- `home-assistant-connection-review` for Home Assistant credentials, token refresh, authentication,
+  HTTP/WebSocket transport, live updates, connection lifecycle, retry, heartbeat, route selection,
+  subscriptions, or reconnect behaviour.
 - `ui-test-review` for UI tests, screen drivers, seeds, or accessibility identifiers.
 
 Release candidate and final-release tagging use the approval and verification gates in

@@ -25,9 +25,16 @@ Do not parallelise dependent steps or mutations whose ordering is part of correc
 ## Streams and connections
 
 - Treat connection state as an explicit state machine.
-- Bound reconnect backoff and make cancellation stop reconnect attempts.
+- Give a persistent connection one serialized control-plane owner for intent, state transitions,
+  transport replacement, retry, liveness, and resubscription. Supporting services may perform
+  focused work but must not make competing lifecycle decisions.
+- Use increasing capped reconnect backoff and make cancellation stop reconnect attempts. While
+  runnable transport intent remains active, a cap bounds delay; it does not bound the number of
+  attempts.
 - Ensure only the current connection can publish state.
 - Finish streams and release continuations when their owner shuts down.
+- Do not finish a public live-data stream or discard subscription intent for a recoverable
+  transport failure. Replace the internal transport beneath the stable consumer contract.
 - Do not silently drop decoding, authentication, or protocol errors.
 
 ## Burst handling and backpressure

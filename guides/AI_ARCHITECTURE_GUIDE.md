@@ -5,7 +5,10 @@
 - Target iOS 26+ and macOS 26+.
 - SwiftUI is the native UI framework.
 - iOS and macOS share code only where the shared design remains natural.
-- There is currently no persistence, networking, backend, or feature architecture.
+- Home Assistant networking and feature boundaries exist. Their connection control plane is
+  currently split and must migrate to the supervisor required by
+  `HOME_ASSISTANT_CONNECTION_REVIEW_GUIDE.md`.
+- There is currently no general persistence or backend architecture beyond concrete feature needs.
 
 Do not pre-emptively create layers. Introduce boundaries when the first concrete use case makes
 their responsibilities clear.
@@ -17,6 +20,15 @@ their responsibilities clear.
 - Do not add a protocol until there is a real substitution boundary.
 - Do not add a shared abstraction merely because two future platforms might need it.
 - Keep platform-specific UI separate when native behaviour differs.
+
+Incremental scope does not justify preserving a known-broken ownership model. When a defect is
+caused by lifecycle responsibility being split across components, replace that control path as one
+coherent vertical slice. Do not add event-specific callbacks or repair paths that make the next
+failure mode depend on another outer layer.
+
+For Home Assistant connection architecture,
+`HOME_ASSISTANT_CONNECTION_REVIEW_GUIDE.md` is the specific authority. Its connection supervisor is
+required by the concrete live-update and reconnect use case and is not speculative infrastructure.
 
 ## Thin views
 

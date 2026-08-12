@@ -11,7 +11,8 @@ Read this file before making changes.
 - `guides/AI_PROJECT_GUIDE.md` for planning and reviewer routing.
 
 Task-specific guides apply when relevant: `CODE_GUIDE.md`, `TEST_GUIDE.md`,
-`UI_GUIDE.md`, `UI_TEST_GUIDE.md`, `CONCURRENCY_GUIDE.md`, and `BRAND_GUIDE.md`.
+`UI_GUIDE.md`, `UI_TEST_GUIDE.md`, `CONCURRENCY_GUIDE.md`,
+`HOME_ASSISTANT_CONNECTION_REVIEW_GUIDE.md`, and `BRAND_GUIDE.md`.
 
 ## Generated project
 

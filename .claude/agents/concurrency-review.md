@@ -12,6 +12,8 @@ Before reviewing, read:
 
 - `guides/AI_REVIEW_GATE_GUIDE.md`
 - `guides/CONCURRENCY_GUIDE.md`
+- `guides/HOME_ASSISTANT_CONNECTION_REVIEW_GUIDE.md` when Home Assistant authentication,
+  networking, live updates, or connection lifecycle is affected
 - `guides/TEST_GUIDE.md`
 
 Read the complete changed files and trace the ownership and lifetime of every affected task or
@@ -25,6 +27,9 @@ Check:
 - Structured concurrency is used where possible.
 - Older or cancelled work cannot overwrite newer state.
 - Connection and stream lifecycles terminate cleanly.
+- Home Assistant connection changes use the connection guide's single control-plane supervisor,
+  automatic resubscription, indefinite recovery using capped energy-aware backoff, and generation-
+  checked service boundaries.
 - Errors are surfaced rather than silently discarded.
 - Tests cover cancellation, replacement, stale results, and reconnection where relevant.
 - No sleeps, polling delays, or task creation used to mask isolation errors.

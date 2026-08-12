@@ -18,3 +18,8 @@ After fixes, rerun the relevant review until it reports no findings.
 
 When a finding identifies a repeated unsafe pattern, search the repository for every occurrence
 and fix the whole class rather than only the reported line.
+
+When the defect is split lifecycle ownership, fixing the class means establishing one authoritative
+control plane and removing competing recovery decisions. A callback for one trigger is not a valid
+fix merely because it has regression coverage. Follow a task-specific architecture guide over a
+general preference for a smaller diff.

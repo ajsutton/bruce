@@ -13,6 +13,8 @@ Before reviewing, read:
 - `guides/AI_REVIEW_GATE_GUIDE.md`
 - `guides/AI_ARCHITECTURE_GUIDE.md`
 - `guides/CONCURRENCY_GUIDE.md`
+- `guides/HOME_ASSISTANT_CONNECTION_REVIEW_GUIDE.md` when Home Assistant authentication,
+  networking, live updates, or connection lifecycle is affected
 - `guides/TEST_GUIDE.md`
 - `guides/UI_GUIDE.md`
 
@@ -28,6 +30,9 @@ Check:
   independently coordinate polling, initial fetches, and subscriptions.
 - Shared upstream feeds are shared deliberately rather than opening redundant connections for
   each feature consumer.
+- Home Assistant connection changes use the connection guide's single control-plane supervisor,
+  automatic resubscription, indefinite recovery using capped energy-aware backoff, and generation-
+  checked service boundaries.
 - Live, refreshing, reconnecting, stale, unavailable, and failed states are distinct and honest.
 - Cached or last-known values are never presented as live after cancellation, disconnection,
   refresh failure, stream termination, or connection replacement.
