@@ -37,6 +37,9 @@ struct ClimatePresetRow: View {
         }
       }
       .scrollIndicators(.hidden)
+      .accessibilityElement(children: .contain)
+      .accessibilityIdentifier(BruceAccessibilityIdentifier.climatePresetRow)
+      .modifier(BrucePanelSwipeExclusionModifier())
     }
   }
 

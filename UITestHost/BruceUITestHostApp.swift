@@ -10,6 +10,7 @@ struct BruceUITestHostApp: App {
   @State private var isContentReady = false
 
   init() {
+    UserDefaults.standard.set(BrucePanel.climate.rawValue, forKey: BrucePanel.storageKey)
     HomeAssistantMaterialDesignIcon.prepare()
     _temperatureStore = StateObject(
       wrappedValue: HomeAssistantTemperatureStore(loader: UITestTemperatureLoader())
@@ -68,16 +69,35 @@ private struct UITestTemperatureLoader: HomeAssistantTemperatureLoading {
     HomeAssistantTemperatureUpdateStream { continuation in
       continuation.yield(
         .live(
-          (1...3).map { number in
+          [
             HomeAssistantTemperatureReading(
-              id: "sensor.room_\(number)",
-              name: "Room \(number)",
-              value: 20 + Double(number) / 10,
-              targetValue: nil,
+              id: "climate.house",
+              name: "House",
+              value: 20.5,
+              targetValue: 22,
               unit: "°C",
-              powerState: .poweredOn
+              powerState: .poweredOn,
+              kind: .airConditioner,
+              operatingMode: .cooling
             )
-          }
+          ]
+            + (1...8).map { number in
+              HomeAssistantTemperatureReading(
+                id: "sensor.room_\(number)",
+                name: "Room \(number)",
+                value: 20 + Double(number) / 10,
+                targetValue: nil,
+                unit: "°C",
+                powerState: .poweredOn,
+                kind: .zone,
+                presetLabels: [
+                  HomeAssistantClimatePresetLabel(
+                    id: "area_\(number)",
+                    name: "Area \(number)"
+                  )
+                ]
+              )
+            }
         )
       )
       continuation.finish()

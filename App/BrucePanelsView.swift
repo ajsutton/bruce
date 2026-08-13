@@ -3,6 +3,9 @@ import SwiftUI
 struct BrucePanelsView: View {
   @Environment(\.colorScheme) private var colorScheme
   @AppStorage(BrucePanel.storageKey) private var selectedPanel = BrucePanel.climate
+  #if os(iOS)
+    @State private var panelSwipeExclusionFrames: [CGRect] = []
+  #endif
   #if os(macOS)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var scrollPosition = ScrollPosition(idType: BrucePanel.self)
@@ -55,6 +58,11 @@ struct BrucePanelsView: View {
       #endif
     }
     .background(mode.panelBackgroundColor(for: colorScheme).ignoresSafeArea())
+    #if os(iOS)
+      .onPreferenceChange(BrucePanelSwipeExclusionPreferenceKey.self) { frames in
+        panelSwipeExclusionFrames = frames
+      }
+    #endif
   }
 
   private var serverStatusView: some View {
@@ -285,6 +293,12 @@ struct BrucePanelsView: View {
         }
       }
       .tabViewStyle(.sidebarAdaptable)
+      .background {
+        BrucePanelSwipeGestureView(
+          selectedPanel: $selectedPanel,
+          exclusionFrames: panelSwipeExclusionFrames
+        )
+      }
     }
 
     fileprivate func iOSPanel<Content: View>(

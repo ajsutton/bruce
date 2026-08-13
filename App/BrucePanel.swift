@@ -23,7 +23,7 @@ enum BrucePanel: String, CaseIterable, Identifiable {
     case .climate:
       BruceAccessibilityIdentifier.climatePanelSection
     case .car:
-      nil
+      BruceAccessibilityIdentifier.carPanelSection
     case .energy:
       BruceAccessibilityIdentifier.energyPanelSection
     }

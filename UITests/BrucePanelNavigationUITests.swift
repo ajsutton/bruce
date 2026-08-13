@@ -22,4 +22,25 @@ final class BrucePanelNavigationUITests: XCTestCase {
     screen.selectEnergy()
     screen.selectClimate()
   }
+
+  func testSwipingAcrossPanelContentSelectsAdjacentTabsInOrder() {
+    screen.launch()
+
+    screen.swipePanelLeft(to: .garage)
+    screen.swipePanelLeft(to: .energy)
+    screen.swipePanelRight(to: .garage)
+    screen.swipePanelRight(to: .climate)
+  }
+
+  func testVerticalScrollingDoesNotChangeTheSelectedTab() {
+    screen.launch()
+
+    screen.scrollClimateVertically()
+  }
+
+  func testSwipingClimatePresetsDoesNotChangeTheSelectedTab() {
+    screen.launch()
+
+    screen.scrollClimatePresetsHorizontally()
+  }
 }
