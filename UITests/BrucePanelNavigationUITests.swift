@@ -9,14 +9,14 @@ final class BrucePanelNavigationUITests: XCTestCase {
     continueAfterFailure = false
   }
 
-  override func tearDown() {
+  override func tearDown() async throws {
     if testRun?.failureCount ?? 0 > 0 {
       screen.captureFailureArtifacts()
     }
-    super.tearDown()
+    try await super.tearDown()
   }
 
-  func testSelectingNonadjacentTabsScrollsToTheirSections() {
+  func testSelectingNonadjacentTabsShowsTheirPanels() {
     screen.launch()
 
     screen.selectEnergy()

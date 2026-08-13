@@ -64,10 +64,8 @@ struct BruceUITestHostApp: App {
 }
 
 private struct UITestTemperatureLoader: HomeAssistantTemperatureLoading {
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func temperatureUpdates() -> HomeAssistantTemperatureUpdateStream {
+    HomeAssistantTemperatureUpdateStream { continuation in
       continuation.yield(
         .live(
           (1...3).map { number in

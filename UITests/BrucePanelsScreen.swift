@@ -6,7 +6,6 @@ final class BrucePanelsScreen {
   private(set) var actionTrace: [String] = []
   private(set) var launchArguments: [String] = []
   private(set) var seed = ""
-  private var sectionTop: CGFloat?
 
   init(application: XCUIApplication) {
     self.application = application
@@ -30,27 +29,25 @@ final class BrucePanelsScreen {
       ],
       description: "the deterministic panel content"
     )
-    let climateSection = section(BruceAccessibilityIdentifier.climatePanelSection)
-    waitForExistence(climateSection, description: "the Climate section")
-    sectionTop = climateSection.frame.minY
-    waitForSelection(
-      tab(BruceAccessibilityIdentifier.climatePanelTab),
-      description: "the Climate tab to be selected"
+    waitForExistence(
+      panel(BruceAccessibilityIdentifier.climatePanelSection),
+      description: "the Climate panel"
     )
+    waitForSelection(tab("Climate"), description: "the Climate tab to be selected")
   }
 
   func selectEnergy() {
     select(
-      tabIdentifier: BruceAccessibilityIdentifier.energyPanelTab,
-      sectionIdentifier: BruceAccessibilityIdentifier.energyPanelSection,
+      tabLabel: "Energy",
+      panelIdentifier: BruceAccessibilityIdentifier.energyPanelSection,
       name: "Energy"
     )
   }
 
   func selectClimate() {
     select(
-      tabIdentifier: BruceAccessibilityIdentifier.climatePanelTab,
-      sectionIdentifier: BruceAccessibilityIdentifier.climatePanelSection,
+      tabLabel: "Climate",
+      panelIdentifier: BruceAccessibilityIdentifier.climatePanelSection,
       name: "Climate"
     )
   }
@@ -75,37 +72,37 @@ final class BrucePanelsScreen {
   }
 
   private func select(
-    tabIdentifier: String,
-    sectionIdentifier: String,
+    tabLabel: String,
+    panelIdentifier: String,
     name: String,
     file: StaticString = #filePath,
     line: UInt = #line
   ) {
     record("Tap the \(name) tab")
-    let targetTab = tab(tabIdentifier)
+    let targetTab = tab(tabLabel)
     waitForElement(targetTab, description: "the \(name) tab", file: file, line: line)
     targetTab.tap()
 
     waitForSelection(
-      tab(tabIdentifier),
+      tab(tabLabel),
       description: "the \(name) tab to be selected",
       file: file,
       line: line
     )
-    waitForSectionAtTop(
-      section(sectionIdentifier),
-      description: "the \(name) section to scroll to the top",
+    waitForExistence(
+      panel(panelIdentifier),
+      description: "the \(name) panel",
       file: file,
       line: line
     )
   }
 
-  private func tab(_ identifier: String) -> XCUIElement {
-    application.buttons[identifier]
+  private func tab(_ label: String) -> XCUIElement {
+    application.tabBars.buttons[label]
   }
 
-  private func section(_ identifier: String) -> XCUIElement {
-    application.staticTexts[identifier]
+  private func panel(_ identifier: String) -> XCUIElement {
+    application.descendants(matching: .any)[identifier]
   }
 
   private func waitForElement(
@@ -147,33 +144,6 @@ final class BrucePanelsScreen {
   ) {
     wait(
       for: NSPredicate(format: "exists == true AND selected == true"),
-      element: element,
-      description: description,
-      file: file,
-      line: line
-    )
-  }
-
-  private func waitForSectionAtTop(
-    _ element: XCUIElement,
-    description: String,
-    file: StaticString,
-    line: UInt
-  ) {
-    guard let sectionTop else {
-      XCTFail("The initial panel position was not recorded.", file: file, line: line)
-      return
-    }
-    let tolerance: CGFloat = 2
-    let predicate = NSPredicate { candidate, _ in
-      guard let candidate = candidate as? XCUIElement else {
-        return false
-      }
-      return candidate.exists
-        && abs(candidate.frame.minY - sectionTop) <= tolerance
-    }
-    wait(
-      for: predicate,
       element: element,
       description: description,
       file: file,
