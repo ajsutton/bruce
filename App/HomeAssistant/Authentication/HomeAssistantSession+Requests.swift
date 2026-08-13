@@ -3,6 +3,18 @@ import Foundation
 struct HomeAssistantDisconnectContext: Sendable {
   let credentials: HomeAssistantCredentials?
   fileprivate let generation: Int
+  fileprivate let operationEpoch: Int
+}
+
+private struct HomeAssistantUnauthorizedRequest: Sendable {
+  let path: String
+  let queryItems: [URLQueryItem]
+  let body: Data?
+  let canRefresh: Bool
+  let routeSelection: RouteSelection
+  let credentials: HomeAssistantCredentials
+  let sessionEpoch: Int
+  let operationEpoch: Int
 }
 
 extension HomeAssistantSession {
@@ -17,7 +29,8 @@ extension HomeAssistantSession {
     let generation = reserveCredentialGeneration()
     let context = HomeAssistantDisconnectContext(
       credentials: credentials,
-      generation: generation
+      generation: generation,
+      operationEpoch: authenticationOperationEpoch
     )
     await tokenRefresher.cancel()
     await transport.cancelAll()
@@ -25,7 +38,10 @@ extension HomeAssistantSession {
   }
 
   func completeDisconnect(_ context: HomeAssistantDisconnectContext) async throws {
-    defer { isDisconnecting = false }
+    defer {
+      isDisconnecting = false
+      finishAuthenticationReplacement(operationEpoch: context.operationEpoch)
+    }
     try await withHomeAssistantPersistence(gate: persistenceGate) {
       try await credentialStore.delete()
       guard credentialGeneration == context.generation else {
@@ -41,6 +57,7 @@ extension HomeAssistantSession {
     authenticationSessionEpoch += 1
     rejectedCredentialGeneration = nil
     successfulRouteSourceGeneration = nil
+    finishAuthenticationReplacement(operationEpoch: context.operationEpoch)
     await publishCredentialSnapshot()
   }
 
@@ -58,11 +75,15 @@ extension HomeAssistantSession {
     routeSelection: RouteSelection = .ordered
   ) async throws -> Data {
     guard !isDisconnecting else { throw HomeAssistantAPIError.noCredentials }
+    guard pendingReplacementOperationEpoch == nil else {
+      throw HomeAssistantAPIError.staleOperation
+    }
     guard let credentials else {
       throw HomeAssistantAPIError.noCredentials
     }
     let generation = credentialGeneration
     let sessionEpoch = authenticationSessionEpoch
+    let operationEpoch = authenticationOperationEpoch
     do {
       let response = try await loadResponse(
         path: path,
@@ -73,44 +94,93 @@ extension HomeAssistantSession {
       )
       try Task.checkCancellation()
       if body == nil {
-        try await rememberSuccessful(
-          response.baseURL,
-          original: credentials,
-          generation: generation
+        try await completeRead(
+          response,
+          credentials: credentials,
+          generation: generation,
+          sessionEpoch: sessionEpoch,
+          operationEpoch: operationEpoch
         )
       }
       return response.data
     } catch HomeAssistantAPIError.unauthorized {
-      guard canRefreshAfterUnauthorized else {
-        try await rejectExhaustedUnauthorized(
+      return try await recoverFromUnauthorized(
+        HomeAssistantUnauthorizedRequest(
+          path: path,
+          queryItems: queryItems,
+          body: body,
+          canRefresh: canRefreshAfterUnauthorized,
+          routeSelection: routeSelection,
           credentials: credentials,
-          sessionEpoch: sessionEpoch
+          sessionEpoch: sessionEpoch,
+          operationEpoch: operationEpoch
         )
-      }
-      guard authenticationSessionEpoch == sessionEpoch else {
-        throw HomeAssistantAPIError.staleOperation
-      }
-      guard let currentCredentials = self.credentials else {
-        throw HomeAssistantAPIError.noCredentials
-      }
-      if currentCredentials.accessToken == credentials.accessToken {
-        try await refreshIfNeeded(force: true)
-      }
-      return try await performRequest(
-        path: path,
-        queryItems: queryItems,
-        body: body,
-        canRefreshAfterUnauthorized: false,
-        routeSelection: routeSelection
       )
     }
   }
 
+  private func recoverFromUnauthorized(
+    _ request: HomeAssistantUnauthorizedRequest
+  ) async throws -> Data {
+    guard
+      authenticationSessionEpoch == request.sessionEpoch,
+      authenticationOperationEpoch == request.operationEpoch
+    else {
+      throw HomeAssistantAPIError.staleOperation
+    }
+    guard request.canRefresh else {
+      try await rejectExhaustedUnauthorized(
+        credentials: request.credentials,
+        sessionEpoch: request.sessionEpoch,
+        operationEpoch: request.operationEpoch
+      )
+    }
+    guard let currentCredentials = self.credentials else {
+      throw HomeAssistantAPIError.noCredentials
+    }
+    if currentCredentials.accessToken == request.credentials.accessToken {
+      try await refreshIfNeeded(force: true)
+    }
+    return try await performRequest(
+      path: request.path,
+      queryItems: request.queryItems,
+      body: request.body,
+      canRefreshAfterUnauthorized: false,
+      routeSelection: request.routeSelection
+    )
+  }
+
+  private func completeRead(
+    _ response: HomeAssistantAuthenticatedResponse,
+    credentials: HomeAssistantCredentials,
+    generation: Int,
+    sessionEpoch: Int,
+    operationEpoch: Int
+  ) async throws {
+    guard
+      authenticationSessionEpoch == sessionEpoch,
+      authenticationOperationEpoch == operationEpoch
+    else {
+      throw HomeAssistantAPIError.staleOperation
+    }
+    try await rememberSuccessful(
+      response.baseURL,
+      original: credentials,
+      generation: generation,
+      authenticationSessionEpoch: sessionEpoch,
+      authenticationOperationEpoch: operationEpoch
+    )
+  }
+
   private func rejectExhaustedUnauthorized(
     credentials: HomeAssistantCredentials,
-    sessionEpoch: Int
+    sessionEpoch: Int,
+    operationEpoch: Int
   ) async throws -> Never {
-    guard authenticationSessionEpoch == sessionEpoch else {
+    guard
+      authenticationSessionEpoch == sessionEpoch,
+      authenticationOperationEpoch == operationEpoch
+    else {
       throw HomeAssistantAPIError.staleOperation
     }
     if self.credentials?.accessToken == credentials.accessToken {
@@ -155,6 +225,9 @@ extension HomeAssistantSession {
 
   func authenticatedWebSocketAccesses() async throws -> [HomeAssistantWebSocketAccess] {
     guard !isDisconnecting else { throw HomeAssistantAPIError.noCredentials }
+    guard pendingReplacementOperationEpoch == nil else {
+      throw HomeAssistantAPIError.staleOperation
+    }
     try await refreshIfNeeded(force: false)
     guard let credentials else {
       throw HomeAssistantAPIError.noCredentials
@@ -162,7 +235,8 @@ extension HomeAssistantSession {
     return try HomeAssistantWebSocketAccess.candidates(
       credentials: credentials,
       credentialGeneration: credentialGeneration,
-      authenticationSessionEpoch: authenticationSessionEpoch
+      authenticationSessionEpoch: authenticationSessionEpoch,
+      authenticationOperationEpoch: authenticationOperationEpoch
     )
   }
 
@@ -170,7 +244,8 @@ extension HomeAssistantSession {
     _ access: HomeAssistantWebSocketAccess
   ) async throws {
     guard let credentials,
-      access.authenticationSessionEpoch == authenticationSessionEpoch
+      access.authenticationSessionEpoch == authenticationSessionEpoch,
+      access.authenticationOperationEpoch == authenticationOperationEpoch
     else {
       throw HomeAssistantAPIError.staleOperation
     }
@@ -182,6 +257,7 @@ extension HomeAssistantSession {
     guard
       let credentials,
       access.authenticationSessionEpoch == authenticationSessionEpoch,
+      access.authenticationOperationEpoch == authenticationOperationEpoch,
       access.accessToken == credentials.accessToken
     else { throw HomeAssistantAPIError.staleOperation }
     try await rejectCredentials(generation: credentialGeneration)
@@ -193,7 +269,10 @@ extension HomeAssistantSession {
     guard let credentials else {
       throw HomeAssistantAPIError.noCredentials
     }
-    guard access.authenticationSessionEpoch == authenticationSessionEpoch else {
+    guard
+      access.authenticationSessionEpoch == authenticationSessionEpoch,
+      access.authenticationOperationEpoch == authenticationOperationEpoch
+    else {
       throw HomeAssistantAPIError.staleOperation
     }
     guard
@@ -204,10 +283,15 @@ extension HomeAssistantSession {
       try await rememberSuccessful(
         access.baseURL,
         original: credentials,
-        generation: access.credentialGeneration
+        generation: access.credentialGeneration,
+        authenticationSessionEpoch: access.authenticationSessionEpoch,
+        authenticationOperationEpoch: access.authenticationOperationEpoch
       )
     } catch HomeAssistantAPIError.staleOperation {
-      guard access.authenticationSessionEpoch == authenticationSessionEpoch else {
+      guard
+        access.authenticationSessionEpoch == authenticationSessionEpoch,
+        access.authenticationOperationEpoch == authenticationOperationEpoch
+      else {
         throw HomeAssistantAPIError.staleOperation
       }
     }
@@ -215,17 +299,22 @@ extension HomeAssistantSession {
 
   func currentWebSocketAccesses() throws -> [HomeAssistantWebSocketAccess] {
     guard !isDisconnecting else { throw HomeAssistantAPIError.noCredentials }
+    guard pendingReplacementOperationEpoch == nil else {
+      throw HomeAssistantAPIError.staleOperation
+    }
     guard let credentials else { throw HomeAssistantAPIError.noCredentials }
     return try HomeAssistantWebSocketAccess.candidates(
       credentials: credentials,
       credentialGeneration: credentialGeneration,
-      authenticationSessionEpoch: authenticationSessionEpoch
+      authenticationSessionEpoch: authenticationSessionEpoch,
+      authenticationOperationEpoch: authenticationOperationEpoch
     )
   }
 
   func validateWebSocketAccess(_ access: HomeAssistantWebSocketAccess) throws {
     guard credentials != nil,
-      access.authenticationSessionEpoch == authenticationSessionEpoch
+      access.authenticationSessionEpoch == authenticationSessionEpoch,
+      access.authenticationOperationEpoch == authenticationOperationEpoch
     else {
       throw HomeAssistantAPIError.staleOperation
     }

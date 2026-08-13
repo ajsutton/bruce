@@ -27,6 +27,7 @@ struct HomeAssistantWebSocketAccess: Sendable {
   let accessToken: String
   let credentialGeneration: Int
   let authenticationSessionEpoch: Int
+  let authenticationOperationEpoch: Int
   let serverIdentity: HomeAssistantServerIdentity
 
   var observationIdentity: HomeAssistantObservationIdentity {
@@ -39,7 +40,8 @@ struct HomeAssistantWebSocketAccess: Sendable {
   static func candidates(
     credentials: HomeAssistantCredentials,
     credentialGeneration: Int,
-    authenticationSessionEpoch: Int
+    authenticationSessionEpoch: Int,
+    authenticationOperationEpoch: Int
   ) throws -> [HomeAssistantWebSocketAccess] {
     try HomeAssistantRequestRouter.candidates(for: credentials).map { baseURL in
       HomeAssistantWebSocketAccess(
@@ -48,6 +50,7 @@ struct HomeAssistantWebSocketAccess: Sendable {
         accessToken: credentials.accessToken,
         credentialGeneration: credentialGeneration,
         authenticationSessionEpoch: authenticationSessionEpoch,
+        authenticationOperationEpoch: authenticationOperationEpoch,
         serverIdentity: HomeAssistantServerIdentity(credentials)
       )
     }
