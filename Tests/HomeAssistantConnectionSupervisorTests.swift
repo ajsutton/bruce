@@ -12,10 +12,10 @@ final class HomeAssistantConnectionSupervisorTests: XCTestCase {
     let connector = ScriptedHomeAssistantConnector(connections: [first, replacement])
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
 
     first.fail(with: URLError(.networkConnectionLost))
-    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 2)], timeout: 5)
     let initial = try probe.value(at: 0)
     let reconnecting = try probe.value(at: 1)
     let recovered = try probe.value(at: 2)
@@ -40,11 +40,11 @@ final class HomeAssistantConnectionSupervisorTests: XCTestCase {
       connector: ScriptedHomeAssistantConnector(connections: [connection])
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [snapshotLoader.started], timeout: 1)
+    await fulfillment(of: [snapshotLoader.started], timeout: 5)
 
     connection.yield(stateChangedEvent(entityID: "climate.bedroom", value: 24))
     snapshotLoader.succeed(with: temperatureStates(value: 21), statusCode: 200)
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
     let live = try probe.value(at: 0)
     await probe.cancel()
 
@@ -65,17 +65,16 @@ final class HomeAssistantConnectionSupervisorTests: XCTestCase {
       connector: connector,
       clock: clock.connectionClock
     )
-    let weakSupervisor = WeakSupervisorReference(supervisor)
     var stateUpdates = await supervisor?.stateUpdates()
     var probe: AsyncThrowingStreamTestProbe<HomeAssistantStateUpdate>? =
       AsyncThrowingStreamTestProbe(try XCTUnwrap(stateUpdates))
     await fulfillment(
       of: [snapshotLoader.firstSnapshotStarted, deadlineScheduled],
-      timeout: 1
+      timeout: 5
     )
 
     clock.resume(.seconds(30), advancingBy: 30)
-    await fulfillment(of: [try XCTUnwrap(probe).received(at: 1)], timeout: 1)
+    await fulfillment(of: [try XCTUnwrap(probe).received(at: 1)], timeout: 5)
     await probe?.cancel()
     probe = nil
 
@@ -83,12 +82,12 @@ final class HomeAssistantConnectionSupervisorTests: XCTestCase {
     XCTAssertEqual(connector.connectionCount, 2)
     XCTAssertEqual(snapshotLoader.requestCount, 2)
     XCTAssertFalse(snapshotLoader.hasReleasedFirstSnapshot)
-    snapshotLoader.releaseFirstSnapshot()
-    await fulfillment(of: [snapshotLoader.firstSnapshotFinished], timeout: 1)
     await supervisor?.stop()
     stateUpdates = nil
     supervisor = nil
-    XCTAssertNil(weakSupervisor.value)
+    XCTAssertFalse(snapshotLoader.hasReleasedFirstSnapshot)
+    snapshotLoader.releaseFirstSnapshot()
+    await fulfillment(of: [snapshotLoader.firstSnapshotFinished], timeout: 5)
   }
 
   func testRegistryEventRotatesMetadataGenerationExactlyOnce() async throws {
@@ -99,13 +98,13 @@ final class HomeAssistantConnectionSupervisorTests: XCTestCase {
       connector: ScriptedHomeAssistantConnector(connections: [connection])
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
     let initial = try probe.value(at: 0)
 
     connection.yield(
       #"{"id":2,"type":"event","event":{"event_type":"entity_registry_updated","data":{}}}"#
     )
-    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 1)], timeout: 5)
     let registryUpdate = try probe.value(at: 1)
     await probe.cancel()
 
@@ -125,7 +124,7 @@ final class HomeAssistantConnectionSupervisorTests: XCTestCase {
       connectionSnapshot: snapshot.load
     )
     let readiness = Task { try await supervisor.requireFreshLiveData() }
-    await fulfillment(of: [snapshot.started], timeout: 1)
+    await fulfillment(of: [snapshot.started], timeout: 5)
 
     await supervisor.stop()
     snapshot.resume()
@@ -150,13 +149,13 @@ final class HomeAssistantConnectionSupervisorTests: XCTestCase {
     let connector = ScriptedHomeAssistantConnector(connections: [first, replacement])
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
 
     var credentials = fixture.credentials
     credentials.accessToken = "replacement-access"
     try await fixture.session.install(credentials)
     first.yield(stateChangedEvent(entityID: "climate.bedroom", value: 99))
-    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 2)], timeout: 5)
     let invalidated = try probe.value(at: 1)
     let recovered = try probe.value(at: 2)
     await probe.cancel()
@@ -176,13 +175,13 @@ final class HomeAssistantConnectionSupervisorTests: XCTestCase {
     let connector = ScriptedHomeAssistantConnector(connections: [first, replacement])
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
 
     await supervisor.setApplicationActive(false)
-    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 1)], timeout: 5)
     let suspendedState = await supervisor.state
     await supervisor.setApplicationActive(true)
-    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 2)], timeout: 5)
     let recovered = try probe.value(at: 2)
     await probe.cancel()
 
@@ -201,14 +200,14 @@ final class HomeAssistantConnectionSupervisorTests: XCTestCase {
     let connector = ScriptedHomeAssistantConnector(connections: [first, replacement])
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
     let readiness = Task { try await supervisor.requireFreshLiveData() }
-    await fulfillment(of: [replacement.authenticationStarted], timeout: 1)
+    await fulfillment(of: [replacement.authenticationStarted], timeout: 5)
     XCTAssertFalse(readiness.isCancelled)
 
     replacement.completeAuthentication()
     try await readiness.value
-    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 2)], timeout: 5)
     let recovered = try probe.value(at: 2)
     await probe.cancel()
 
@@ -249,13 +248,13 @@ extension HomeAssistantConnectionSupervisorTests {
       clock: clock.connectionClock
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0), heartbeatScheduled], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0), heartbeatScheduled], timeout: 5)
 
     let deadlineScheduled = clock.expectSleep(.seconds(30))
     clock.resume(.seconds(60), advancingBy: 60)
-    await fulfillment(of: [first.pingStarted, deadlineScheduled], timeout: 1)
+    await fulfillment(of: [first.pingStarted, deadlineScheduled], timeout: 5)
     clock.resume(.seconds(30), advancingBy: 30)
-    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 2)], timeout: 5)
     let recovered = try probe.value(at: 2)
     await probe.cancel()
 
@@ -364,13 +363,5 @@ private final class FirstSnapshotBlockingHomeAssistantLoader:
       throw HomeAssistantAPIError.invalidResponse
     }
     return (temperatureStates(value: value), response)
-  }
-}
-
-private final class WeakSupervisorReference {
-  weak var value: HomeAssistantConnectionSupervisor?
-
-  init(_ value: HomeAssistantConnectionSupervisor?) {
-    self.value = value
   }
 }

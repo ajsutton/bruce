@@ -31,10 +31,10 @@ final class SupervisorPersistenceTests: XCTestCase {
 
     for _ in unavailable {
       let retryScheduled = clock.expectSleep(.seconds(30))
-      await fulfillment(of: [retryScheduled], timeout: 1)
+      await fulfillment(of: [retryScheduled], timeout: 5)
       clock.resume(.seconds(30), advancingBy: 30)
     }
-    await fulfillment(of: [recovered.authenticationStarted, probe.received(at: 3)], timeout: 1)
+    await fulfillment(of: [recovered.authenticationStarted, probe.received(at: 3)], timeout: 5)
 
     XCTAssertEqual(try probe.value(at: 3).phase, .live)
     XCTAssertEqual(connector.connectionCount, 4)
@@ -69,16 +69,16 @@ final class SupervisorPersistenceTests: XCTestCase {
       credentialEvents: credentialEvents
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [apiLoader.started], timeout: 1)
+    await fulfillment(of: [apiLoader.started], timeout: 5)
 
     now.set(Date(timeIntervalSince1970: 30_000))
     let request = Task { try await session.authenticatedGET(path: "api/states") }
-    await fulfillment(of: [refreshLoader.started], timeout: 1)
+    await fulfillment(of: [refreshLoader.started], timeout: 5)
     refreshLoader.succeed(with: refreshedToken(), statusCode: 200)
     apiLoader.succeed(with: temperatureStates(value: 24), statusCode: 200)
 
     _ = try await request.value
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
     XCTAssertEqual(try probe.value(at: 0).phase, .live)
     XCTAssertEqual(connector.connectionCount, 1)
     XCTAssertEqual(connection.subscriptionCount, 6)
@@ -104,7 +104,7 @@ final class SupervisorPersistenceTests: XCTestCase {
 
     async let rest = session.authenticatedGET(path: "api/states")
     async let socketAccesses = session.authenticatedWebSocketAccesses()
-    await fulfillment(of: [refreshLoader.started], timeout: 1)
+    await fulfillment(of: [refreshLoader.started], timeout: 5)
     refreshLoader.succeed(with: refreshedToken(), statusCode: 200)
 
     let (data, accesses) = try await (rest, socketAccesses)

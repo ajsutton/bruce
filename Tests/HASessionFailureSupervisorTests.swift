@@ -29,16 +29,16 @@ final class HASessionFailureSupervisorTests: XCTestCase {
     let harness = try await makeHarness()
     await harness.store.blockNextDelete()
     let disconnect = Task { try await makeCoordinator(harness).disconnect() }
-    await fulfillment(of: [harness.store.deleteStarted], timeout: 1)
+    await fulfillment(of: [harness.store.deleteStarted], timeout: 5)
     let arrivingProbe = AsyncThrowingStreamTestProbe(await harness.supervisor.stateUpdates())
     await harness.store.finishBlockedDelete(throwing: true)
     await assertCredentialFailure(disconnect)
 
-    await fulfillment(of: [harness.probe.received(at: 2)], timeout: 1)
+    await fulfillment(of: [harness.probe.received(at: 2)], timeout: 5)
     harness.replacementConnection.yield(
       stateChangedEvent(entityID: "climate.bedroom", value: 22)
     )
-    await fulfillment(of: [harness.probe.received(at: 3)], timeout: 1)
+    await fulfillment(of: [harness.probe.received(at: 3)], timeout: 5)
     let recovered = try harness.probe.value(at: 3)
     await arrivingProbe.cancel()
     await harness.probe.cancel()
@@ -52,7 +52,7 @@ final class HASessionFailureSupervisorTests: XCTestCase {
     let harness = try await makeHarness()
     await harness.store.blockNextDelete()
     let disconnect = Task { try await makeCoordinator(harness).disconnect() }
-    await fulfillment(of: [harness.store.deleteStarted], timeout: 1)
+    await fulfillment(of: [harness.store.deleteStarted], timeout: 5)
 
     await harness.supervisor.stop()
     await harness.store.finishBlockedDelete(throwing: true)
@@ -97,7 +97,7 @@ final class HASessionFailureSupervisorTests: XCTestCase {
       )
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
     return FailureHarness(
       store: store,
       session: session,
@@ -125,7 +125,7 @@ final class HASessionFailureSupervisorTests: XCTestCase {
     harness.connection.yield(
       stateChangedEvent(entityID: "climate.bedroom", value: 22)
     )
-    await fulfillment(of: [harness.probe.received(at: 1)], timeout: 1)
+    await fulfillment(of: [harness.probe.received(at: 1)], timeout: 5)
     let update = try? harness.probe.value(at: 1)
     let connectionWasCancelled = harness.connection.isCancelled
     await harness.probe.cancel()

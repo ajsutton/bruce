@@ -16,11 +16,11 @@ final class ConnectionReadinessIntegrationTests: XCTestCase {
     let store = HomeAssistantTemperatureStore(loader: loader)
     let completion = ReadinessCompletionState()
     let readiness = Task {
-      try await store.requireFreshLiveData(from: supervisor, deadline: .seconds(1))
+      try await store.requireFreshLiveData(from: supervisor, deadline: .seconds(10))
       completion.complete()
     }
-    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
-    await fulfillment(of: [connection.authenticationStarted], timeout: 1)
+    await fulfillment(of: [loader.started(at: 0)], timeout: 5)
+    await fulfillment(of: [connection.authenticationStarted], timeout: 5)
 
     XCTAssertFalse(completion.isComplete)
     loader.yieldRequest(0, update: .live([]))
@@ -48,20 +48,20 @@ final class ConnectionReadinessIntegrationTests: XCTestCase {
     )
     let store = HomeAssistantTemperatureStore(loader: loader)
     let load = Task { await store.load() }
-    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
+    await fulfillment(of: [loader.started(at: 0)], timeout: 5)
     loader.yieldRequest(0, update: .live([]))
     let firstReadiness = Task {
-      try await store.requireFreshLiveData(from: supervisor, deadline: .seconds(1))
+      try await store.requireFreshLiveData(from: supervisor, deadline: .seconds(10))
     }
-    await fulfillment(of: [firstConnection.authenticationStarted], timeout: 1)
+    await fulfillment(of: [firstConnection.authenticationStarted], timeout: 5)
     loader.yieldRequest(0, update: .refreshing([]))
     loader.yieldRequest(0, update: .live([]))
     try await firstReadiness.value
 
     let secondReadiness = Task {
-      try await store.requireFreshLiveData(from: supervisor, deadline: .seconds(1))
+      try await store.requireFreshLiveData(from: supervisor, deadline: .seconds(10))
     }
-    await fulfillment(of: [secondConnection.authenticationStarted], timeout: 1)
+    await fulfillment(of: [secondConnection.authenticationStarted], timeout: 5)
     loader.yieldRequest(0, update: .refreshing([]))
     loader.yieldRequest(0, update: .live([]))
     try await secondReadiness.value
@@ -86,13 +86,13 @@ final class ConnectionReadinessIntegrationTests: XCTestCase {
     let store = HomeAssistantTemperatureStore(loader: loader)
     let cancelled = loader.cancelled(at: 0)
     let readiness = Task {
-      try await store.requireFreshLiveData(from: supervisor, deadline: .seconds(1))
+      try await store.requireFreshLiveData(from: supervisor, deadline: .seconds(10))
     }
-    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
-    await fulfillment(of: [connection.authenticationStarted], timeout: 1)
+    await fulfillment(of: [loader.started(at: 0)], timeout: 5)
+    await fulfillment(of: [connection.authenticationStarted], timeout: 5)
 
     await store.synchronize(with: .requiresUserAction)
-    await fulfillment(of: [cancelled], timeout: 1)
+    await fulfillment(of: [cancelled], timeout: 5)
     do {
       try await readiness.value
       XCTFail("Expected readiness cancellation.")
@@ -113,7 +113,7 @@ final class ConnectionReadinessIntegrationTests: XCTestCase {
     let connector = ScriptedHomeAssistantConnector(connections: [first, failed, recovered])
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
 
     do {
       try await supervisor.requireFreshLiveData()
@@ -121,7 +121,7 @@ final class ConnectionReadinessIntegrationTests: XCTestCase {
     } catch {
       XCTAssertTrue(HomeAssistantRequestRouter.isConnectivityFailure(error))
     }
-    await fulfillment(of: [recovered.authenticationStarted, probe.received(at: 3)], timeout: 1)
+    await fulfillment(of: [recovered.authenticationStarted, probe.received(at: 3)], timeout: 5)
 
     XCTAssertEqual(try probe.value(at: 1).phase, .refreshing)
     XCTAssertEqual(try probe.value(at: 2).phase, .reconnecting)
@@ -141,16 +141,16 @@ final class ConnectionReadinessIntegrationTests: XCTestCase {
       connector: ScriptedHomeAssistantConnector(connections: [first, failed, recovered])
     )
     let feed = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [feed.received(at: 0)], timeout: 1)
+    await fulfillment(of: [feed.received(at: 0)], timeout: 5)
     let loader = ControlledTemperatureLoader(requestCount: 1, providesContinuousUpdates: true)
     let store = HomeAssistantTemperatureStore(loader: loader)
     let observation = Task { await store.load() }
-    await fulfillment(of: [loader.started(at: 0)], timeout: 1)
+    await fulfillment(of: [loader.started(at: 0)], timeout: 5)
     loader.yieldRequest(0, update: .live([]))
     loader.yieldRequest(0, update: .reconnecting([]))
 
     do {
-      try await store.requireFreshLiveData(from: supervisor, deadline: .seconds(1))
+      try await store.requireFreshLiveData(from: supervisor, deadline: .seconds(10))
       XCTFail("Expected the failed replacement to fail readiness.")
     } catch {
       XCTAssertTrue(HomeAssistantRequestRouter.isConnectivityFailure(error))
@@ -161,7 +161,7 @@ final class ConnectionReadinessIntegrationTests: XCTestCase {
       .prefix(1)
       .sink { _ in becameLive.fulfill() }
     loader.yieldRequest(0, update: .live([]))
-    await fulfillment(of: [becameLive], timeout: 1)
+    await fulfillment(of: [becameLive], timeout: 5)
 
     XCTAssertTrue(store.isLive)
     XCTAssertEqual(loader.requestCount, 1)

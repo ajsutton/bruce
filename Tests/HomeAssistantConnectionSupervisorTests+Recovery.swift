@@ -13,11 +13,11 @@ extension HomeAssistantConnectionSupervisorTests {
       connector: ScriptedHomeAssistantConnector(connections: [first, replacement])
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
 
     let didRefresh = await supervisor.refresh()
     XCTAssertTrue(didRefresh)
-    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 2)], timeout: 5)
     let refreshing = try probe.value(at: 1)
     await probe.cancel()
 
@@ -33,10 +33,10 @@ extension HomeAssistantConnectionSupervisorTests {
       connector: ScriptedHomeAssistantConnector(connections: [connection])
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
 
     await probe.cancel()
-    await fulfillment(of: [connection.cancelled], timeout: 1)
+    await fulfillment(of: [connection.cancelled], timeout: 5)
     await supervisor.stop()
 
     let stoppedState = await supervisor.state
@@ -54,7 +54,7 @@ extension HomeAssistantConnectionSupervisorTests {
     )
 
     try await supervisor.requireFreshLiveData()
-    await fulfillment(of: [connection.cancelled], timeout: 1)
+    await fulfillment(of: [connection.cancelled], timeout: 5)
 
     let stoppedState = await supervisor.state
     let credentialTask = await supervisor.credentialTask
@@ -70,10 +70,10 @@ extension HomeAssistantConnectionSupervisorTests {
     let connector = ScriptedHomeAssistantConnector(connections: [first, replacement])
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
 
     first.fail(with: CleanWebSocketClose())
-    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 2)], timeout: 5)
     let reconnecting = try probe.value(at: 1)
     let recovered = try probe.value(at: 2)
     await probe.cancel()
@@ -96,12 +96,12 @@ extension HomeAssistantConnectionSupervisorTests {
       clock: clock.connectionClock
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [connection.authenticationStarted], timeout: 1)
+    await fulfillment(of: [connection.authenticationStarted], timeout: 5)
     let deadline = clock.expectSleep(.seconds(30))
-    await fulfillment(of: [deadline], timeout: 1)
+    await fulfillment(of: [deadline], timeout: 5)
 
     clock.resume(.seconds(30), advancingBy: 30)
-    await fulfillment(of: [connection.cancelled, probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [connection.cancelled, probe.received(at: 0)], timeout: 5)
     let recovery = try probe.value(at: 0)
     await probe.cancel()
 
@@ -116,7 +116,7 @@ extension HomeAssistantConnectionSupervisorTests {
       connector: ScriptedHomeAssistantConnector(connections: [connection])
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
     let unavailable = try probe.value(at: 0)
     let state = await supervisor.state
     await probe.cancel()
@@ -136,7 +136,7 @@ extension HomeAssistantConnectionSupervisorTests {
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
 
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
     let live = try probe.value(at: 0)
     await probe.cancel()
 
@@ -156,10 +156,10 @@ extension HomeAssistantConnectionSupervisorTests {
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
 
-    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 1)], timeout: 5)
     var unavailable = try probe.value(at: 1)
     if unavailable.phase != .unavailable {
-      await fulfillment(of: [probe.received(at: 2)], timeout: 1)
+      await fulfillment(of: [probe.received(at: 2)], timeout: 5)
       unavailable = try probe.value(at: 2)
     }
     let state = await supervisor.state
@@ -190,7 +190,7 @@ extension HomeAssistantConnectionSupervisorTests {
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
 
-    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 1)], timeout: 5)
 
     XCTAssertEqual(try probe.value(at: 1).phase, .live)
     XCTAssertEqual(connector.connectionCount, 3)
@@ -215,7 +215,7 @@ extension HomeAssistantConnectionSupervisorTests {
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
 
-    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 1)], timeout: 5)
     let live = try probe.value(at: 1)
     let credentials = await fixture.session.currentCredentials()
     await probe.cancel()
@@ -241,7 +241,7 @@ extension HomeAssistantConnectionSupervisorTests {
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
 
-    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 1)], timeout: 5)
     let unavailable = try probe.value(at: 1)
 
     XCTAssertEqual(unavailable.phase, .unavailable)

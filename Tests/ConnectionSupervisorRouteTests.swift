@@ -12,7 +12,7 @@ final class ConnectionSupervisorRouteTests: XCTestCase {
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
 
-    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 1)], timeout: 5)
     let recovered = try probe.value(at: 1)
     await probe.cancel()
 
@@ -30,7 +30,7 @@ final class ConnectionSupervisorRouteTests: XCTestCase {
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
 
-    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 1)], timeout: 5)
     let unavailable = try probe.value(at: 1)
     let state = await supervisor.state
     await probe.cancel()

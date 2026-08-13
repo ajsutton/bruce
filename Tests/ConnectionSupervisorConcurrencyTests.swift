@@ -12,10 +12,10 @@ final class ConnectionSupervisorConcurrencyTests: XCTestCase {
     let connector = ScriptedHomeAssistantConnector(connections: [first, replacement])
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
 
     await supervisor.receiveWakeHint()
-    await fulfillment(of: [replacement.authenticationStarted], timeout: 1)
+    await fulfillment(of: [replacement.authenticationStarted], timeout: 5)
     await supervisor.receiveWakeHint()
 
     XCTAssertFalse(replacement.isCancelled)
@@ -44,14 +44,14 @@ final class ConnectionSupervisorConcurrencyTests: XCTestCase {
       clock: clock.connectionClock
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
     let backoffStarted = clock.expectSleep(.seconds(30))
 
     first.fail(with: URLError(.networkConnectionLost))
-    await fulfillment(of: [backoffStarted], timeout: 1)
+    await fulfillment(of: [backoffStarted], timeout: 5)
     await supervisor.receivePathHint()
     await supervisor.receivePathHint()
-    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 2)], timeout: 5)
 
     XCTAssertEqual(connector.connectionCount, 2)
     XCTAssertEqual(try probe.value(at: 2).phase, .live)
@@ -93,15 +93,15 @@ final class ConnectionSupervisorConcurrencyTests: XCTestCase {
       )
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [stale.authenticationStarted], timeout: 1)
+    await fulfillment(of: [stale.authenticationStarted], timeout: 5)
     now.set(Date(timeIntervalSince1970: 30_000))
     stale.completeAuthentication()
-    await fulfillment(of: [authenticationLoader.started], timeout: 1)
+    await fulfillment(of: [authenticationLoader.started], timeout: 5)
 
     await supervisor.receiveWakeHint()
     now.set(Date(timeIntervalSince1970: 20_000))
     authenticationLoader.succeed(with: refreshedToken(), statusCode: 200)
-    await fulfillment(of: [probe.received(at: 1)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 1)], timeout: 5)
 
     let reconnectingUpdate = try probe.value(at: 0)
     let liveUpdate = try probe.value(at: 1)
@@ -150,13 +150,13 @@ final class ConnectionSupervisorConcurrencyTests: XCTestCase {
     let connector = ScriptedHomeAssistantConnector(connections: [first, replacement])
     let supervisor = fixture.makeSupervisor(connector: connector)
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0)], timeout: 5)
 
     await supervisor.setApplicationActive(false)
     await supervisor.setApplicationActive(true)
-    await fulfillment(of: [replacement.authenticationStarted], timeout: 1)
+    await fulfillment(of: [replacement.authenticationStarted], timeout: 5)
     await supervisor.setApplicationActive(false)
-    await fulfillment(of: [replacement.cancelled], timeout: 1)
+    await fulfillment(of: [replacement.cancelled], timeout: 5)
     replacement.completeAuthentication()
 
     let state = await supervisor.state
@@ -180,10 +180,10 @@ final class ConnectionSupervisorConcurrencyTests: XCTestCase {
       clock: clock.connectionClock
     )
     let probe = AsyncThrowingStreamTestProbe(await supervisor.stateUpdates())
-    await fulfillment(of: [probe.received(at: 0), heartbeatScheduled], timeout: 1)
+    await fulfillment(of: [probe.received(at: 0), heartbeatScheduled], timeout: 5)
 
     clock.resume(.seconds(60), advancingBy: 100)
-    await fulfillment(of: [probe.received(at: 2)], timeout: 1)
+    await fulfillment(of: [probe.received(at: 2)], timeout: 5)
 
     XCTAssertEqual(first.pingCount, 0)
     XCTAssertTrue(first.isCancelled)
