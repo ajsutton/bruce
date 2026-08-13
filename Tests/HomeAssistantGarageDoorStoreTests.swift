@@ -245,19 +245,14 @@ final class StreamingGarageDoorLoader:
   let started = XCTestExpectation(description: "Garage door updates started")
 
   private let lock = NSLock()
-  private var continuation:
-    AsyncThrowingStream<
-      HomeAssistantLiveUpdate<[HomeAssistantGarageDoorSnapshot]>, any Error
-    >.Continuation?
+  private var continuation: HomeAssistantGarageDoorUpdateStream.Continuation?
 
   func loadGarageDoors() async throws -> [HomeAssistantGarageDoorSnapshot] {
     []
   }
 
-  func garageDoorUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<[HomeAssistantGarageDoorSnapshot]>, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func garageDoorUpdates() -> HomeAssistantGarageDoorUpdateStream {
+    HomeAssistantGarageDoorUpdateStream { continuation in
       lock.withLock {
         self.continuation = continuation
       }

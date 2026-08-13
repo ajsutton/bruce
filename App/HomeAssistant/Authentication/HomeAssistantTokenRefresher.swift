@@ -168,7 +168,8 @@ actor HomeAssistantTokenRefresher {
     from failures: [(any Error)?]
   ) -> any Error {
     let errors = failures.compactMap(\.self)
-    return errors.first(where: { !HomeAssistantRequestRouter.isConnectivityFailure($0) })
+    return errors.first(where: { HomeAssistantRequestRouter.isConnectivityFailure($0) })
+      ?? errors.first(where: { !HomeAssistantRequestRouter.isRejectedRefresh($0) })
       ?? errors.last
       ?? HomeAssistantAPIError.invalidServerURL
   }

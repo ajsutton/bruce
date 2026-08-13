@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 protocol HomeAssistantConnecting: AnyObject {
-  func connect(to candidate: HomeAssistantConnectionCandidate) async throws
+  func authenticate(to candidate: HomeAssistantConnectionCandidate) async throws
     -> HomeAssistantCredentials
   func restore() async throws -> HomeAssistantCredentials?
   func testConnection() async throws -> HomeAssistantCredentials
@@ -15,18 +15,32 @@ final class HomeAssistantConnectionCoordinator: HomeAssistantConnecting {
   private let authenticationClient: HomeAssistantAuthenticationClient
   private let browser: any HomeAssistantWebAuthenticating
   private let session: HomeAssistantSession
+  private let supervisor: any HomeAssistantConnectionSupervising
+  private let requireFeatureData: @Sendable () async throws -> Void
+  private var revocationTask: Task<Void, Never>?
+
+  deinit {
+    revocationTask?.cancel()
+  }
 
   init(
     authenticationClient: HomeAssistantAuthenticationClient,
     browser: any HomeAssistantWebAuthenticating,
-    session: HomeAssistantSession
+    session: HomeAssistantSession,
+    supervisor: any HomeAssistantConnectionSupervising,
+    requireFeatureData: (@Sendable () async throws -> Void)? = nil
   ) {
     self.authenticationClient = authenticationClient
     self.browser = browser
     self.session = session
+    self.supervisor = supervisor
+    self.requireFeatureData =
+      requireFeatureData ?? {
+        try await supervisor.requireFreshLiveData()
+      }
   }
 
-  func connect(
+  func authenticate(
     to candidate: HomeAssistantConnectionCandidate
   ) async throws -> HomeAssistantCredentials {
     let request = try authenticationClient.authorizationRequest(for: candidate.activeURL)
@@ -68,14 +82,8 @@ final class HomeAssistantConnectionCoordinator: HomeAssistantConnecting {
   }
 
   func testConnection() async throws -> HomeAssistantCredentials {
-    let client = HomeAssistantAPIClient(session: session)
-    do {
-      _ = try await client.checkConnection()
-    } catch {
-      guard Self.shouldRetryConnectionCheck(after: error) else { throw error }
-      try Task.checkCancellation()
-      _ = try await client.checkConnection()
-    }
+    try await requireFeatureData()
+    try Task.checkCancellation()
     guard let credentials = await session.currentCredentials() else {
       throw HomeAssistantAPIError.noCredentials
     }
@@ -84,18 +92,40 @@ final class HomeAssistantConnectionCoordinator: HomeAssistantConnecting {
 
   func disconnect() async throws {
     browser.cancel()
-    if let credentials = await session.currentCredentials() {
-      try await revokeWhenReachable(credentials)
+    revocationTask?.cancel()
+    let disconnectContext = try await session.beginDisconnect()
+    let preparationID = await supervisor.prepareForDisconnect()
+    let credentials = disconnectContext.credentials
+    let localDisconnect = Task { try await session.completeDisconnect(disconnectContext) }
+    do {
+      try await localDisconnect.value
+    } catch {
+      await supervisor.recoverFromFailedDisconnect(preparationID: preparationID)
+      throw error
     }
-    try Task.checkCancellation()
-    try await session.disconnect()
+    await supervisor.stop()
+    guard let credentials else { return }
+    let authenticationClient = authenticationClient
+    revocationTask = Task { [weak self] in
+      try? await Self.revokeWhenReachable(
+        credentials,
+        authenticationClient: authenticationClient
+      )
+      guard !Task.isCancelled else { return }
+      self?.revocationTask = nil
+    }
   }
 
   func cancel() {
     browser.cancel()
+    revocationTask?.cancel()
+    revocationTask = nil
   }
 
-  private func revokeWhenReachable(_ credentials: HomeAssistantCredentials) async throws {
+  private static func revokeWhenReachable(
+    _ credentials: HomeAssistantCredentials,
+    authenticationClient: HomeAssistantAuthenticationClient
+  ) async throws {
     let knownURLs = [
       credentials.lastSuccessfulURL, credentials.internalURL, credentials.externalURL,
     ]
@@ -143,10 +173,4 @@ final class HomeAssistantConnectionCoordinator: HomeAssistantConnecting {
     ].contains(error.code)
   }
 
-  private static func shouldRetryConnectionCheck(after error: any Error) -> Bool {
-    if case HomeAssistantAPIError.staleOperation = error {
-      return true
-    }
-    return HomeAssistantRequestRouter.isConnectivityFailure(error)
-  }
 }

@@ -336,6 +336,8 @@ extension DailyEnergyStreamCoordinator {
       .refreshing(snapshot)
     case .reconnecting:
       .reconnecting(snapshot)
+    case .unavailable:
+      .unavailable(snapshot)
     }
   }
 

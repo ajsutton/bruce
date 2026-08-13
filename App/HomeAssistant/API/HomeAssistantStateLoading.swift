@@ -1,15 +1,23 @@
 import Foundation
 
 struct HomeAssistantStateUpdate: Sendable, Equatable {
+  enum Failure: Sendable, Equatable {
+    case authentication
+    case configuration
+    case unknown
+  }
+
   enum Phase: Sendable, Equatable {
     case live
     case refreshing
     case reconnecting
+    case unavailable
   }
 
   let phase: Phase
   let states: [HomeAssistantState]
   let generation: UUID
+  let failure: Failure?
 
   static func live(
     _ states: [HomeAssistantState],
@@ -18,7 +26,8 @@ struct HomeAssistantStateUpdate: Sendable, Equatable {
     Self(
       phase: .live,
       states: states,
-      generation: generation
+      generation: generation,
+      failure: nil
     )
   }
 
@@ -29,7 +38,8 @@ struct HomeAssistantStateUpdate: Sendable, Equatable {
     Self(
       phase: .refreshing,
       states: states,
-      generation: generation
+      generation: generation,
+      failure: nil
     )
   }
 
@@ -40,7 +50,21 @@ struct HomeAssistantStateUpdate: Sendable, Equatable {
     Self(
       phase: .reconnecting,
       states: states,
-      generation: generation
+      generation: generation,
+      failure: nil
+    )
+  }
+
+  static func unavailable(
+    _ states: [HomeAssistantState],
+    generation: UUID = UUID(),
+    failure: Failure = .unknown
+  ) -> Self {
+    Self(
+      phase: .unavailable,
+      states: states,
+      generation: generation,
+      failure: failure
     )
   }
 
@@ -49,7 +73,8 @@ struct HomeAssistantStateUpdate: Sendable, Equatable {
     return Self(
       phase: dropped.phase,
       states: states,
-      generation: generation
+      generation: generation,
+      failure: dropped.failure
     )
   }
 

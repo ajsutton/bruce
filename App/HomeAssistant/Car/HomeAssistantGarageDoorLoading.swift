@@ -1,9 +1,7 @@
 protocol HomeAssistantGarageDoorLoading: Sendable {
   var providesContinuousUpdates: Bool { get }
 
-  func garageDoorUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<[HomeAssistantGarageDoorSnapshot]>, any Error
-  >
+  func garageDoorUpdates() -> HomeAssistantGarageDoorUpdateStream
   func loadGarageDoors() async throws -> [HomeAssistantGarageDoorSnapshot]
 }
 
@@ -25,10 +23,8 @@ protocol HomeAssistantGarageDoorControlling: Sendable {
 extension HomeAssistantGarageDoorLoading {
   var providesContinuousUpdates: Bool { false }
 
-  func garageDoorUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<[HomeAssistantGarageDoorSnapshot]>, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func garageDoorUpdates() -> HomeAssistantGarageDoorUpdateStream {
+    HomeAssistantGarageDoorUpdateStream { continuation in
       let task = Task {
         do {
           continuation.yield(.live(try await loadGarageDoors()))
@@ -43,3 +39,9 @@ extension HomeAssistantGarageDoorLoading {
     }
   }
 }
+typealias HomeAssistantGarageDoorUpdate = HomeAssistantLiveUpdate<
+  [HomeAssistantGarageDoorSnapshot]
+>
+typealias HomeAssistantGarageDoorUpdateStream = HomeAssistantBufferedUpdateStream<
+  HomeAssistantGarageDoorUpdate
+>

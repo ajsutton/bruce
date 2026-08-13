@@ -14,16 +14,16 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
   let priceHistoryStore: HomeEnergyPriceHistoryStore
 
   private let loader: any HomeAssistantHomeEnergyLoading
-  private let now: @Sendable () -> Date
+  let now: @Sendable () -> Date
   private let publishWidgetSnapshot: @MainActor (HomeAssistantHomeEnergySnapshot, Date) -> Void
   private let onAuthenticationRequired: @MainActor @Sendable () -> Void
   private let progressDelay: Duration
   private let progressSleep: @Sendable (Duration) async -> Void
   private var loadGeneration = UUID()
   private var progressTask: Task<Void, Never>?
-  private var needsHistoryBackfill = false
-  private var canReuseHistoryAfterSuspension = false
-  private var historyReuseDeadline: Date?
+  var needsHistoryBackfill = false
+  var canReuseHistoryAfterSuspension = false
+  var historyReuseDeadline: Date?
 
   init(
     loader: any HomeAssistantHomeEnergyLoading,
@@ -106,7 +106,7 @@ final class HomeAssistantHomeEnergyStore: ObservableObject {
       beginObservation(generation: generation)
       if reusesHistory {
         self.historyReuseDeadline = historyReuseDeadline
-      } else {
+      } else if !needsHistoryBackfill {
         reloadHistoryDiscardingReuse()
       }
       await observeUpdates(generation: generation)
@@ -235,6 +235,11 @@ extension HomeAssistantHomeEnergyStore {
       applyRefreshing(snapshot)
     case .reconnecting(let snapshot):
       applyReconnecting(snapshot)
+    case .unavailable(let snapshot):
+      if snapshot.hasReadings { publishSnapshotIfChanged(snapshot) }
+      problem = .invalidResponse
+      isRefreshing = false
+      finishLoad(isLive: false)
     }
   }
 
@@ -294,9 +299,11 @@ extension HomeAssistantHomeEnergyStore {
     problem = .reconnecting
     isRefreshing = false
     finishLoad(isLive: false)
-    discardHistoryReuse()
     invalidateHistory()
-    needsHistoryBackfill = true
+    if !canReuseHistoryAfterSuspension {
+      discardHistoryReuse()
+      needsHistoryBackfill = true
+    }
   }
 
   @discardableResult
@@ -372,12 +379,12 @@ extension HomeAssistantHomeEnergyStore {
       && canReuseHistoryAfterSuspension
   }
 
-  private func reloadHistoryDiscardingReuse() {
+  func reloadHistoryDiscardingReuse() {
     discardHistoryReuse()
     reloadHistory()
   }
 
-  private func discardHistoryReuse() {
+  func discardHistoryReuse() {
     canReuseHistoryAfterSuspension = false
     historyReuseDeadline = nil
   }

@@ -304,6 +304,7 @@ final class BlockingHomeAssistantLoader: HomeAssistantHTTPDataLoading, @unchecke
   private typealias LoaderResult = Result<(Data, HTTPURLResponse), any Error>
 
   let started = XCTestExpectation(description: "Request started")
+  let cancellationObserved = XCTestExpectation(description: "Request cancellation observed")
 
   private let honorsCancellation: Bool
   private let lock = NSLock()
@@ -349,7 +350,11 @@ final class BlockingHomeAssistantLoader: HomeAssistantHTTPDataLoading, @unchecke
     } onCancel: {
       let continuations: [CheckedContinuation<(Data, HTTPURLResponse), any Error>] =
         self.lock.withLock {
+          let shouldReportCancellation = !self.cancellationRequested
           self.cancellationRequested = true
+          if shouldReportCancellation {
+            self.cancellationObserved.fulfill()
+          }
           guard self.honorsCancellation else {
             return []
           }

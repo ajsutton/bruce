@@ -8,22 +8,32 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   @Published private(set) var isLive = false
   @Published private(set) var isRefreshing = false
   @Published private(set) var problem: Problem?
-  @Published private(set) var controllingEntityIDs: Set<String> = []
-  @Published private(set) var controlProblem: ControlProblem?
-  private let loader: any HomeAssistantTemperatureLoading
+  @Published var controllingEntityIDs: Set<String> = []
+  @Published var controlProblem: ControlProblem?
+  let loader: any HomeAssistantTemperatureLoading
   let controller: (any HomeAssistantClimateControlling)?
   private let now: @Sendable () -> Date
   private let confirmationTimeout: Duration
-  private let sleep: @Sendable (Duration) async throws -> Void
-  private let onAuthenticationRequired: @MainActor @Sendable () -> Void
+  let sleep: @Sendable (Duration) async throws -> Void
+  let onAuthenticationRequired: @MainActor @Sendable () -> Void
   private var loadGeneration = UUID()
+  var activeObservationGeneration: UUID?
   var controlGeneration = UUID()
-  private var latestControlSequence = 0
-  private var presentedControlProblemSequence: Int?
+  var latestControlSequence = 0
+  var presentedControlProblemSequence: Int?
   var serverReadings: [HomeAssistantTemperatureReading] = []
   var pendingControls: [String: PendingClimateControl] = [:]
-  private var confirmationTasks: [String: Task<Void, Never>] = [:]
+  var confirmationTasks: [String: Task<Void, Never>] = [:]
   private var targetControlTasks: [String: Task<Void, Never>] = [:]
+  var liveSequence = 0
+  struct LiveWaiter {
+    let baseline: Int
+    let requiresControl: Bool
+    var sawControl = false
+    let continuation: CheckedContinuation<Void, any Error>
+  }
+  var liveWaiters: [UUID: LiveWaiter] = [:]
+  var readinessLoadTask: Task<Void, Never>?
   var presetControlTask: Task<Void, Never>?
   var presetControlGeneration = UUID()
   var presetTransaction: PresetClimateTransaction?
@@ -103,6 +113,8 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   func synchronize(with access: HomeAssistantAccessState) async {
     switch access.phase {
     case .ready:
+      readinessLoadTask?.cancel()
+      readinessLoadTask = nil
       await load()
     case .signedOut:
       reset()
@@ -114,8 +126,14 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   }
 
   func load() async {
+    await load(updates: loader.temperatureUpdates())
+  }
+
+  func load(updates: HomeAssistantTemperatureUpdateStream) async {
     let generation = UUID()
     loadGeneration = generation
+    activeObservationGeneration = generation
+    defer { finishObservation(generation: generation) }
     let preservesRefreshPresentation = isRefreshing && problem == nil
     isLoading = !preservesRefreshPresentation
     if !preservesRefreshPresentation {
@@ -125,7 +143,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     }
 
     do {
-      for try await update in loader.temperatureUpdates() {
+      for try await update in updates {
         try Task.checkCancellation()
         guard loadGeneration == generation else { return }
         apply(update)
@@ -154,6 +172,8 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   }
 
   func reset() {
+    readinessLoadTask?.cancel()
+    readinessLoadTask = nil
     invalidateLoad()
     invalidateControls()
     serverReadings = []
@@ -164,9 +184,19 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   }
 
   private func invalidateLoad() {
+    cancelReadinessLoad()
+    let waiters = liveWaiters.values
+    liveWaiters = [:]
+    waiters.forEach { $0.continuation.resume(throwing: CancellationError()) }
     loadGeneration = UUID()
     (isLoading, isLive, isRefreshing) = (false, false, false)
   }
+
+  func cancelReadinessLoad() {
+    readinessLoadTask?.cancel()
+    readinessLoadTask = nil
+  }
+
   private var completionProblem: Problem? {
     loader.providesContinuousTemperatureUpdates ? .connectionUnavailable : nil
   }
@@ -195,6 +225,12 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     }
     switch update {
     case .live:
+      liveSequence += 1
+      let ready = liveWaiters.filter {
+        liveSequence > $0.value.baseline
+          && (!$0.value.requiresControl || $0.value.sawControl)
+      }
+      ready.forEach { liveWaiters.removeValue(forKey: $0.key)?.continuation.resume() }
       failPresetTransactionIfInvalid()
       finishConfirmedControls()
       lastChecked = now()
@@ -202,106 +238,31 @@ final class HomeAssistantTemperatureStore: ObservableObject {
         (isLoading, isLive, isRefreshing, problem) = (false, true, false, nil)
       }
     case .refreshing:
+      liveWaiters.keys.forEach { liveWaiters[$0]?.sawControl = true }
       publishReadings()
       (isLoading, isLive, isRefreshing, problem) = (false, false, true, nil)
     case .reconnecting:
+      liveWaiters.keys.forEach { liveWaiters[$0]?.sawControl = true }
       publishReadings()
       (isLoading, isLive, isRefreshing, problem) = (
         false, false, false, .reconnecting
+      )
+    case .unavailable:
+      let waiters = liveWaiters.values
+      liveWaiters = [:]
+      waiters.forEach {
+        $0.continuation.resume(throwing: HomeAssistantAPIError.invalidResponse)
+      }
+      publishReadings()
+      (isLoading, isLive, isRefreshing, problem) = (
+        false, false, false, .connectionUnavailable
       )
     }
   }
 }
 
 extension HomeAssistantTemperatureStore {
-  func beginControl(
-    for reading: HomeAssistantTemperatureReading,
-    intent: ClimateControlIntent,
-    allowsTargetReplacement: Bool,
-    allowsPresetTransaction: Bool = false,
-    publishesReadings: Bool = true
-  ) -> ClimateControlAttempt? {
-    guard
-      allowsPresetTransaction ? canControlDuringPreset(reading) : canControl(reading)
-    else { return nil }
-    let currentControl = pendingControls[reading.id]
-    guard
-      currentControl == nil
-        || (allowsTargetReplacement && currentControl?.intent.isTargetValue == true)
-    else { return nil }
-    latestControlSequence += 1
-    let sequence = latestControlSequence
-    controllingEntityIDs.insert(reading.id)
-    pendingControls[reading.id] = PendingClimateControl(
-      intent: intent,
-      sequence: sequence,
-      isAccepted: false
-    )
-    if publishesReadings {
-      publishReadings()
-    }
-    controlProblem = nil
-    presentedControlProblemSequence = nil
-    confirmationTasks.removeValue(forKey: reading.id)?.cancel()
-    return ClimateControlAttempt(
-      generation: controlGeneration,
-      sequence: sequence,
-      shouldPerform: currentControl?.isAccepted != false
-    )
-  }
-
-  func performQueuedControl(
-    for reading: HomeAssistantTemperatureReading,
-    intent: ClimateControlIntent,
-    sequence: Int,
-    generation: UUID,
-    operation: (ClimateControlIntent) async throws -> Void
-  ) async -> Bool {
-    var activeIntent = intent
-    var activeSequence = sequence
-    while true {
-      guard controlGeneration == generation else { return false }
-      let result: Result<Void, any Error>
-      do {
-        try await operation(activeIntent)
-        result = .success(())
-      } catch {
-        result = .failure(error)
-      }
-      guard controlGeneration == generation else { return false }
-      if let replacement = pendingControls[reading.id],
-        replacement.sequence != activeSequence
-      {
-        activeIntent = replacement.intent
-        activeSequence = replacement.sequence
-        continue
-      }
-      switch result {
-      case .success:
-        pendingControls[reading.id]?.isAccepted = true
-        finishConfirmedControls()
-        if pendingControls[reading.id]?.isAccepted == true {
-          scheduleConfirmationTimeout(
-            for: reading,
-            generation: generation,
-            sequence: activeSequence
-          )
-        }
-        return true
-      case .failure(let error):
-        rejectControl(for: reading.id, generation: generation)
-        guard !Self.isCancellation(error), !Task.isCancelled else { return false }
-        if Self.problem(for: error) == .signInRequired { onAuthenticationRequired() }
-        reportControlProblem(for: reading.name, sequence: activeSequence)
-        return false
-      }
-    }
-  }
-
-}
-
-extension HomeAssistantTemperatureStore {
-  private func finishConfirmedControls() {
+  func finishConfirmedControls() {
     let confirmedEntityIDs: [String] = pendingControls.compactMap { element -> String? in
       let (entityID, control) = element
       guard control.isAccepted,
@@ -335,7 +296,7 @@ extension HomeAssistantTemperatureStore {
     }
   }
 
-  fileprivate func scheduleConfirmationTimeout(
+  func scheduleConfirmationTimeout(
     for reading: HomeAssistantTemperatureReading,
     generation: UUID,
     sequence: Int

@@ -20,6 +20,8 @@ final class HomeAssistantCopyTests: XCTestCase {
     assertBrandCopyDiffers(\.discoveryFailed)
     assertBrandCopyDiffers(\.onboardingTitle)
     assertBrandCopyDiffers(\.openingHomeAssistant)
+    assertBrandCopyDiffers(\.finishingConnectionTitle)
+    assertBrandCopyDiffers(\.postAuthenticationFailureTitle)
     assertBrandCopyDiffers(\.connectionChecking)
     assertBrandCopyDiffers(\.connectionSucceeded)
     assertBrandCopyDiffers(\.reauthenticationRequired)

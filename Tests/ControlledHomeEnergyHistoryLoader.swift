@@ -62,9 +62,10 @@ final class ControlledHomeEnergyHistoryLoader:
       nextHistoryRequest += 1
       return request
     }
-    defer {
-      historyFinishedExpectations[request].fulfill()
+    guard historyStartedExpectations.indices.contains(request) else {
+      throw ControlledHomeEnergyHistoryLoaderError.unexpectedRequest(request)
     }
+    defer { historyFinishedExpectations[request].fulfill() }
     return try await withCheckedThrowingContinuation { continuation in
       lock.withLock {
         historyContinuations[request] = continuation
@@ -99,6 +100,10 @@ final class ControlledHomeEnergyHistoryLoader:
     }
     continuation?.resume(throwing: error)
   }
+}
+
+private enum ControlledHomeEnergyHistoryLoaderError: Error {
+  case unexpectedRequest(Int)
 }
 
 final class ControlledHomeEnergyDateSequence: @unchecked Sendable {

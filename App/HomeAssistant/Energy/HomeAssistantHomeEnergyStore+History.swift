@@ -5,6 +5,17 @@ enum HomeEnergyHistorySampling {
 }
 
 extension HomeAssistantHomeEnergyStore {
+  func resumeAfterActivitySuspension(historyReuseDeadline: Date?) {
+    guard canReuseHistoryAfterSuspension, hasUsableHistory,
+      let historyReuseDeadline, now() < historyReuseDeadline
+    else {
+      discardHistoryReuse()
+      needsHistoryBackfill = true
+      return
+    }
+    self.historyReuseDeadline = historyReuseDeadline
+  }
+
   var hasUsableHistory: Bool {
     flowHistoryStore.hasUsableHistory
       && batteryHistoryStore.hasUsableHistory

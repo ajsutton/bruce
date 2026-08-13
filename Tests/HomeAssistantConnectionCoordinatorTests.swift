@@ -19,7 +19,7 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
     )
     let coordinator = fixture.makeCoordinator(session: session)
 
-    let credentials = try await coordinator.connect(to: fixture.candidate)
+    let credentials = try await coordinator.authenticate(to: fixture.candidate)
 
     XCTAssertEqual(credentials.internalURL, fixture.internalURL)
     XCTAssertEqual(credentials.externalURL, fixture.externalURL)
@@ -44,7 +44,7 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
     let coordinator = fixture.makeCoordinator(session: session)
 
     do {
-      _ = try await coordinator.connect(to: fixture.candidate)
+      _ = try await coordinator.authenticate(to: fixture.candidate)
       XCTFail("Expected verification to fail.")
     } catch HomeAssistantAPIError.incompatibleServer {
     } catch {
@@ -72,91 +72,64 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
     )
     let coordinator = fixture.makeCoordinator(session: session)
 
-    let credentials = try await coordinator.connect(to: fixture.candidate)
+    let credentials = try await coordinator.authenticate(to: fixture.candidate)
 
     XCTAssertEqual(credentials.lastSuccessfulURL, fixture.externalURL)
     let storedCredentials = await fixture.store.value
     XCTAssertEqual(storedCredentials?.lastSuccessfulURL, fixture.externalURL)
   }
 
-  func testConnectionCheckUsesExternalRouteWithoutWaitingForInternalRoute() async throws {
+  func testConnectionCheckWaitsForFreshSharedFeed() async throws {
     let fixture = CoordinatorFixture()
     let session = fixture.makeSession()
     let existingCredentials = fixture.existingCredentials()
     try await session.install(existingCredentials)
-    let loader = RacingHomeAssistantLoader(
-      blockedHost: existingCredentials.internalURL?.host() ?? "",
-      successfulData: fixture.statusResponse
-    )
-    let racingSession = HomeAssistantSession(
-      credentialStore: fixture.store,
-      authenticationClient: fixture.authenticationClient,
-      loader: loader,
-      now: { [now = fixture.now] in now }
-    )
-    _ = try await racingSession.restore()
-    let coordinator = fixture.makeCoordinator(session: racingSession)
+    let supervisor = RecordingConnectionSupervisor(blocksReadiness: true)
+    let coordinator = fixture.makeCoordinator(session: session, supervisor: supervisor)
+    let check = Task { try await coordinator.testConnection() }
+    await fulfillment(of: [supervisor.readinessStarted], timeout: 1)
 
-    let credentials = try await coordinator.testConnection()
+    supervisor.completeReadiness()
+    let credentials = try await check.value
 
-    XCTAssertEqual(credentials.lastSuccessfulURL, existingCredentials.externalURL)
-    XCTAssertTrue(loader.wasBlockedRouteCancelled)
-    XCTAssertEqual(Set(loader.requestedHosts), Set(["existing.local", "existing.example"]))
+    XCTAssertEqual(credentials, existingCredentials)
+    XCTAssertEqual(supervisor.readinessRequestCount, 1)
   }
 
-  func testConnectionCheckRetriesTransientWakeFailure() async throws {
+  func testConnectionCheckReportsSharedFeedFailure() async throws {
     let fixture = CoordinatorFixture()
     let session = fixture.makeSession()
-    let existing = fixture.existingCredentials()
-    let internalURL = try XCTUnwrap(existing.internalURL)
-    let credentials = HomeAssistantCredentials(
-      instanceID: existing.instanceID,
-      instanceName: existing.instanceName,
-      internalURL: internalURL,
-      externalURL: nil,
-      lastSuccessfulURL: internalURL,
-      accessToken: existing.accessToken,
-      refreshToken: existing.refreshToken,
-      tokenType: existing.tokenType,
-      accessTokenExpiresAt: existing.accessTokenExpiresAt,
-      clientID: existing.clientID
-    )
-    try await session.install(credentials)
-    fixture.apiLoader.results = [
-      .failure(URLError(.networkConnectionLost)),
-      .success(fixture.statusResponse, statusCode: 200),
-    ]
-    let coordinator = fixture.makeCoordinator(session: session)
-
-    let checkedCredentials = try await coordinator.testConnection()
-
-    XCTAssertEqual(checkedCredentials, credentials)
-    XCTAssertEqual(fixture.apiLoader.requests.count, 2)
-  }
-
-  func testConnectionCheckRetriesWithCredentialsThatSupersedeFirstAttempt() async throws {
-    let fixture = CoordinatorFixture()
-    let loader = BlockingHomeAssistantLoader(honorsCancellation: false)
-    let session = HomeAssistantSession(
-      credentialStore: fixture.store,
-      authenticationClient: fixture.authenticationClient,
-      loader: loader,
-      now: { [now = fixture.now] in now }
-    )
     let credentials = fixture.existingCredentials()
     try await session.install(credentials)
-    let coordinator = fixture.makeCoordinator(session: session)
+    let failure = URLError(.networkConnectionLost)
+    let supervisor = RecordingConnectionSupervisor(readinessError: failure)
+    let coordinator = fixture.makeCoordinator(session: session, supervisor: supervisor)
+
+    do {
+      _ = try await coordinator.testConnection()
+      XCTFail("Expected shared-feed readiness to fail.")
+    } catch let error as URLError {
+      XCTAssertEqual(error.code, failure.code)
+    }
+  }
+
+  func testConnectionCheckReturnsCredentialsCurrentWhenFeedBecomesLive() async throws {
+    let fixture = CoordinatorFixture()
+    let session = fixture.makeSession()
+    let credentials = fixture.existingCredentials()
+    try await session.install(credentials)
+    let supervisor = RecordingConnectionSupervisor(blocksReadiness: true)
+    let coordinator = fixture.makeCoordinator(session: session, supervisor: supervisor)
     let check = Task { try await coordinator.testConnection() }
-    await fulfillment(of: [loader.started], timeout: 1)
+    await fulfillment(of: [supervisor.readinessStarted], timeout: 1)
     var replacement = credentials
     replacement.accessToken = "replacement-access"
 
     try await session.install(replacement)
-    loader.succeed(with: fixture.statusResponse, statusCode: 200)
+    supervisor.completeReadiness()
     let checkedCredentials = try await check.value
 
     XCTAssertEqual(checkedCredentials, replacement)
-    XCTAssertEqual(loader.requests.count, 4)
   }
 
   func testNewConnectionUsesExternalRouteWithoutWaitingForInternalRoute() async throws {
@@ -174,7 +147,7 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
     )
     let coordinator = fixture.makeCoordinator(session: session)
 
-    let credentials = try await coordinator.connect(to: fixture.candidate)
+    let credentials = try await coordinator.authenticate(to: fixture.candidate)
 
     XCTAssertEqual(credentials.lastSuccessfulURL, fixture.externalURL)
     XCTAssertTrue(loader.wasBlockedRouteCancelled)
@@ -190,7 +163,7 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
     let coordinator = fixture.makeCoordinator(session: session)
 
     do {
-      _ = try await coordinator.connect(to: fixture.candidate)
+      _ = try await coordinator.authenticate(to: fixture.candidate)
       XCTFail("Expected cancellation.")
     } catch is CancellationError {
     } catch {
@@ -220,10 +193,9 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
     let storedCredentials = await fixture.store.value
     XCTAssertNil(currentCredentials)
     XCTAssertNil(storedCredentials)
-    XCTAssertEqual(fixture.authenticationLoader.requests.count, 2)
   }
 
-  func testCancelledDisconnectDoesNotDeleteCredentialsAfterLateRevocation() async throws {
+  func testCancelledRevocationCannotPreventLocalDisconnect() async throws {
     let fixture = CoordinatorFixture()
     let session = fixture.makeSession()
     let existing = fixture.existingCredentials()
@@ -235,7 +207,8 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
         now: { [now = fixture.now] in now }
       ),
       browser: fixture.browser,
-      session: session
+      session: session,
+      supervisor: RecordingConnectionSupervisor()
     )
     let disconnect = Task {
       try await coordinator.disconnect()
@@ -245,18 +218,13 @@ final class HomeAssistantConnectionCoordinatorTests: XCTestCase {
     disconnect.cancel()
     revocationLoader.succeed(with: Data(), statusCode: 200)
 
-    do {
-      try await disconnect.value
-      XCTFail("Expected disconnect cancellation.")
-    } catch is CancellationError {
-    } catch {
-      XCTFail("Unexpected error: \(error)")
-    }
+    try await disconnect.value
     let currentCredentials = await session.currentCredentials()
     let storedCredentials = await fixture.store.value
-    XCTAssertEqual(currentCredentials, existing)
-    XCTAssertEqual(storedCredentials, existing)
+    XCTAssertNil(currentCredentials)
+    XCTAssertNil(storedCredentials)
   }
+
 }
 
 private final class HostRoutingHomeAssistantLoader:
@@ -290,7 +258,7 @@ private final class HostRoutingHomeAssistantLoader:
 }
 
 @MainActor
-private final class CoordinatorFixture {
+final class CoordinatorFixture {
   let internalURL = URL(string: "http://new.local:8123") ?? URL(fileURLWithPath: "/")
   let externalURL = URL(string: "https://new.example") ?? URL(fileURLWithPath: "/")
   let store = InMemoryHomeAssistantCredentialStore()
@@ -337,12 +305,14 @@ private final class CoordinatorFixture {
   }
 
   func makeCoordinator(
-    session: HomeAssistantSession? = nil
+    session: HomeAssistantSession? = nil,
+    supervisor: RecordingConnectionSupervisor = RecordingConnectionSupervisor()
   ) -> HomeAssistantConnectionCoordinator {
     HomeAssistantConnectionCoordinator(
       authenticationClient: authenticationClient,
       browser: browser,
-      session: session ?? makeSession()
+      session: session ?? makeSession(),
+      supervisor: supervisor
     )
   }
 

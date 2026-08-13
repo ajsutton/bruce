@@ -16,8 +16,7 @@ final class DailyEnergyTotalsClientTests: XCTestCase {
     let connector = TemperatureSubscriptionConnector(connections: [connection])
 
     let totals = try await HomeAssistantDailyEnergyTotalsClient(
-      session: session,
-      connector: connector,
+      commands: TestWebSocketCommands(session: session, connector: connector),
       now: { timestamp }
     ).loadDailyEnergyTotals()
 
@@ -49,7 +48,6 @@ final class DailyEnergyTotalsClientTests: XCTestCase {
         HomeAssistantHomeEnergySnapshot.feedInEarningsEntityID,
       ]
     )
-    XCTAssertTrue(connection.isCancelled)
   }
 
   func testDailyTotalsRejectStatisticsWithDifferentCalendarIntervals() throws {
@@ -85,8 +83,10 @@ final class DailyEnergyTotalsClientTests: XCTestCase {
       .success(#"{"type":"auth_ok"}"#),
     ])
     let client = HomeAssistantDailyEnergyTotalsClient(
-      session: session,
-      connector: TemperatureSubscriptionConnector(connections: [connection])
+      commands: TestWebSocketCommands(
+        session: session,
+        connector: TemperatureSubscriptionConnector(connections: [connection])
+      )
     )
     let task = Task {
       try await client.loadDailyEnergyTotals()
@@ -111,8 +111,7 @@ final class DailyEnergyTotalsClientTests: XCTestCase {
     let connector = TemperatureSubscriptionConnector(connections: [connection])
     let gate = DailyEnergyCancellationGate()
     let client = HomeAssistantDailyEnergyTotalsClient(
-      session: session,
-      connector: connector
+      commands: TestWebSocketCommands(session: session, connector: connector)
     )
     let task = Task {
       await gate.wait()

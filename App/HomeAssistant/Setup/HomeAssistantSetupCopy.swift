@@ -155,6 +155,36 @@ struct HomeAssistantSetupCopy {
       .replacingOccurrences(of: "%@", with: instanceName)
   }
 
+  var finishingConnectionTitle: String {
+    localized("homeAssistantSetup.finishingConnectionTitle")
+  }
+
+  func finishingConnectionDetail(instanceName: String) -> String {
+    localized("homeAssistantSetup.finishingConnectionDetail")
+      .replacingOccurrences(of: "%@", with: instanceName)
+  }
+
+  var postAuthenticationFailureTitle: String {
+    localized("homeAssistantSetup.postAuthenticationFailureTitle")
+  }
+
+  func postAuthenticationFailureDetail(
+    _ problem: HomeAssistantSetupStore.ConnectionCheckProblem
+  ) -> String {
+    switch problem {
+    case .networkUnavailable:
+      localized("homeAssistantSetup.postAuthenticationFailure.networkUnavailable")
+    case .serverRejectedRequest:
+      localized("homeAssistantSetup.postAuthenticationFailure.serverRejectedRequest")
+    case .incompatibleServer:
+      localized("homeAssistantSetup.postAuthenticationFailure.incompatibleServer")
+    case .invalidResponse:
+      localized("homeAssistantSetup.postAuthenticationFailure.invalidResponse")
+    case .other:
+      localized("homeAssistantSetup.postAuthenticationFailure.other")
+    }
+  }
+
   func connectionFailed(_ problem: HomeAssistantSetupStore.ConnectionCheckProblem) -> String {
     switch problem {
     case .networkUnavailable:

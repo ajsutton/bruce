@@ -87,10 +87,8 @@ private struct BrucePanelsPreviewHomeEnergyLoader: HomeAssistantHomeEnergyLoadin
 }
 
 private struct BrucePanelsPreviewLoader: HomeAssistantTemperatureLoading {
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func temperatureUpdates() -> HomeAssistantTemperatureUpdateStream {
+    HomeAssistantTemperatureUpdateStream { continuation in
       continuation.yield(
         .live([
           HomeAssistantTemperatureReading(

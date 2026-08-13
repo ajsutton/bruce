@@ -109,7 +109,7 @@ private final class FailingConnection: HomeAssistantConnecting {
     self.error = error
   }
 
-  func connect(
+  func authenticate(
     to candidate: HomeAssistantConnectionCandidate
   ) async throws -> HomeAssistantCredentials {
     throw error

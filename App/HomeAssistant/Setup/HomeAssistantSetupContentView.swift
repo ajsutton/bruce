@@ -52,6 +52,10 @@ struct HomeAssistantSetupContentView: View {
         retry: { beginAuthentication(true) },
         chooseAnotherServer: store.showDiscoveredHomes
       )
+    case .finishingConnection(let credentials):
+      finishingConnection(credentials)
+    case .connectionFailed(let credentials, let problem):
+      connectionFailed(credentials, problem: problem)
     case .configured(let credentials):
       HomeAssistantConnectionSummaryView(
         store: store,
@@ -170,6 +174,42 @@ struct HomeAssistantSetupContentView: View {
       } actions: {
         Button(interfaceCopy.cancel, role: .cancel) {
           store.cancelAuthentication()
+        }
+      }
+      .padding()
+    }
+  }
+
+  private func finishingConnection(_ credentials: HomeAssistantCredentials) -> some View {
+    scrollableState {
+      ContentUnavailableView {
+        Label(setupCopy.finishingConnectionTitle, systemImage: "ellipsis.circle")
+      } description: {
+        Text(setupCopy.finishingConnectionDetail(instanceName: credentials.instanceName))
+      }
+      .padding()
+    }
+  }
+
+  private func connectionFailed(
+    _ credentials: HomeAssistantCredentials,
+    problem: HomeAssistantSetupStore.ConnectionCheckProblem
+  ) -> some View {
+    scrollableState {
+      ContentUnavailableView {
+        Label(setupCopy.postAuthenticationFailureTitle, systemImage: "wifi.exclamationmark")
+      } description: {
+        Text(credentials.instanceName)
+          .font(.headline)
+        Text(setupCopy.postAuthenticationFailureDetail(problem))
+      } actions: {
+        Button(interfaceCopy.refreshConnection) {
+          store.retryConnection()
+        }
+        .buttonStyle(.borderedProminent)
+
+        Button(setupCopy.changeServer) {
+          store.changeServer()
         }
       }
       .padding()

@@ -162,7 +162,7 @@ private final class RestoreCancellationConnection: HomeAssistantConnecting {
   private var disconnectContinuation: CheckedContinuation<Void, Never>?
   private var restoreContinuation: CheckedContinuation<HomeAssistantCredentials?, any Error>?
 
-  func connect(
+  func authenticate(
     to candidate: HomeAssistantConnectionCandidate
   ) async throws -> HomeAssistantCredentials {
     throw HomeAssistantAPIError.noCredentials

@@ -243,7 +243,7 @@ final class HomeAssistantSetupAuthenticationTests: XCTestCase {
     XCTAssertEqual(problem, .unavailable)
   }
 
-  private func makeStore(
+  func makeStore(
     connection: ControlledHomeAssistantConnection
   ) -> HomeAssistantSetupStore {
     HomeAssistantSetupStore(
@@ -252,13 +252,13 @@ final class HomeAssistantSetupAuthenticationTests: XCTestCase {
     )
   }
 
-  private func prepareManualCandidate(in store: HomeAssistantSetupStore) {
+  func prepareManualCandidate(in store: HomeAssistantSetupStore) {
     store.showManualEntry()
     store.updateManualAddress("https://home.example")
     store.validateManualAddress()
   }
 
-  private func credentials(instanceName: String = "home.example") -> HomeAssistantCredentials {
+  func credentials(instanceName: String = "home.example") -> HomeAssistantCredentials {
     HomeAssistantCredentials(
       instanceID: nil,
       instanceName: instanceName,
@@ -276,7 +276,7 @@ final class HomeAssistantSetupAuthenticationTests: XCTestCase {
 }
 
 @MainActor
-private final class ControlledHomeAssistantConnection: HomeAssistantConnecting {
+final class ControlledHomeAssistantConnection: HomeAssistantConnecting {
   let connectStarted = XCTestExpectation(description: "Connection started")
   let restoreStarted = XCTestExpectation(description: "Restore started")
   let connectionCheckStarted = XCTestExpectation(description: "Connection check started")
@@ -290,13 +290,17 @@ private final class ControlledHomeAssistantConnection: HomeAssistantConnecting {
   var connectCompletionObserved: XCTestExpectation?
   var connectionCheckCompletionObserved: XCTestExpectation?
   private(set) var wasCancelled = false
+  private(set) var authenticationCount = 0
+  private(set) var connectionCheckCount = 0
+  private var authenticatedCredentials: HomeAssistantCredentials?
   private var continuation: CheckedContinuation<HomeAssistantCredentials, any Error>?
   private var restoreContinuation: CheckedContinuation<HomeAssistantCredentials?, any Error>?
   private var connectionCheckContinuation: CheckedContinuation<HomeAssistantCredentials, any Error>?
 
-  func connect(
+  func authenticate(
     to candidate: HomeAssistantConnectionCandidate
   ) async throws -> HomeAssistantCredentials {
+    authenticationCount += 1
     connectStarted.fulfill()
     let credentials = try await withCheckedThrowingContinuation { continuation in
       self.continuation = continuation
@@ -319,6 +323,7 @@ private final class ControlledHomeAssistantConnection: HomeAssistantConnecting {
   }
 
   func testConnection() async throws -> HomeAssistantCredentials {
+    connectionCheckCount += 1
     if let connectionCheckError {
       throw connectionCheckError
     }
@@ -330,10 +335,10 @@ private final class ControlledHomeAssistantConnection: HomeAssistantConnecting {
       connectionCheckCompletionObserved?.fulfill()
       return credentials
     }
-    guard let restoredCredentials else {
+    guard let credentials = restoredCredentials ?? authenticatedCredentials else {
       throw HomeAssistantAPIError.noCredentials
     }
-    return restoredCredentials
+    return credentials
   }
 
   func disconnect() async throws {
@@ -356,6 +361,7 @@ private final class ControlledHomeAssistantConnection: HomeAssistantConnecting {
   }
 
   func succeed(with credentials: HomeAssistantCredentials) {
+    authenticatedCredentials = credentials
     continuation?.resume(returning: credentials)
     continuation = nil
   }

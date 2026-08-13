@@ -280,6 +280,7 @@ final class HomeAssistantSessionConcurrencyTests: XCTestCase {
       return false
     }
   }
+
 }
 
 private final class ConnectionCheckTaskReference: @unchecked Sendable {
@@ -296,7 +297,7 @@ private final class ConnectionCheckTaskReference: @unchecked Sendable {
   }
 }
 
-private actor BlockingDeleteCredentialStore: HomeAssistantCredentialStoring {
+actor BlockingDeleteCredentialStore: HomeAssistantCredentialStoring {
   nonisolated let deleteStarted = XCTestExpectation(description: "Credential deletion started")
   private var value: HomeAssistantCredentials?
   private var deleteContinuation: CheckedContinuation<Void, Never>?

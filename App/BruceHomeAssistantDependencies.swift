@@ -12,56 +12,101 @@ struct BruceHomeAssistantDependencies {
 
   init() {
     let context = Self.context()
-    setupStore = context.setupStore
     let chargingStore = HomeAssistantEVChargingStore(
       client: HomeAssistantEVChargingStream(
         states: context.states,
         controller: context.apiClient
-      ),
-      onAuthenticationRequired: context.requireReauthentication
+      )
     )
     let homeEnergyStore = Self.homeEnergyStore(context: context)
     let garageDoorStore = HomeAssistantGarageDoorStore(
       loader: HomeAssistantGarageDoorStream(
         states: context.states,
-        registryLoader: HomeAssistantRegistryClient(session: context.session)
+        registryLoader: HomeAssistantRegistryClient(commands: context.states)
       ),
-      controller: context.apiClient,
-      onAuthenticationRequired: context.requireReauthentication
+      controller: context.apiClient
     )
     let temperatureStore = HomeAssistantTemperatureStore(
       loader: HomeAssistantTemperatureStream(
         states: context.states,
         apiClient: context.apiClient
       ),
-      controller: context.apiClient,
-      onAuthenticationRequired: context.requireReauthentication
+      controller: context.apiClient
     )
     self.chargingStore = chargingStore
     self.garageDoorStore = garageDoorStore
     self.homeEnergyStore = homeEnergyStore
     self.temperatureStore = temperatureStore
+    setupStore = context.makeSetupStore {
+      try await temperatureStore.requireFreshLiveData(from: context.states)
+    }
     let observationCoordinator = HomeAssistantObservationCoordinator(
       temperatureStore: temperatureStore,
       chargingStore: chargingStore,
       garageDoorStore: garageDoorStore,
       homeEnergyStore: homeEnergyStore,
       refreshStateFeed: { await context.states.refresh() },
-      resetStateFeed: { await context.states.reset() },
+      setStateFeedActivity: { await context.states.setApplicationActive($0) },
+      sendWakeHint: { await context.states.receiveWakeHint() },
       serverUpdates: { await context.states.stateUpdates() }
     )
-    context.setupStore.setConnectionCheckDidSucceed { [weak observationCoordinator] in
-      await observationCoordinator?.refresh()
-    }
     self.observationCoordinator = observationCoordinator
   }
 
   private static func context() -> Context {
     let bundleIdentifier = Bundle.main.bundleIdentifier ?? "net.symphonious.bruce"
-    let loader = URLSessionHomeAssistantHTTPDataLoader()
+    let networkSession = URLSession(
+      configuration: URLSessionHomeAssistantHTTPDataLoader.makeConfiguration(),
+      delegate: HomeAssistantRedirectDelegate(),
+      delegateQueue: nil
+    )
+    let loader = URLSessionHomeAssistantHTTPDataLoader(session: networkSession)
     let authenticationClient = HomeAssistantAuthenticationClient(loader: loader)
     let webAuthenticationPresenter = HomeAssistantWebAuthenticationPresenter()
-    let session = HomeAssistantSession(
+    let credentialEvents = HomeAssistantCredentialEvents()
+    let session = makeSession(
+      bundleIdentifier: bundleIdentifier,
+      authenticationClient: authenticationClient,
+      loader: loader,
+      credentialEvents: credentialEvents
+    )
+    let stateAPIClient = HomeAssistantAPIClient(session: session)
+    let states = HomeAssistantConnectionSupervisor(
+      session: session,
+      apiClient: stateAPIClient,
+      connector: URLSessionWebSocketConnector(session: networkSession),
+      credentialEvents: credentialEvents
+    )
+    let apiClient = HomeAssistantAPIClient(
+      session: session,
+      climateMetadataLoader: HomeAssistantRegistryClient(commands: states)
+    )
+    return Context(
+      session: session,
+      apiClient: apiClient,
+      states: states,
+      makeSetupStore: { requireFeatureData in
+        makeSetupStore(
+          context: SetupContext(
+            session: session,
+            authenticationClient: authenticationClient,
+            webAuthenticationPresenter: webAuthenticationPresenter,
+            credentialEvents: credentialEvents,
+            states: states
+          ),
+          requireFeatureData: requireFeatureData
+        )
+      }
+    )
+  }
+
+  private static func makeSession(
+    bundleIdentifier: String,
+    authenticationClient: HomeAssistantAuthenticationClient,
+    loader: URLSessionHomeAssistantHTTPDataLoader,
+    credentialEvents: HomeAssistantCredentialEvents
+  ) -> HomeAssistantSession {
+    HomeAssistantSession(
       credentialStore: KeychainHomeAssistantCredentialStore(
         service: sharedCredentialService(for: bundleIdentifier),
         legacyService: legacyCredentialService(for: bundleIdentifier),
@@ -69,26 +114,26 @@ struct BruceHomeAssistantDependencies {
         connectionDidChange: updateWidgetConnection
       ),
       authenticationClient: authenticationClient,
-      loader: loader
+      loader: loader,
+      credentialEvents: credentialEvents
     )
-    let apiClient = HomeAssistantAPIClient(session: session)
-    let states = HomeAssistantStateHub(
-      source: HomeAssistantStateStream(session: session, apiClient: apiClient)
-    )
-    let setupStore = HomeAssistantSetupStore(
+  }
+
+  private static func makeSetupStore(
+    context: SetupContext,
+    requireFeatureData: @escaping @Sendable () async throws -> Void
+  ) -> HomeAssistantSetupStore {
+    HomeAssistantSetupStore(
       discovery: HomeAssistantDiscoveryClient(browser: NetworkHomeAssistantDiscovery()),
       connection: HomeAssistantConnectionCoordinator(
-        authenticationClient: authenticationClient,
-        browser: webAuthenticationPresenter,
-        session: session
+        authenticationClient: context.authenticationClient,
+        browser: context.webAuthenticationPresenter,
+        session: context.session,
+        supervisor: context.states,
+        requireFeatureData: requireFeatureData
       ),
-      webAuthenticationPresenter: webAuthenticationPresenter
-    )
-    return Context(
-      setupStore: setupStore,
-      session: session,
-      apiClient: apiClient,
-      states: states
+      webAuthenticationPresenter: context.webAuthenticationPresenter,
+      credentialEvents: context.credentialEvents
     )
   }
 
@@ -99,10 +144,9 @@ struct BruceHomeAssistantDependencies {
         states: context.states,
         loader: context.apiClient,
         dailyTotalsLoader: HomeAssistantDailyEnergyTotalsClient(
-          session: context.session
+          commands: context.states
         )
       ),
-      onAuthenticationRequired: context.requireReauthentication,
       publishWidgetSnapshot: { snapshot, capturedAt in
         widgetPublisher.publish(snapshot, capturedAt: capturedAt)
       }
@@ -139,13 +183,18 @@ struct BruceHomeAssistantDependencies {
   }
 
   private struct Context {
-    let setupStore: HomeAssistantSetupStore
     let session: HomeAssistantSession
     let apiClient: HomeAssistantAPIClient
-    let states: HomeAssistantStateHub
+    let states: HomeAssistantConnectionSupervisor
+    let makeSetupStore:
+      @MainActor (@escaping @Sendable () async throws -> Void) -> HomeAssistantSetupStore
+  }
 
-    var requireReauthentication: @MainActor @Sendable () -> Void {
-      { setupStore.requireReauthentication() }
-    }
+  private struct SetupContext {
+    let session: HomeAssistantSession
+    let authenticationClient: HomeAssistantAuthenticationClient
+    let webAuthenticationPresenter: HomeAssistantWebAuthenticationPresenter
+    let credentialEvents: HomeAssistantCredentialEvents
+    let states: HomeAssistantConnectionSupervisor
   }
 }

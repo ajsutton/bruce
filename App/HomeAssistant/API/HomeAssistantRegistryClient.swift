@@ -30,87 +30,29 @@ struct HomeAssistantClimateMetadata: Equatable, Sendable {
 struct HomeAssistantRegistryClient:
   HomeAssistantClimateMetadataLoading, HomeAssistantGarageDoorRegistryLoading
 {
-  private let session: HomeAssistantSession
-  private let connector: any HomeAssistantWebSocketConnecting
+  private let commands: any HomeAssistantWebSocketCommanding
 
   init(
-    session: HomeAssistantSession,
-    connector: any HomeAssistantWebSocketConnecting =
-      URLSessionWebSocketConnector()
+    commands: any HomeAssistantWebSocketCommanding
   ) {
-    self.session = session
-    self.connector = connector
+    self.commands = commands
   }
 
   func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata] {
-    let access = try await session.authenticatedWebSocketAccess()
-    let connection = connector.connect(to: access.url)
-    return try await withTaskCancellationHandler {
-      defer {
-        connection.cancel()
-      }
-      try await authenticate(connection, accessToken: access.accessToken)
-      let entities: [HomeAssistantRegistryEntity] = try await request(
-        "config/entity_registry/list",
-        id: 1,
-        over: connection
-      )
-      let devices: [HomeAssistantRegistryDevice] = try await request(
-        "config/device_registry/list",
-        id: 2,
-        over: connection
-      )
-      let areas: [HomeAssistantRegistryArea] = try await request(
-        "config/area_registry/list",
-        id: 3,
-        over: connection
-      )
-      let floors: [HomeAssistantRegistryFloor] = try await request(
-        "config/floor_registry/list",
-        id: 4,
-        over: connection
-      )
-      let labels: [HomeAssistantRegistryLabel] = try await request(
-        "config/label_registry/list",
-        id: 5,
-        over: connection
-      )
-      try Task.checkCancellation()
-      return Self.climateMetadata(
-        entities: entities,
-        devices: devices,
-        areas: areas,
-        floors: floors,
-        labels: labels
-      )
-    } onCancel: {
-      connection.cancel()
-    }
+    let entities: [HomeAssistantRegistryEntity] = try await request("config/entity_registry/list")
+    let devices: [HomeAssistantRegistryDevice] = try await request("config/device_registry/list")
+    let areas: [HomeAssistantRegistryArea] = try await request("config/area_registry/list")
+    let floors: [HomeAssistantRegistryFloor] = try await request("config/floor_registry/list")
+    let labels: [HomeAssistantRegistryLabel] = try await request("config/label_registry/list")
+    return Self.climateMetadata(
+      entities: entities, devices: devices, areas: areas, floors: floors, labels: labels
+    )
   }
 
   func loadGarageDoorRegistry() async throws -> HomeAssistantGarageDoorRegistry {
-    let access = try await session.authenticatedWebSocketAccess()
-    let connection = connector.connect(to: access.url)
-    return try await withTaskCancellationHandler {
-      defer {
-        connection.cancel()
-      }
-      try await authenticate(connection, accessToken: access.accessToken)
-      let entities: [HomeAssistantRegistryEntity] = try await request(
-        "config/entity_registry/list",
-        id: 1,
-        over: connection
-      )
-      let devices: [HomeAssistantRegistryDevice] = try await request(
-        "config/device_registry/list",
-        id: 2,
-        over: connection
-      )
-      try Task.checkCancellation()
-      return Self.garageDoorRegistry(entities: entities, devices: devices)
-    } onCancel: {
-      connection.cancel()
-    }
+    let entities: [HomeAssistantRegistryEntity] = try await request("config/entity_registry/list")
+    let devices: [HomeAssistantRegistryDevice] = try await request("config/device_registry/list")
+    return Self.garageDoorRegistry(entities: entities, devices: devices)
   }
 
   static func garageDoorRegistry(
@@ -213,60 +155,20 @@ struct HomeAssistantRegistryClient:
     return Int(identifier.dropFirst(prefix.count)) != nil
   }
 
-  private func authenticate(
-    _ connection: any HomeAssistantWebSocketConnection,
-    accessToken: String
-  ) async throws {
-    let required = try decode(
-      HomeAssistantWebSocketMessageKind.self,
-      from: try await connection.receive()
-    )
-    guard required.type == "auth_required" else {
-      throw HomeAssistantAPIError.invalidResponse
-    }
-
-    try await send(
-      HomeAssistantWebSocketAuthentication(type: "auth", accessToken: accessToken),
-      over: connection
-    )
-    let authentication = try decode(
-      HomeAssistantWebSocketMessageKind.self,
-      from: try await connection.receive()
-    )
-    guard authentication.type == "auth_ok" else {
-      if authentication.type == "auth_invalid" {
-        throw HomeAssistantAPIError.unauthorized
-      }
-      throw HomeAssistantAPIError.invalidResponse
-    }
-  }
-
   private func request<Result: Decodable>(
-    _ type: String,
-    id: Int,
-    over connection: any HomeAssistantWebSocketConnection
+    _ type: String
   ) async throws -> Result {
-    try await send(
-      HomeAssistantWebSocketRequest(id: id, type: type),
-      over: connection
-    )
+    let data = try await commands.perform(HomeAssistantWebSocketCommand(type: type))
     let response = try decode(
       HomeAssistantWebSocketResult<Result>.self,
-      from: try await connection.receive()
+      from: data
     )
-    guard response.id == id, response.type == "result", response.success,
+    guard response.type == "result", response.success,
       let result = response.result
     else {
       throw HomeAssistantAPIError.invalidResponse
     }
     return result
-  }
-
-  private func send<Message: Encodable>(
-    _ message: Message,
-    over connection: any HomeAssistantWebSocketConnection
-  ) async throws {
-    try await connection.send(JSONEncoder().encode(message))
   }
 
   private func decode<Message: Decodable>(
@@ -281,27 +183,7 @@ struct HomeAssistantRegistryClient:
   }
 }
 
-private struct HomeAssistantWebSocketMessageKind: Decodable {
-  let type: String
-}
-
-private struct HomeAssistantWebSocketAuthentication: Encodable {
-  let type: String
-  let accessToken: String
-
-  enum CodingKeys: String, CodingKey {
-    case type
-    case accessToken = "access_token"
-  }
-}
-
-private struct HomeAssistantWebSocketRequest: Encodable {
-  let id: Int
-  let type: String
-}
-
 private struct HomeAssistantWebSocketResult<Result: Decodable>: Decodable {
-  let id: Int
   let type: String
   let success: Bool
   let result: Result?

@@ -15,7 +15,7 @@ struct HomeAssistantAPIClient:
     now: @escaping @Sendable () -> Date = Date.init
   ) {
     self.session = session
-    climateMetadataLoader = HomeAssistantRegistryClient(session: session)
+    climateMetadataLoader = HomeAssistantEmptyClimateMetadataLoader()
     climateMetadataTimeout = .seconds(2)
     climateMetadataCoordinator = ClimateMetadataLoadCoordinator()
     self.now = now
@@ -139,12 +139,16 @@ struct HomeAssistantAPIClient:
     }
   }
 
-  func loadTemperatureContext() async throws -> HomeAssistantTemperatureContext {
+  func loadTemperatureContext(
+    sourceGeneration: UUID? = nil
+  ) async throws -> HomeAssistantTemperatureContext {
     let configurationData = try await session.authenticatedGET(path: "api/config")
     try Task.checkCancellation()
     let unit = try Self.temperatureUnit(from: configurationData)
     try Task.checkCancellation()
-    let climateMetadata = try await loadClimateMetadata()
+    let climateMetadata = try await loadClimateMetadata(
+      sourceGeneration: sourceGeneration
+    )
     try Task.checkCancellation()
     return HomeAssistantTemperatureContext(
       unit: unit,
@@ -231,12 +235,21 @@ struct HomeAssistantAPIClient:
     }
   }
 
-  private func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata] {
-    try await climateMetadataCoordinator.load(timeout: climateMetadataTimeout) {
+  private func loadClimateMetadata(
+    sourceGeneration: UUID?
+  ) async throws -> [String: HomeAssistantClimateMetadata] {
+    try await climateMetadataCoordinator.load(
+      sourceGeneration: sourceGeneration,
+      timeout: climateMetadataTimeout
+    ) {
       try await climateMetadataLoader.loadClimateMetadata()
     }
   }
 
+}
+
+private struct HomeAssistantEmptyClimateMetadataLoader: HomeAssistantClimateMetadataLoading {
+  func loadClimateMetadata() async throws -> [String: HomeAssistantClimateMetadata] { [:] }
 }
 
 extension HomeAssistantAPIClient {

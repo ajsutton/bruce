@@ -146,6 +146,12 @@ extension HomeAssistantGarageDoorStore {
       isLive = false
       isRefreshing = false
       problem = .reconnecting
+    case .unavailable(let doors):
+      publish(doors)
+      isLoading = false
+      isLive = false
+      isRefreshing = false
+      problem = .connectionUnavailable
     }
   }
 

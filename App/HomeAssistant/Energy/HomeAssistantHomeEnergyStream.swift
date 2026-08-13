@@ -89,6 +89,8 @@ extension HomeAssistantLiveUpdate {
       .refreshing(latestValue)
     case .reconnecting:
       .reconnecting(latestValue)
+    case .unavailable:
+      .unavailable(latestValue)
     }
   }
 

@@ -3,6 +3,11 @@ import OSLog
 
 @MainActor
 final class HomeAssistantConnectionController: ObservableObject {
+  enum ConnectionCheckContext {
+    case setup
+    case existingConnection
+  }
+
   private static let logger = Logger(
     subsystem: "net.symphonious.bruce",
     category: "HomeAssistantAuthentication"
@@ -14,33 +19,37 @@ final class HomeAssistantConnectionController: ObservableObject {
     }
   }
   @Published private(set) var connectedCredentials: HomeAssistantCredentials?
-  @Published private(set) var connectionCheckState: HomeAssistantSetupStore.ConnectionCheckState =
+  @Published var connectionCheckState: HomeAssistantSetupStore.ConnectionCheckState =
     .idle
   @Published private(set) var isDisconnecting = false
 
   private let connection: (any HomeAssistantConnecting)?
-  private var connectionCheckDidSucceed: @MainActor @Sendable () async -> Void
   private var connectionTask: Task<Void, Never>?
+  private var credentialTask: Task<Void, Never>?
   private var connectionGeneration = UUID()
   private var hasAttemptedRestore = false
   var onStepChange: ((HomeAssistantSetupStore.Step) -> Void)?
 
   init(
     connection: (any HomeAssistantConnecting)?,
-    connectionCheckDidSucceed: @escaping @MainActor @Sendable () async -> Void
+    credentialEvents: HomeAssistantCredentialEvents? = nil
   ) {
     self.connection = connection
-    self.connectionCheckDidSucceed = connectionCheckDidSucceed
+    if let credentialEvents {
+      credentialTask = Task { [weak self] in
+        for await snapshot in await credentialEvents.updates() {
+          guard !Task.isCancelled else { return }
+          if snapshot.availability == .rejected {
+            self?.requireReauthentication()
+          }
+        }
+      }
+    }
   }
 
   deinit {
     connectionTask?.cancel()
-  }
-
-  func setConnectionCheckDidSucceed(
-    _ action: @escaping @MainActor @Sendable () async -> Void
-  ) {
-    connectionCheckDidSucceed = action
+    credentialTask?.cancel()
   }
 
   func requestAuthentication() {
@@ -54,15 +63,13 @@ final class HomeAssistantConnectionController: ObservableObject {
     let generation = beginConnectionOperation()
     connectionTask = Task { [weak self, connection] in
       do {
-        let credentials = try await connection.connect(to: candidate)
+        let credentials = try await connection.authenticate(to: candidate)
         try Task.checkCancellation()
-        guard let self, self.connectionGeneration == generation else {
-          return
-        }
-        self.connectionTask = nil
-        self.connectedCredentials = credentials
-        self.connectionCheckState = .succeeded
-        self.step = .connected(credentials)
+        await self?.completeAuthentication(
+          credentials,
+          using: connection,
+          generation: generation
+        )
       } catch is CancellationError {
         guard let self, self.connectionGeneration == generation else {
           return
@@ -130,7 +137,26 @@ final class HomeAssistantConnectionController: ObservableObject {
     startConnectionCheck(
       connection: connection,
       credentials: credentials,
-      generation: generation
+      generation: generation,
+      context: .existingConnection
+    )
+  }
+
+  func retryConnection() {
+    guard
+      case .connectionFailed(let credentials, _) = step,
+      let connection
+    else {
+      return
+    }
+    let generation = beginConnectionOperation()
+    connectionCheckState = .checking
+    step = .finishingConnection(credentials)
+    startConnectionCheck(
+      connection: connection,
+      credentials: credentials,
+      generation: generation,
+      context: .setup
     )
   }
 
@@ -180,7 +206,8 @@ final class HomeAssistantConnectionController: ObservableObject {
           self.step = previousStep
         case .restoring, .restoreFailed, .introduction, .chooseServer, .manualEntry, .confirmation,
           .unencryptedWarning, .onboardingRequired, .readyForAuthentication,
-          .authenticationFailed, .disconnecting, .cancelled:
+          .authenticationFailed, .finishingConnection, .connectionFailed, .disconnecting,
+          .cancelled:
           break
         }
       }
@@ -197,7 +224,8 @@ extension HomeAssistantConnectionController {
   private func startConnectionCheck(
     connection: any HomeAssistantConnecting,
     credentials: HomeAssistantCredentials,
-    generation: UUID
+    generation: UUID,
+    context: ConnectionCheckContext
   ) {
     connectionTask = Task { [weak self, connection] in
       do {
@@ -205,29 +233,47 @@ extension HomeAssistantConnectionController {
           using: connection,
           fallback: credentials
         )
-        guard
-          let connectionCheckDidSucceed = self?.successfulConnectionCheckAction(
-            generation: generation
-          )
-        else { return }
-        if case .verified = outcome {
-          try Task.checkCancellation()
-          await connectionCheckDidSucceed()
-        }
         try Task.checkCancellation()
-        self?.applyConnectionCheck(outcome, generation: generation)
+        self?.applyConnectionCheck(outcome, generation: generation, context: context)
       } catch is CancellationError {
       } catch {
-        self?.applyConfigured(credentials, state: .failed(.other), generation: generation)
+        self?.applyConfigured(
+          credentials,
+          state: .failed(.other),
+          generation: generation,
+          context: context
+        )
       }
     }
   }
 
-  private func successfulConnectionCheckAction(
+  private func completeAuthentication(
+    _ credentials: HomeAssistantCredentials,
+    using connection: any HomeAssistantConnecting,
     generation: UUID
-  ) -> (@MainActor @Sendable () async -> Void)? {
-    guard connectionGeneration == generation else { return nil }
-    return connectionCheckDidSucceed
+  ) async {
+    guard connectionGeneration == generation else {
+      return
+    }
+    connectedCredentials = credentials
+    connectionCheckState = .checking
+    step = .finishingConnection(credentials)
+    do {
+      let outcome = try await HomeAssistantConnectionVerification.check(
+        using: connection,
+        fallback: credentials
+      )
+      try Task.checkCancellation()
+      applyConnectionCheck(outcome, generation: generation, context: .setup)
+    } catch is CancellationError {
+    } catch {
+      applyConfigured(
+        credentials,
+        state: .failed(.other),
+        generation: generation,
+        context: .setup
+      )
+    }
   }
 
   private func applyRestored(
@@ -255,13 +301,14 @@ extension HomeAssistantConnectionController {
 
   private func applyConnectionCheck(
     _ outcome: HomeAssistantConnectionVerification.Outcome,
-    generation: UUID
+    generation: UUID,
+    context: ConnectionCheckContext
   ) {
     switch outcome {
     case .verified(let credentials):
       applyVerified(credentials, generation: generation)
     case .configured(let credentials, let state):
-      applyConfigured(credentials, state: state, generation: generation)
+      applyConfigured(credentials, state: state, generation: generation, context: context)
     }
   }
 
@@ -281,7 +328,8 @@ extension HomeAssistantConnectionController {
   private func applyConfigured(
     _ credentials: HomeAssistantCredentials,
     state: HomeAssistantSetupStore.ConnectionCheckState,
-    generation: UUID
+    generation: UUID,
+    context: ConnectionCheckContext
   ) {
     guard connectionGeneration == generation else {
       return
@@ -289,7 +337,15 @@ extension HomeAssistantConnectionController {
     connectionTask = nil
     connectedCredentials = credentials
     connectionCheckState = state
-    step = state == .reauthenticationRequired ? .configured(credentials) : .connected(credentials)
+    switch (context, state) {
+    case (_, .reauthenticationRequired):
+      step = .configured(credentials)
+    case (.setup, .failed(let problem)):
+      step = .connectionFailed(credentials, problem)
+    case (.setup, .idle), (.setup, .checking), (.setup, .succeeded),
+      (.setup, .disconnectFailed), (.existingConnection, _):
+      step = .connected(credentials)
+    }
   }
 
   private func applyNoSavedConnection(generation: UUID) {
@@ -309,39 +365,11 @@ extension HomeAssistantConnectionController {
     return generation
   }
 
-  private func invalidateConnectionOperation() {
+  func invalidateConnectionOperation() {
     connectionGeneration = UUID()
     connectionTask?.cancel()
     connectionTask = nil
     connection?.cancel()
     isDisconnecting = false
-  }
-}
-
-extension HomeAssistantConnectionController {
-  func requireReauthentication() {
-    guard let credentials = connectedCredentials else {
-      return
-    }
-    invalidateConnectionOperation()
-    connectionCheckState = .reauthenticationRequired
-    step = .configured(credentials)
-  }
-
-  func reauthenticate() {
-    guard let credentials = connectedCredentials else {
-      return
-    }
-    let candidate = HomeAssistantConnectionCandidate(
-      instanceID: credentials.instanceID,
-      name: credentials.instanceName,
-      internalURL: credentials.internalURL,
-      externalURL: credentials.externalURL,
-      activeURL: credentials.lastSuccessfulURL,
-      source: .manual
-    )
-    invalidateConnectionOperation()
-    step = .confirmation(candidate)
-    requestAuthentication()
   }
 }

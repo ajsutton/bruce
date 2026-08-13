@@ -3793,6 +3793,134 @@
         }
       }
     },
+    "homeAssistantSetup.finishingConnectionDetail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’re signed in to %@. Bruce is waiting for fresh home data to make sure everything is ready."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’re signed in to %@. Bruce is checking for fresh home data before kicking things off."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.finishingConnectionTitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking Your Connection"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giving the Connection a Once-over"
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.postAuthenticationFailure.incompatibleServer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Home Assistant version isn’t compatible with Bruce. Your sign-in has been saved."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Home Assistant version and Bruce aren’t getting along. Your sign-in is safely tucked away."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.postAuthenticationFailure.invalidResponse" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Assistant sent an unexpected response while Bruce checked your home data. Your sign-in has been saved."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Assistant sent Bruce something unexpected while checking your home data. Your sign-in is safely tucked away."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.postAuthenticationFailure.networkUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruce couldn’t reach Home Assistant to check your home data. Your sign-in has been saved, so try again when the connection is available."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Assistant isn’t answering Bruce’s data check. Your sign-in is safely tucked away, so have another crack when it’s reachable."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.postAuthenticationFailure.other" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruce couldn’t finish checking your home data. Your sign-in has been saved, so you can try the check again."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruce couldn’t finish checking your home data. Your sign-in is safely tucked away, so have another crack at the check."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.postAuthenticationFailure.serverRejectedRequest" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Assistant refused the data check. Your sign-in has been saved; you can try the check again or choose another server."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Assistant knocked back Bruce’s data check. Your sign-in is safely tucked away; have another crack or choose another server."
+          }
+        }
+      }
+    },
+    "homeAssistantSetup.postAuthenticationFailureTitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed In, but Not Connected Yet"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed In, but Not Quite Home Yet"
+          }
+        }
+      }
+    },
     "homeAssistantSetup.reauthenticationRequired" : {
       "localizations" : {
         "en" : {

@@ -45,7 +45,6 @@ final class TemperatureSubscriptionConnection:
   let blockedReceiveStarted = XCTestExpectation(
     description: "Temperature WebSocket receive blocked"
   )
-  let pingStarted = XCTestExpectation(description: "Temperature WebSocket ping started")
 
   private let lock = NSLock()
   private var messages: [Message]
@@ -53,11 +52,9 @@ final class TemperatureSubscriptionConnection:
   private var continuation: CheckedContinuation<Data, any Error>?
   private var cancellationRequested = false
   private var reportedBlockedReceive = false
-  private let pingError: (any Error)?
 
-  init(messages: [Message], pingError: (any Error)? = nil) {
+  init(messages: [Message]) {
     self.messages = messages
-    self.pingError = pingError
   }
 
   var sentMessageTypes: [String] {
@@ -82,18 +79,25 @@ final class TemperatureSubscriptionConnection:
   }
 
   func send(_ data: Data) async throws {
-    lock.withLock {
+    let response: (CheckedContinuation<Data, any Error>, Data)? = lock.withLock {
       sentMessages.append(data)
       guard
         let message = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
         message["type"] as? String == "subscribe_events",
         let id = message["id"] as? Int,
         id > 1
-      else { return }
-      messages.insert(
-        .success(#"{"id":\#(id),"type":"result","success":true,"result":null}"#),
-        at: 0
-      )
+      else { return nil }
+      let response = #"{"id":\#(id),"type":"result","success":true,"result":null}"#
+      let data = Data(response.utf8)
+      if let continuation {
+        self.continuation = nil
+        return (continuation, data)
+      }
+      messages.insert(.success(response), at: 0)
+      return nil
+    }
+    if let response {
+      response.0.resume(returning: response.1)
     }
   }
 
@@ -146,13 +150,6 @@ final class TemperatureSubscriptionConnection:
       return continuation
     }
     continuation?.resume(throwing: CancellationError())
-  }
-
-  func ping() async throws {
-    pingStarted.fulfill()
-    if let pingError {
-      throw pingError
-    }
   }
 
   func fail(with error: any Error) {
@@ -226,40 +223,13 @@ final class RecordingSubscriptionSleeper: @unchecked Sendable {
   }
 }
 
-func makeClient(
-  session: HomeAssistantSession,
-  connections: [TemperatureSubscriptionConnection],
-  icons: [String: String] = [:],
-  kinds: [String: HomeAssistantTemperatureReading.Kind] = [:],
-  retryDelays: [Duration] = [],
-  sleep: @escaping @Sendable (Duration) async throws -> Void = { _ in }
-) -> HomeAssistantTemperatureStream {
-  HomeAssistantTemperatureStream(
-    session: session,
-    apiClient: HomeAssistantAPIClient(
-      session: session,
-      climateMetadataLoader: TemperatureSubscriptionMetadataLoader(
-        metadata: Set(icons.keys).union(kinds.keys).reduce(into: [:]) { metadata, entityID in
-          metadata[entityID] = HomeAssistantClimateMetadata(
-            icon: icons[entityID],
-            kind: kinds[entityID] ?? .other
-          )
-        }
-      )
-    ),
-    connector: TemperatureSubscriptionConnector(connections: connections),
-    retryDelays: retryDelays,
-    sleep: sleep
-  )
-}
-
 func snapshot(
   from update: HomeAssistantTemperatureUpdate?
 ) throws -> [HomeAssistantTemperatureReading] {
   switch try XCTUnwrap(update) {
   case .live(let readings):
     return readings
-  case .refreshing, .reconnecting:
+  case .refreshing, .reconnecting, .unavailable:
     throw HomeAssistantAPIError.invalidResponse
   }
 }

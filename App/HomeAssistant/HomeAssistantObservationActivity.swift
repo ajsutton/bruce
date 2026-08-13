@@ -5,12 +5,12 @@ final class HomeAssistantObservationActivity {
   private(set) var isSuspended = false
 
   private let suspend: @MainActor @Sendable () async -> Void
-  private let resume: @MainActor @Sendable () -> Void
+  private let resume: @MainActor @Sendable () async -> Void
   private var activeRegistrations: Set<UUID> = []
 
   init(
     suspend: @escaping @MainActor @Sendable () async -> Void,
-    resume: @escaping @MainActor @Sendable () -> Void
+    resume: @escaping @MainActor @Sendable () async -> Void
   ) {
     self.suspend = suspend
     self.resume = resume
@@ -45,7 +45,7 @@ final class HomeAssistantObservationActivity {
     if shouldSuspend {
       await suspend()
     } else {
-      resume()
+      await resume()
     }
   }
 }

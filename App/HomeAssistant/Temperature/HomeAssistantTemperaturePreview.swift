@@ -251,10 +251,8 @@ private struct PreviewHomeAssistantTemperatureLoader: HomeAssistantTemperatureLo
   let readings: [HomeAssistantTemperatureReading]
   let providesContinuousTemperatureUpdates = true
 
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func temperatureUpdates() -> HomeAssistantTemperatureUpdateStream {
+    HomeAssistantTemperatureUpdateStream { continuation in
       continuation.yield(.live(readings))
     }
   }

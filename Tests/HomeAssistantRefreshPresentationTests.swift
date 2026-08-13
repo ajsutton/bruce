@@ -252,15 +252,12 @@ private final class ReplacingTemperatureLoader:
   HomeAssistantTemperatureLoading, @unchecked Sendable
 {
   private let lock = NSLock()
-  private var continuations:
-    [Int: AsyncThrowingStream<HomeAssistantTemperatureUpdate, any Error>.Continuation] = [:]
+  private var continuations: [Int: HomeAssistantTemperatureUpdateStream.Continuation] = [:]
   private var subscriptionCount = 0
   private var expectations: [Int: XCTestExpectation] = [:]
 
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func temperatureUpdates() -> HomeAssistantTemperatureUpdateStream {
+    HomeAssistantTemperatureUpdateStream { continuation in
       let state = lock.withLock {
         subscriptionCount += 1
         continuations[subscriptionCount] = continuation
@@ -293,13 +290,10 @@ private final class RefreshingTemperatureLoader:
 {
   let started = XCTestExpectation(description: "Temperature refresh stream started")
   private let lock = NSLock()
-  private var continuation:
-    AsyncThrowingStream<HomeAssistantTemperatureUpdate, any Error>.Continuation?
+  private var continuation: HomeAssistantTemperatureUpdateStream.Continuation?
 
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func temperatureUpdates() -> HomeAssistantTemperatureUpdateStream {
+    HomeAssistantTemperatureUpdateStream { continuation in
       lock.withLock { self.continuation = continuation }
       started.fulfill()
     }

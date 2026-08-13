@@ -54,7 +54,7 @@
         .publisher(for: NSWorkspace.didWakeNotification)
         .receive(on: DispatchQueue.main)
         .sink { [weak self] _ in
-          self?.recoverConnectionAfterWake()
+          self?.sendConnectionWakeHint()
         }
       connectionObservation = setupStore.$step
         .map { [weak setupStore] step in
@@ -86,10 +86,10 @@
       observationTask = nil
     }
 
-    private func recoverConnectionAfterWake() {
+    private func sendConnectionWakeHint() {
       guard wakeRecoveryTask == nil else { return }
       wakeRecoveryTask = Task { [weak self, weak observationCoordinator] in
-        await observationCoordinator?.refresh()
+        await observationCoordinator?.connectionDidWake()
         guard !Task.isCancelled else { return }
         self?.wakeRecoveryTask = nil
       }

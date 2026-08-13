@@ -61,10 +61,8 @@ final class ObservationTestTemperatureLoader:
     return expectation
   }
 
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func temperatureUpdates() -> HomeAssistantTemperatureUpdateStream {
+    HomeAssistantTemperatureUpdateStream { continuation in
       let expectation = lock.withLock {
         storedStartCount += 1
         return startExpectations.removeValue(forKey: storedStartCount)

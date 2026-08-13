@@ -135,9 +135,10 @@ final class HomeAssistantRegistryClientTests: XCTestCase {
       receivedMessages: climateRegistryMessages
     )
     let client = HomeAssistantRegistryClient(
-      session: session,
-      connector: StubHomeAssistantWebSocketConnector(connection: connection)
-    )
+      commands: TestWebSocketCommands(
+        session: session,
+        connector: StubHomeAssistantWebSocketConnector(connection: connection)
+      ))
 
     let metadata = try await client.loadClimateMetadata()
 
@@ -156,7 +157,6 @@ final class HomeAssistantRegistryClientTests: XCTestCase {
         "config/label_registry/list",
       ]
     )
-    XCTAssertTrue(connection.isCancelled)
   }
 
   func testRejectedWebSocketAuthenticationFailsAndClosesConnection() async throws {
@@ -170,9 +170,10 @@ final class HomeAssistantRegistryClientTests: XCTestCase {
       ]
     )
     let client = HomeAssistantRegistryClient(
-      session: session,
-      connector: StubHomeAssistantWebSocketConnector(connection: connection)
-    )
+      commands: TestWebSocketCommands(
+        session: session,
+        connector: StubHomeAssistantWebSocketConnector(connection: connection)
+      ))
 
     do {
       _ = try await client.loadClimateMetadata()
@@ -190,9 +191,10 @@ final class HomeAssistantRegistryClientTests: XCTestCase {
     try await session.install(fixture.credentials())
     let connection = BlockingHomeAssistantWebSocketConnection()
     let client = HomeAssistantRegistryClient(
-      session: session,
-      connector: BlockingHomeAssistantWebSocketConnector(connection: connection)
-    )
+      commands: TestWebSocketCommands(
+        session: session,
+        connector: BlockingHomeAssistantWebSocketConnector(connection: connection)
+      ))
     let load = Task {
       try await client.loadClimateMetadata()
     }

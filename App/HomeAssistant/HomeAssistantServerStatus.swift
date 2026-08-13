@@ -58,6 +58,11 @@ struct HomeAssistantServerStatus: Equatable {
         phase: .reconnecting,
         lastSuccessfulUpdate: lastSuccessfulUpdate
       )
+    case .unavailable:
+      HomeAssistantServerStatus(
+        phase: update.failure == .authentication ? .signInRequired : .needsAttention,
+        lastSuccessfulUpdate: lastSuccessfulUpdate
+      )
     }
   }
 

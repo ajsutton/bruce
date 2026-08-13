@@ -45,7 +45,7 @@
         return true
       case .restoring, .restoreFailed, .introduction, .chooseServer, .manualEntry, .confirmation,
         .unencryptedWarning, .onboardingRequired, .readyForAuthentication, .authenticationFailed,
-        .cancelled:
+        .finishingConnection, .connectionFailed, .cancelled:
         return false
       }
     }

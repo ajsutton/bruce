@@ -225,43 +225,6 @@ final class HomeAssistantTemperatureStoreTests: XCTestCase {
   }
 }
 
-private enum TemperatureLoaderError: Error, Sendable {
-  case connectionUnavailable
-  case signInRequired
-}
-
-private final class QueueTemperatureLoader:
-  HomeAssistantTemperatureLoading, @unchecked Sendable
-{
-  private let lock = NSLock()
-  private var results: [Result<[HomeAssistantTemperatureReading], TemperatureLoaderError>]
-
-  init(
-    results: [Result<[HomeAssistantTemperatureReading], TemperatureLoaderError>]
-  ) {
-    self.results = results
-  }
-
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    let result = lock.withLock {
-      results.removeFirst()
-    }
-    return AsyncThrowingStream { continuation in
-      switch result {
-      case .success(let readings):
-        continuation.yield(.live(readings))
-        continuation.finish()
-      case .failure(.connectionUnavailable):
-        continuation.finish(throwing: URLError(.notConnectedToInternet))
-      case .failure(.signInRequired):
-        continuation.finish(throwing: HomeAssistantAPIError.reauthenticationRequired)
-      }
-    }
-  }
-}
-
 final class ControlledTemperatureLoader:
   HomeAssistantTemperatureLoading, @unchecked Sendable
 {
@@ -269,11 +232,12 @@ final class ControlledTemperatureLoader:
 
   private let lock = NSLock()
   private let startedExpectations: [XCTestExpectation]
-  private var continuations:
-    [Int: AsyncThrowingStream<
-      HomeAssistantTemperatureUpdate, any Error
-    >.Continuation] = [:]
+  private var continuations: [Int: HomeAssistantTemperatureUpdateStream.Continuation] = [:]
+  private var cancellationExpectations: [Int: XCTestExpectation] = [:]
+  private var cancelledRequestIDs: Set<Int> = []
   private var nextRequestID = 0
+
+  var requestCount: Int { lock.withLock { nextRequestID } }
 
   init(requestCount: Int, providesContinuousUpdates: Bool = false) {
     providesContinuousTemperatureUpdates = providesContinuousUpdates
@@ -286,17 +250,34 @@ final class ControlledTemperatureLoader:
     startedExpectations[index]
   }
 
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
-      let requestID = lock.withLock {
+  func temperatureUpdates() -> HomeAssistantTemperatureUpdateStream {
+    HomeAssistantTemperatureUpdateStream { continuation in
+      let request = lock.withLock { () -> (Int, XCTestExpectation?) in
         let requestID = nextRequestID
         nextRequestID += 1
         continuations[requestID] = continuation
-        return requestID
+        return (
+          requestID,
+          startedExpectations.indices.contains(requestID)
+            ? startedExpectations[requestID] : nil
+        )
       }
-      startedExpectations[requestID].fulfill()
+      let requestID = request.0
+      guard let started = request.1 else {
+        lock.withLock { continuations[requestID] = nil }
+        continuation.finish(throwing: TemperatureLoaderError.unexpectedRequest)
+        return
+      }
+      started.fulfill()
+      continuation.onTermination = { termination in
+        guard case .cancelled = termination else { return }
+        let expectation = self.lock.withLock {
+          self.cancelledRequestIDs.insert(requestID)
+          self.continuations[requestID] = nil
+          return self.cancellationExpectations[requestID]
+        }
+        expectation?.fulfill()
+      }
     }
   }
 
@@ -331,6 +312,19 @@ final class ControlledTemperatureLoader:
     }
     continuation?.finish(throwing: error)
   }
+
+  func cancelled(at index: Int) -> XCTestExpectation {
+    lock.withLock {
+      let expectation = XCTestExpectation(
+        description: "Temperature request \(index) cancelled"
+      )
+      cancellationExpectations[index] = expectation
+      if cancelledRequestIDs.contains(index) {
+        expectation.fulfill()
+      }
+      return expectation
+    }
+  }
 }
 
 private final class CancellingTemperatureLoader:
@@ -339,10 +333,8 @@ private final class CancellingTemperatureLoader:
   let started = XCTestExpectation(description: "Temperature request started")
   let cancelled = XCTestExpectation(description: "Temperature stream cancelled")
 
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func temperatureUpdates() -> HomeAssistantTemperatureUpdateStream {
+    HomeAssistantTemperatureUpdateStream { continuation in
       started.fulfill()
       continuation.onTermination = { termination in
         if case .cancelled = termination {
@@ -361,7 +353,7 @@ private final class RestoredTemperatureConnection: HomeAssistantConnecting {
     self.credentials = credentials
   }
 
-  func connect(
+  func authenticate(
     to candidate: HomeAssistantConnectionCandidate
   ) async throws -> HomeAssistantCredentials {
     credentials
@@ -377,12 +369,4 @@ private final class RestoredTemperatureConnection: HomeAssistantConnecting {
 
   func disconnect() async throws {}
   func cancel() {}
-}
-
-private struct EmptyTemperatureDiscovery: HomeAssistantDiscovering {
-  func snapshots() -> AsyncThrowingStream<HomeAssistantDiscoverySnapshot, any Error> {
-    AsyncThrowingStream { continuation in
-      continuation.finish()
-    }
-  }
 }

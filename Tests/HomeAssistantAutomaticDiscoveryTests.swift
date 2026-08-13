@@ -101,7 +101,7 @@ private final class SuspendedRestoreConnection: HomeAssistantConnecting {
   let restoreStarted = XCTestExpectation(description: "Connection restore started")
   private var restoreContinuation: CheckedContinuation<HomeAssistantCredentials?, any Error>?
 
-  func connect(
+  func authenticate(
     to candidate: HomeAssistantConnectionCandidate
   ) async throws -> HomeAssistantCredentials {
     throw HomeAssistantAuthenticationError.presentationUnavailable

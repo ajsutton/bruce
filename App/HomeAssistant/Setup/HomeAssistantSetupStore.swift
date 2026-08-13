@@ -31,6 +31,8 @@ final class HomeAssistantSetupStore: ObservableObject {
       HomeAssistantConnectionCandidate,
       HomeAssistantAuthenticationFailure
     )
+    case finishingConnection(HomeAssistantCredentials)
+    case connectionFailed(HomeAssistantCredentials, ConnectionCheckProblem)
     case configured(HomeAssistantCredentials)
     case connected(HomeAssistantCredentials)
     case disconnecting(HomeAssistantCredentials)
@@ -79,13 +81,13 @@ final class HomeAssistantSetupStore: ObservableObject {
     discovery: any HomeAssistantDiscovering,
     connection: (any HomeAssistantConnecting)? = nil,
     webAuthenticationPresenter: HomeAssistantWebAuthenticationPresenter? = nil,
-    connectionCheckDidSucceed: @escaping @MainActor @Sendable () async -> Void = {}
+    credentialEvents: HomeAssistantCredentialEvents? = nil
   ) {
     self.discovery = discovery
     self.webAuthenticationPresenter = webAuthenticationPresenter
     connectionController = HomeAssistantConnectionController(
       connection: connection,
-      connectionCheckDidSucceed: connectionCheckDidSucceed
+      credentialEvents: credentialEvents
     )
     connectionController.onStepChange = { [weak self] step in
       self?.step = step
@@ -97,12 +99,6 @@ final class HomeAssistantSetupStore: ObservableObject {
 
   deinit {
     discoveryTask?.cancel()
-  }
-
-  func setConnectionCheckDidSucceed(
-    _ action: @escaping @MainActor @Sendable () async -> Void
-  ) {
-    connectionController.setConnectionCheckDidSucceed(action)
   }
 
   var canConfirmSelectedInstance: Bool {
@@ -273,6 +269,10 @@ final class HomeAssistantSetupStore: ObservableObject {
     connectionController.testConnection()
   }
 
+  func retryConnection() {
+    connectionController.retryConnection()
+  }
+
   func requireReauthentication() {
     connectionController.requireReauthentication()
   }
@@ -318,7 +318,7 @@ extension HomeAssistantSetupStore {
       startDiscovery()
     case .restoring, .restoreFailed, .chooseServer, .manualEntry, .confirmation,
       .unencryptedWarning, .onboardingRequired, .readyForAuthentication, .authenticationFailed,
-      .configured, .connected, .disconnecting, .cancelled:
+      .finishingConnection, .connectionFailed, .configured, .connected, .disconnecting, .cancelled:
       break
     }
   }

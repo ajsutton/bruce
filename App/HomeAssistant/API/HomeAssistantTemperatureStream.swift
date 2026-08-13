@@ -28,51 +28,27 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
     self.sleep = sleep
   }
 
-  init(
-    session: HomeAssistantSession,
-    apiClient: HomeAssistantAPIClient? = nil,
-    connector: any HomeAssistantWebSocketConnecting = URLSessionWebSocketConnector(),
-    retryDelays: [Duration] = [
-      .seconds(1),
-      .seconds(2),
-      .seconds(5),
-      .seconds(10),
-      .seconds(30),
-    ],
-    sleep: @escaping @Sendable (Duration) async throws -> Void = {
-      try await Task.sleep(for: $0)
-    }
-  ) {
-    let apiClient = apiClient ?? HomeAssistantAPIClient(session: session)
-    states = HomeAssistantStateStream(
-      session: session,
-      apiClient: apiClient,
-      connector: connector,
-      retryDelays: retryDelays,
-      sleep: sleep
+  func temperatureUpdates() -> HomeAssistantTemperatureUpdateStream {
+    let registration = TemperatureSubscriptionRegistration()
+    return HomeAssistantTemperatureUpdateStream(
+      waitUntilSubscribed: { try await registration.wait() },
+      { continuation in
+        let task = Task {
+          await produceUpdates(
+            continuation: continuation,
+            registration: registration
+          )
+        }
+        continuation.onTermination = { _ in
+          task.cancel()
+        }
+      }
     )
-    self.apiClient = apiClient
-    contextRetryDelays = retryDelays
-    self.sleep = sleep
-  }
-
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
-      let task = Task {
-        await produceUpdates(continuation: continuation)
-      }
-      continuation.onTermination = { _ in
-        task.cancel()
-      }
-    }
   }
 
   private func produceUpdates(
-    continuation: AsyncThrowingStream<
-      HomeAssistantTemperatureUpdate, any Error
-    >.Continuation
+    continuation: HomeAssistantTemperatureUpdateStream.Continuation,
+    registration: TemperatureSubscriptionRegistration
   ) async {
     let producer = HomeAssistantTemperatureUpdateProducer(
       continuation: continuation,
@@ -80,6 +56,7 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
     )
     do {
       let stateUpdates = await states.stateUpdates()
+      await registration.markSubscribed()
       defer { stateUpdates.cancel() }
       for try await stateUpdate in stateUpdates {
         try Task.checkCancellation()
@@ -87,19 +64,25 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
       }
       await producer.finish()
     } catch is CancellationError {
+      await registration.finish(throwing: CancellationError())
       await producer.finish()
     } catch {
+      await registration.finish(throwing: error)
       await producer.finish(throwing: error)
     }
   }
 
-  private func loadTemperatureContextWithRetry() async throws
+  private func loadTemperatureContextWithRetry(
+    sourceGeneration: UUID
+  ) async throws
     -> HomeAssistantTemperatureContext
   {
     var retryIndex = 0
     while true {
       do {
-        return try await apiClient.loadTemperatureContext()
+        return try await apiClient.loadTemperatureContext(
+          sourceGeneration: sourceGeneration
+        )
       } catch {
         guard Self.shouldRetryContextLoad(after: error),
           !contextRetryDelays.isEmpty
@@ -130,6 +113,8 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
       return .refreshing(readings)
     case .reconnecting:
       return .reconnecting(readings)
+    case .unavailable:
+      return .unavailable(readings)
     }
   }
 
@@ -140,26 +125,72 @@ struct HomeAssistantTemperatureStream: HomeAssistantTemperatureLoading {
     guard let apiError = error as? HomeAssistantAPIError else {
       return false
     }
-    if case .server = apiError {
+    if case .server(let statusCode) = apiError {
+      return statusCode == 429 || statusCode >= 500
+    }
+    if case .staleOperation = apiError {
       return true
     }
     return false
   }
 }
 
+private actor TemperatureSubscriptionRegistration {
+  private typealias SubscriptionResult = Result<Void, any Error>
+
+  private var result: SubscriptionResult?
+  private var waiters: [UUID: CheckedContinuation<Void, any Error>] = [:]
+
+  func wait() async throws {
+    let id = UUID()
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { continuation in
+        if let result {
+          continuation.resume(with: result)
+        } else if Task.isCancelled {
+          continuation.resume(throwing: CancellationError())
+        } else {
+          waiters[id] = continuation
+        }
+      }
+    } onCancel: {
+      Task { await self.cancelWaiter(id) }
+    }
+  }
+
+  func markSubscribed() {
+    finish(with: .success(()))
+  }
+
+  func finish(throwing error: any Error) {
+    finish(with: .failure(error))
+  }
+
+  private func finish(with result: SubscriptionResult) {
+    guard self.result == nil else { return }
+    self.result = result
+    let waiters = waiters.values
+    self.waiters = [:]
+    waiters.forEach { $0.resume(with: result) }
+  }
+
+  private func cancelWaiter(_ id: UUID) {
+    waiters.removeValue(forKey: id)?.resume(throwing: CancellationError())
+  }
+}
+
 private actor HomeAssistantTemperatureUpdateProducer {
   typealias StateUpdate = HomeAssistantStateUpdate
-  typealias Continuation = AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  >.Continuation
+  typealias Continuation = HomeAssistantTemperatureUpdateStream.Continuation
 
   private let continuation: Continuation
-  private let loadContext: @Sendable () async throws -> HomeAssistantTemperatureContext
+  private let loadContext: @Sendable (UUID) async throws -> HomeAssistantTemperatureContext
   private var context: HomeAssistantTemperatureContext?
   private var contextSourceGeneration: UUID?
   private var contextTask: Task<Void, Never>?
   private var contextTaskGeneration = UUID()
   private var loadingSourceGeneration: UUID?
+  private var terminallyFailedSourceGeneration: UUID?
   private var latestStateUpdate: StateUpdate?
   private var lastPublishedUpdate: HomeAssistantTemperatureUpdate?
   private var cachedReadings: [HomeAssistantTemperatureReading] = []
@@ -167,7 +198,9 @@ private actor HomeAssistantTemperatureUpdateProducer {
 
   init(
     continuation: Continuation,
-    loadContext: @escaping @Sendable () async throws -> HomeAssistantTemperatureContext
+    loadContext:
+      @escaping @Sendable (UUID) async throws
+      -> HomeAssistantTemperatureContext
   ) {
     self.continuation = continuation
     self.loadContext = loadContext
@@ -178,10 +211,15 @@ private actor HomeAssistantTemperatureUpdateProducer {
     latestStateUpdate = update
     switch update.phase {
     case .live:
-      if contextSourceGeneration != update.generation {
+      if contextSourceGeneration != update.generation,
+        terminallyFailedSourceGeneration != update.generation
+      {
+        if contextSourceGeneration != nil || !cachedReadings.isEmpty {
+          yield(.refreshing(cachedReadings))
+        }
         refreshContext(for: update.generation)
       }
-    case .refreshing, .reconnecting:
+    case .refreshing, .reconnecting, .unavailable:
       cancelContextRefresh()
     }
     publish(update)
@@ -209,7 +247,7 @@ private actor HomeAssistantTemperatureUpdateProducer {
     loadingSourceGeneration = sourceGeneration
     contextTask = Task { [loadContext] in
       do {
-        let context = try await loadContext()
+        let context = try await loadContext(sourceGeneration)
         install(
           context,
           taskGeneration: taskGeneration,
@@ -217,7 +255,11 @@ private actor HomeAssistantTemperatureUpdateProducer {
         )
       } catch is CancellationError {
       } catch {
-        finishContextRefresh(with: error, taskGeneration: taskGeneration)
+        finishContextRefresh(
+          with: error,
+          taskGeneration: taskGeneration,
+          sourceGeneration: sourceGeneration
+        )
       }
     }
   }
@@ -233,6 +275,7 @@ private actor HomeAssistantTemperatureUpdateProducer {
     else { return }
     self.context = context
     contextSourceGeneration = sourceGeneration
+    terminallyFailedSourceGeneration = nil
     contextTask = nil
     loadingSourceGeneration = nil
     if let latestStateUpdate {
@@ -241,13 +284,15 @@ private actor HomeAssistantTemperatureUpdateProducer {
   }
 
   private func finishContextRefresh(
-    with error: any Error,
-    taskGeneration: UUID
+    with _: any Error,
+    taskGeneration: UUID,
+    sourceGeneration: UUID
   ) {
     guard contextTaskGeneration == taskGeneration, !isFinished else { return }
     contextTask = nil
+    terminallyFailedSourceGeneration = sourceGeneration
     loadingSourceGeneration = nil
-    finish(throwing: error)
+    yield(.unavailable(cachedReadings))
   }
 
   private func cancelContextRefresh() {
@@ -267,6 +312,8 @@ private actor HomeAssistantTemperatureUpdateProducer {
         yield(.refreshing(cachedReadings))
       case .reconnecting:
         yield(.reconnecting(cachedReadings))
+      case .unavailable:
+        yield(.unavailable(cachedReadings))
       case .live:
         break
       }
@@ -283,7 +330,7 @@ private actor HomeAssistantTemperatureUpdateProducer {
     guard update != lastPublishedUpdate else { return }
     switch update {
     case .live(let readings), .refreshing(let readings),
-      .reconnecting(let readings):
+      .reconnecting(let readings), .unavailable(let readings):
       cachedReadings = readings
     }
     lastPublishedUpdate = update

@@ -7,10 +7,8 @@ struct TestGarageDoorLoader: HomeAssistantGarageDoorLoading {
     []
   }
 
-  func garageDoorUpdates() -> AsyncThrowingStream<
-    HomeAssistantLiveUpdate<[HomeAssistantGarageDoorSnapshot]>, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func garageDoorUpdates() -> HomeAssistantGarageDoorUpdateStream {
+    HomeAssistantGarageDoorUpdateStream { continuation in
       continuation.yield(.live([]))
     }
   }

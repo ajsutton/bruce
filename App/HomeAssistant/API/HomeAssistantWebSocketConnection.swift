@@ -3,12 +3,7 @@ import Foundation
 protocol HomeAssistantWebSocketConnection: Sendable {
   func send(_ data: Data) async throws
   func receive() async throws -> Data
-  func ping() async throws
   func cancel()
-}
-
-extension HomeAssistantWebSocketConnection {
-  func ping() async throws {}
 }
 
 protocol HomeAssistantWebSocketConnecting: Sendable {
@@ -61,63 +56,7 @@ private final class URLSessionWebSocketConnection:
     }
   }
 
-  func ping() async throws {
-    let completion = HomeAssistantWebSocketPingCompletion()
-    try await withTaskCancellationHandler {
-      try await withCheckedThrowingContinuation { continuation in
-        completion.install(continuation)
-        task.sendPing { error in
-          completion.resolve(
-            error.map { .failure($0) } ?? .success(())
-          )
-        }
-        Task {
-          try? await Task.sleep(for: .seconds(10))
-          if completion.resolve(.failure(URLError(.timedOut))) {
-            task.cancel(with: .goingAway, reason: nil)
-          }
-        }
-      }
-    } onCancel: {
-      if completion.resolve(.failure(CancellationError())) {
-        task.cancel(with: .goingAway, reason: nil)
-      }
-    }
-  }
-
   func cancel() {
     task.cancel(with: .goingAway, reason: nil)
-  }
-}
-
-private final class HomeAssistantWebSocketPingCompletion: @unchecked Sendable {
-  private let lock = NSLock()
-  private var continuation: CheckedContinuation<Void, any Error>?
-  private var pendingResult: Result<Void, any Error>?
-
-  func install(_ continuation: CheckedContinuation<Void, any Error>) {
-    let result: Result<Void, any Error>? = lock.withLock {
-      if let pendingResult {
-        return pendingResult
-      }
-      self.continuation = continuation
-      return nil
-    }
-    if let result {
-      continuation.resume(with: result)
-    }
-  }
-
-  @discardableResult
-  func resolve(_ result: Result<Void, any Error>) -> Bool {
-    let continuation: CheckedContinuation<Void, any Error>? = lock.withLock {
-      guard case nil = pendingResult else { return nil }
-      pendingResult = result
-      let continuation = self.continuation
-      self.continuation = nil
-      return continuation
-    }
-    continuation?.resume(with: result)
-    return continuation != nil
   }
 }

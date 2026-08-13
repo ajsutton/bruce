@@ -91,7 +91,7 @@ private final class DisconnectLifecycleConnection: HomeAssistantConnecting, @unc
     )
   }
 
-  func connect(
+  func authenticate(
     to candidate: HomeAssistantConnectionCandidate
   ) async throws -> HomeAssistantCredentials {
     guard let credentials = try await restore() else {

@@ -5,97 +5,193 @@ final class ClimateMetadataLoadCoordinator: @unchecked Sendable {
 
   private typealias LoadResult = Result<Output, any Error>
 
+  private enum Generation: Hashable {
+    case unscoped
+    case source(UUID)
+  }
+
+  private struct ActiveLoad {
+    let id: UUID
+    let task: Task<Void, Never>
+  }
+
+  private struct GenerationState {
+    var activeLoad: ActiveLoad?
+    var waiters: [UUID: ClimateMetadataLoadWaiter] = [:]
+    var cachedOutput: Output?
+  }
+
+  private struct Registration {
+    let abandonedLoads: [Task<Void, Never>]
+    let abandonedWaiters: [ClimateMetadataLoadWaiter]
+  }
+
   private let lock = NSLock()
-  private var activeLoad: Task<Void, Never>?
-  private var waiters: [UUID: ClimateMetadataLoadWaiter] = [:]
-  private var isDraining = false
-  private var cachedOutput: Output?
+  private var states: [Generation: GenerationState] = [:]
+  private var latestSourceGeneration: UUID?
 
   func load(
+    sourceGeneration: UUID? = nil,
     timeout: Duration,
     operation: @escaping @Sendable () async throws -> Output
   ) async throws -> Output {
+    let generation = sourceGeneration.map(Generation.source) ?? .unscoped
     let waiter = ClimateMetadataLoadWaiter()
-    register(waiter, timeout: timeout, operation: operation)
+    let registration = register(
+      waiter,
+      generation: generation,
+      timeout: timeout,
+      operation: operation
+    )
+    registration.abandonedLoads.forEach { $0.cancel() }
+    registration.abandonedWaiters.forEach {
+      $0.resolve(.failure(CancellationError()))
+    }
     let result = await withTaskCancellationHandler {
       await waiter.result()
     } onCancel: {
-      complete(waiter, with: .failure(CancellationError()))
+      complete(
+        waiter,
+        generation: generation,
+        with: .failure(CancellationError())
+      )
     }
     return try result.get()
   }
 
   private func register(
     _ waiter: ClimateMetadataLoadWaiter,
+    generation: Generation,
     timeout: Duration,
     operation: @escaping @Sendable () async throws -> Output
-  ) {
+  ) -> Registration {
     let registration = lock.withLock {
-      guard !isDraining else {
-        return (shouldRegister: false, fallback: cachedOutput)
-      }
-      waiters[waiter.id] = waiter
-      if activeLoad == nil {
-        activeLoad = Task {
+      let registration = abandonObsoleteLoads(for: generation)
+
+      var state = states[generation] ?? GenerationState()
+      state.waiters[waiter.id] = waiter
+      if state.activeLoad == nil {
+        let loadID = UUID()
+        let task = Task { [weak self] in
           do {
-            finish(with: .success(try await operation()))
+            self?.finish(
+              generation: generation,
+              loadID: loadID,
+              with: .success(try await operation())
+            )
           } catch {
-            finish(with: .failure(error))
+            self?.finish(
+              generation: generation,
+              loadID: loadID,
+              with: .failure(error)
+            )
           }
         }
+        state.activeLoad = ActiveLoad(id: loadID, task: task)
       }
-      return (shouldRegister: true, fallback: Optional<Output>.none)
-    }
-    guard registration.shouldRegister else {
-      waiter.resolve(
-        registration.fallback.map(LoadResult.success) ?? .failure(URLError(.timedOut))
+      states[generation] = state
+      return Registration(
+        abandonedLoads: registration.abandonedLoads,
+        abandonedWaiters: registration.abandonedWaiters
       )
-      return
     }
     waiter.startTimeout(after: timeout) { [weak self, weak waiter] in
-      guard let self, let waiter else {
-        return
-      }
-      complete(waiter, with: timeoutResult())
+      guard let self, let waiter else { return }
+      complete(
+        waiter,
+        generation: generation,
+        with: timeoutResult(for: generation)
+      )
     }
+    return registration
   }
 
-  private func complete(_ waiter: ClimateMetadataLoadWaiter, with result: LoadResult) {
+  private func abandonObsoleteLoads(for generation: Generation) -> Registration {
+    guard case .source(let sourceGeneration) = generation,
+      latestSourceGeneration != sourceGeneration
+    else {
+      return Registration(abandonedLoads: [], abandonedWaiters: [])
+    }
+    latestSourceGeneration = sourceGeneration
+    let obsoleteGenerations = states.keys.filter {
+      if case .source(let existingGeneration) = $0 {
+        return existingGeneration != sourceGeneration
+      }
+      return false
+    }
+    var abandonedLoads: [Task<Void, Never>] = []
+    var abandonedWaiters: [ClimateMetadataLoadWaiter] = []
+    for obsoleteGeneration in obsoleteGenerations {
+      guard let state = states.removeValue(forKey: obsoleteGeneration) else {
+        continue
+      }
+      if let task = state.activeLoad?.task {
+        abandonedLoads.append(task)
+      }
+      abandonedWaiters.append(contentsOf: state.waiters.values)
+    }
+    return Registration(
+      abandonedLoads: abandonedLoads,
+      abandonedWaiters: abandonedWaiters
+    )
+  }
+
+  private func complete(
+    _ waiter: ClimateMetadataLoadWaiter,
+    generation: Generation,
+    with result: LoadResult
+  ) {
     let loadToCancel = lock.withLock {
-      guard waiters.removeValue(forKey: waiter.id) != nil else {
+      guard var state = states[generation],
+        state.waiters.removeValue(forKey: waiter.id) != nil
+      else {
         return Optional<Task<Void, Never>>.none
       }
-      guard waiters.isEmpty else {
+      guard state.waiters.isEmpty else {
+        states[generation] = state
         return nil
       }
-      isDraining = true
-      return activeLoad
+      let load = state.activeLoad?.task
+      state.activeLoad = nil
+      states[generation] = state
+      return load
     }
     loadToCancel?.cancel()
     waiter.resolve(result)
   }
 
-  private func finish(with result: LoadResult) {
+  private func finish(
+    generation: Generation,
+    loadID: UUID,
+    with result: LoadResult
+  ) {
     let completion = lock.withLock {
-      activeLoad = nil
-      isDraining = false
-      let result = resolved(result)
-      let waiters = Array(self.waiters.values)
-      self.waiters.removeAll()
-      return (waiters, result)
+      guard var state = states[generation],
+        state.activeLoad?.id == loadID
+      else {
+        return Optional<([ClimateMetadataLoadWaiter], LoadResult)>.none
+      }
+      state.activeLoad = nil
+      let resolvedResult = resolved(result, cachedOutput: &state.cachedOutput)
+      let waiters = Array(state.waiters.values)
+      state.waiters.removeAll()
+      states[generation] = state
+      return (waiters, resolvedResult)
     }
-    completion.0.forEach {
-      $0.resolve(completion.1)
-    }
+    completion?.0.forEach { $0.resolve(completion?.1 ?? result) }
   }
 
-  private func timeoutResult() -> LoadResult {
+  private func timeoutResult(for generation: Generation) -> LoadResult {
     lock.withLock {
-      cachedOutput.map(LoadResult.success) ?? .failure(URLError(.timedOut))
+      states[generation]?.cachedOutput.map(LoadResult.success)
+        ?? .failure(URLError(.timedOut))
     }
   }
 
-  private func resolved(_ result: LoadResult) -> LoadResult {
+  private func resolved(
+    _ result: LoadResult,
+    cachedOutput: inout Output?
+  ) -> LoadResult {
     switch result {
     case .success(let output):
       cachedOutput = output
@@ -118,7 +214,6 @@ final class ClimateMetadataLoadCoordinator: @unchecked Sendable {
     }
     return false
   }
-
 }
 
 private final class ClimateMetadataLoadWaiter: @unchecked Sendable {
@@ -162,9 +257,7 @@ private final class ClimateMetadataLoadWaiter: @unchecked Sendable {
       }
     }
     let shouldCancel = lock.withLock {
-      guard !isFinished else {
-        return true
-      }
+      guard !isFinished else { return true }
       self.timeoutTask = timeoutTask
       return false
     }

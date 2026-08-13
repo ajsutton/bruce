@@ -184,11 +184,11 @@ private struct TemperatureOrderingSetup {
   let probe: AsyncThrowingStreamTestProbe<HomeAssistantTemperatureUpdate>
 }
 
-private func decodedTemperatureStates(value: Double) throws -> [HomeAssistantState] {
+func decodedTemperatureStates(value: Double) throws -> [HomeAssistantState] {
   try JSONDecoder().decode([HomeAssistantState].self, from: temperatureStates(value: value))
 }
 
-private final class TemperatureContextStateSource:
+final class TemperatureContextStateSource:
   HomeAssistantStateLoading, @unchecked Sendable
 {
   let started = XCTestExpectation(description: "Temperature state source started")

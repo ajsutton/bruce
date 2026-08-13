@@ -84,6 +84,8 @@ struct HomeAssistantEVChargingStream: HomeAssistantEVCharging {
       )
     case .reconnecting:
       return .reconnecting(reconnectingSnapshot(from: update.states, lastUpdate: lastUpdate))
+    case .unavailable:
+      return .unavailable(reconnectingSnapshot(from: update.states, lastUpdate: lastUpdate))
     }
   }
 

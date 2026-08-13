@@ -43,7 +43,7 @@ private final class ReauthenticationConnection: HomeAssistantConnecting {
   private(set) var candidate: HomeAssistantConnectionCandidate?
   private var continuation: CheckedContinuation<HomeAssistantCredentials, any Error>?
 
-  func connect(
+  func authenticate(
     to candidate: HomeAssistantConnectionCandidate
   ) async throws -> HomeAssistantCredentials {
     self.candidate = candidate

@@ -29,6 +29,7 @@ struct HomeAssistantPresentation: Equatable {
     screen = Self.screen(for: step)
     isConnecting =
       (step == .restoring && connectionCheckState != .disconnectFailed)
+      || step.isFinishingConnection
       || connectionCheckState == .checking
     connectionProblem = Self.connectionProblem(
       for: step,
@@ -44,7 +45,8 @@ struct HomeAssistantPresentation: Equatable {
     case .restoring, .restoreFailed, .configured, .connected, .disconnecting:
       .panels
     case .introduction, .chooseServer, .manualEntry, .confirmation, .unencryptedWarning,
-      .onboardingRequired, .readyForAuthentication, .authenticationFailed, .cancelled:
+      .onboardingRequired, .readyForAuthentication, .authenticationFailed, .finishingConnection,
+      .connectionFailed, .cancelled:
       .setup
     }
   }
@@ -56,11 +58,11 @@ struct HomeAssistantPresentation: Equatable {
     switch step {
     case .connected(let credentials):
       .ready(credentials)
-    case .disconnecting:
+    case .disconnecting, .finishingConnection:
       .loading
     case .restoring:
       .loading
-    case .restoreFailed, .configured:
+    case .restoreFailed, .configured, .connectionFailed:
       .requiresUserAction
     case .introduction, .chooseServer, .manualEntry, .confirmation, .unencryptedWarning,
       .onboardingRequired, .readyForAuthentication, .authenticationFailed, .cancelled:
@@ -83,7 +85,7 @@ struct HomeAssistantPresentation: Equatable {
       connectedConnectionProblem(connectionCheckState)
     case .restoring, .disconnecting, .introduction, .chooseServer, .manualEntry, .confirmation,
       .unencryptedWarning, .onboardingRequired, .readyForAuthentication, .authenticationFailed,
-      .cancelled:
+      .finishingConnection, .connectionFailed, .cancelled:
       nil
     }
   }
@@ -118,5 +120,14 @@ struct HomeAssistantPresentation: Equatable {
     case .disconnectFailed:
       .disconnectFailed
     }
+  }
+}
+
+extension HomeAssistantSetupStore.Step {
+  fileprivate var isFinishingConnection: Bool {
+    if case .finishingConnection = self {
+      return true
+    }
+    return false
   }
 }

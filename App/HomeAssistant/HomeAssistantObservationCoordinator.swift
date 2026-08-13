@@ -16,7 +16,8 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   private let garageDoorStore: HomeAssistantGarageDoorStore
   private let homeEnergyStore: HomeAssistantHomeEnergyStore
   private let refreshStateFeed: @Sendable () async -> Bool
-  private let resetStateFeed: @Sendable () async -> Void
+  private let setStateFeedActivity: @Sendable (Bool) async -> Void
+  private let sendWakeHint: @Sendable () async -> Void
   private let serverUpdates:
     (@Sendable () async -> HomeAssistantBufferedUpdateStream<HomeAssistantStateUpdate>)?
   private let now: @Sendable () -> Date
@@ -25,7 +26,6 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   private var serverStatusGeneration = UUID()
   private var observationTasks: [HomeAssistantObservedFeature: Task<Void, Never>] = [:]
   private var observationGenerations: [HomeAssistantObservedFeature: UUID] = [:]
-  private var activeFeatures: Set<HomeAssistantObservedFeature> = []
   private var isRefreshing = false
   private var refreshGeneration = UUID()
   private var isTransitioning = false
@@ -36,7 +36,7 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   private var homeEnergyHistoryReuseDeadline: Date?
   private lazy var updateActivity = HomeAssistantObservationActivity(
     suspend: { [weak self] in await self?.suspendUpdates() },
-    resume: { [weak self] in self?.resumeUpdates() }
+    resume: { [weak self] in await self?.resumeUpdates() }
   )
 
   init(
@@ -45,7 +45,8 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     garageDoorStore: HomeAssistantGarageDoorStore,
     homeEnergyStore: HomeAssistantHomeEnergyStore,
     refreshStateFeed: @escaping @Sendable () async -> Bool = { false },
-    resetStateFeed: @escaping @Sendable () async -> Void = {},
+    setStateFeedActivity: @escaping @Sendable (Bool) async -> Void = { _ in },
+    sendWakeHint: @escaping @Sendable () async -> Void = {},
     serverUpdates:
       (@Sendable () async -> HomeAssistantBufferedUpdateStream<HomeAssistantStateUpdate>)? = nil,
     now: @escaping @Sendable () -> Date = Date.init
@@ -55,7 +56,8 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     self.garageDoorStore = garageDoorStore
     self.homeEnergyStore = homeEnergyStore
     self.refreshStateFeed = refreshStateFeed
-    self.resetStateFeed = resetStateFeed
+    self.setStateFeedActivity = setStateFeedActivity
+    self.sendWakeHint = sendWakeHint
     self.serverUpdates = serverUpdates
     self.now = now
   }
@@ -77,7 +79,7 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     serverStatusGeneration = UUID()
     serverStatusTask?.cancel()
     serverStatusTask = nil
-    await resetStateFeed()
+    await setStateFeedActivity(!updateActivity.isSuspended)
     guard transitionGeneration == generation else { return }
     guard !Task.isCancelled else {
       self.access = nil
@@ -94,21 +96,9 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     }
   }
 
-  private func restartObservations(for access: HomeAssistantAccessState) {
-    cancelObservations()
-    HomeAssistantObservedFeature.allCases.forEach {
-      startObservation(
-        $0,
-        access: access,
-        homeEnergyHistoryReuseDeadline: homeEnergyHistoryReuseDeadline
-      )
-    }
-  }
-
   private func cancelObservations() {
     observationTasks.values.forEach { $0.cancel() }
     observationTasks = [:]
-    activeFeatures = []
   }
 
   private func updateServerStatus(for access: HomeAssistantAccessState) {
@@ -129,7 +119,7 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   }
 
   private func startServerStatusObservation(for access: HomeAssistantAccessState) {
-    guard access.isReady, let serverUpdates else { return }
+    guard serverStatusTask == nil, access.isReady, let serverUpdates else { return }
     let generation = UUID()
     serverStatusGeneration = generation
     serverStatusTask = Task { [weak self, now] in
@@ -178,17 +168,6 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     }
   }
 
-  private func restartServerStatusObservation(for access: HomeAssistantAccessState) {
-    serverStatusGeneration = UUID()
-    serverStatusTask?.cancel()
-    serverStatusTask = nil
-    serverStatus = HomeAssistantServerStatus(
-      phase: .updating,
-      lastSuccessfulUpdate: serverStatus.lastSuccessfulUpdate
-    )
-    startServerStatusObservation(for: access)
-  }
-
   private func startObservation(
     _ feature: HomeAssistantObservedFeature,
     access: HomeAssistantAccessState,
@@ -197,7 +176,6 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
     observationTasks[feature]?.cancel()
     let generation = UUID()
     observationGenerations[feature] = generation
-    activeFeatures.insert(feature)
     let observe: @MainActor @Sendable () async -> Void =
       switch feature {
       case .temperature:
@@ -238,7 +216,6 @@ final class HomeAssistantObservationCoordinator: ObservableObject {
   ) {
     guard observationGenerations[feature] == generation else { return }
     observationTasks[feature] = nil
-    activeFeatures.remove(feature)
   }
 }
 
@@ -269,19 +246,7 @@ extension HomeAssistantObservationCoordinator {
       !updateActivity.isSuspended
     else { return }
     guard let access, access.isReady else { return }
-    if refreshedActiveFeed {
-      for feature in HomeAssistantObservedFeature.allCases
-      where !activeFeatures.contains(feature) {
-        startObservation(
-          feature,
-          access: access,
-          homeEnergyHistoryReuseDeadline: homeEnergyHistoryReuseDeadline
-        )
-      }
-    } else {
-      restartServerStatusObservation(for: access)
-      restartObservations(for: access)
-    }
+    guard refreshedActiveFeed else { return }
   }
 
   func observeUpdates(
@@ -297,24 +262,17 @@ extension HomeAssistantObservationCoordinator {
   private func suspendUpdates() async {
     updatesSuspendedAt = now()
     suspendedAccess = access
-    observationGeneration = UUID()
-    refreshGeneration = UUID()
-    isRefreshing = false
     homeEnergyStore.prepareForActivitySuspension()
-    cancelObservations()
-    serverStatusGeneration = UUID()
-    serverStatusTask?.cancel()
-    serverStatusTask = nil
     if access?.isReady == true {
       serverStatus = HomeAssistantServerStatus(
         phase: .updating,
         lastSuccessfulUpdate: serverStatus.lastSuccessfulUpdate
       )
     }
-    await resetStateFeed()
+    await setStateFeedActivity(false)
   }
 
-  private func resumeUpdates() {
+  private func resumeUpdates() async {
     guard !isTransitioning, let access else { return }
     let historyReuseDeadline = updatesSuspendedAt.map {
       $0.addingTimeInterval(HomeEnergyHistorySampling.interval)
@@ -329,14 +287,24 @@ extension HomeAssistantObservationCoordinator {
     }
     updatesSuspendedAt = nil
     suspendedAccess = nil
-    updateServerStatus(for: access)
+    homeEnergyStore.resumeAfterActivitySuspension(
+      historyReuseDeadline: homeEnergyHistoryReuseDeadline
+    )
+    await setStateFeedActivity(true)
+    guard !Task.isCancelled, self.access == access else { return }
     startServerStatusObservation(for: access)
     HomeAssistantObservedFeature.allCases.forEach {
-      startObservation(
-        $0,
-        access: access,
-        homeEnergyHistoryReuseDeadline: homeEnergyHistoryReuseDeadline
-      )
+      if observationTasks[$0] == nil {
+        startObservation(
+          $0,
+          access: access,
+          homeEnergyHistoryReuseDeadline: homeEnergyHistoryReuseDeadline
+        )
+      }
     }
+  }
+
+  func connectionDidWake() async {
+    await sendWakeHint()
   }
 }

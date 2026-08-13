@@ -1,10 +1,20 @@
 import Foundation
 
-extension HomeAssistantStateStream {
+enum HomeAssistantStateReconciler {
   struct Snapshot: Sendable {
     var statesByID: [String: HomeAssistantState]
     var removals: [String: Date]
     var orderedStates: [HomeAssistantState]
+
+    init(
+      statesByID: [String: HomeAssistantState] = [:],
+      removals: [String: Date] = [:],
+      orderedStates: [HomeAssistantState] = []
+    ) {
+      self.statesByID = statesByID
+      self.removals = removals
+      self.orderedStates = orderedStates
+    }
   }
 
   static func mergedSnapshot(
@@ -169,32 +179,4 @@ extension HomeAssistantStateStream {
     }
   }
 
-  static func shouldReconnect(
-    after error: any Error,
-    attempt: HomeAssistantReconnectAttempt
-  ) -> Bool {
-    if error is HomeAssistantCredentialStoreError {
-      return false
-    }
-    if let authenticationError = error as? HomeAssistantAuthenticationError {
-      if case .serverRejectedRequest(let statusCode, _) = authenticationError {
-        return statusCode == 429 || statusCode >= 500
-      }
-      return false
-    }
-    guard let apiError = error as? HomeAssistantAPIError else {
-      return true
-    }
-    switch apiError {
-    case .server(let statusCode):
-      return statusCode == 429 || statusCode >= 500
-    case .invalidResponse:
-      return attempt.hasPublishedSnapshot
-    case .staleOperation:
-      return attempt.attemptedAccess != nil
-    case .noCredentials, .invalidServerURL, .unauthorized, .reauthenticationRequired,
-      .incompatibleServer:
-      return false
-    }
-  }
 }

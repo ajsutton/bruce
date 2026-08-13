@@ -63,10 +63,8 @@ private struct ContentViewEVChargingClient: HomeAssistantEVCharging {
 }
 
 private struct ContentViewEmptyTemperatureLoader: HomeAssistantTemperatureLoading {
-  func temperatureUpdates() -> AsyncThrowingStream<
-    HomeAssistantTemperatureUpdate, any Error
-  > {
-    AsyncThrowingStream { continuation in
+  func temperatureUpdates() -> HomeAssistantTemperatureUpdateStream {
+    HomeAssistantTemperatureUpdateStream { continuation in
       continuation.yield(.live([]))
       continuation.finish()
     }
