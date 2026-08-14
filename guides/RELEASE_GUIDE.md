@@ -44,20 +44,30 @@ operator action.
 
 ## Release safety boundary
 
-Before creating either release tag, show the user and obtain explicit approval for:
+Before creating an RC tag, show the user:
 
 - version and tag;
 - exact commit SHA;
 - release notes;
-- paired RC tag for a final release;
-- TestFlight build number and attested Mac zip digest when promoting final;
+- iOS signing and distribution path; and
+- Mac signing and distribution path.
+
+RC tags do not require explicit approval after the proposal is shown.
+
+Before creating a final tag, show the user and obtain explicit approval for:
+
+- version and tag;
+- exact commit SHA;
+- release notes;
+- paired RC tag;
+- TestFlight build number and attested Mac zip digest;
 - iOS signing and distribution path;
 - Mac signing and distribution path;
 - App Store automatic release after approval; and
 - proposed post-release marketing-version bump.
 
-Creating the approved tag is the release authorization. The GitHub environments scope secrets but
-must not add a second deployment-approval gate.
+Creating the approved final tag is the final-release authorization. The GitHub environments scope
+secrets but must not add a second deployment-approval gate.
 
 ## Cut an RC
 
@@ -85,7 +95,7 @@ must not add a second deployment-approval gate.
 4. Write concise tester-facing notes describing the change since `notes_base`. Save them under
    `.agent-tmp/release-notes-<version>.md`.
 
-5. Show the release proposal and obtain explicit approval.
+5. Show the release proposal. RC tagging does not require a separate approval pause.
 
 6. Create the GitHub prerelease and tag:
 

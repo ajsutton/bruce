@@ -12,7 +12,7 @@ signing state, submitting for review, or uploading a build by itself.
 
 ## Delivery outcome
 
-Creating an approved GitHub prerelease with a tag such as `v0.1.0-rc.1` will start one workflow
+Creating a GitHub prerelease with a tag such as `v0.1.0-rc.1` will start one workflow
 against that exact commit. The workflow will:
 
 1. derive marketing version `0.1.0` from the tag;
@@ -85,7 +85,7 @@ Codex can implement and review all repository-owned automation:
 - create the empty GitHub `rc-release` and `production-release` environments if the user authorizes
   those GitHub settings changes;
 - inspect secret names, workflow state, and release assets without reading secret values; and
-- after the release approval gate, create the approved prerelease/tag and monitor its workflow;
+- after showing the RC release proposal, create the prerelease/tag and monitor its workflow;
 - after the final-release approval gate, create the approved final release/tag and monitor its
   workflow; and
 - create the post-release bump PR automation.
@@ -109,8 +109,6 @@ The user must perform account- and secret-bearing setup that Codex cannot safely
   and verify a fully featured in-app demo mode, for Bruce's account-dependent functionality;
 - enable GitHub Actions to create pull requests for the post-release bump;
 - explicitly approve any action that creates or repairs certificates or provisioning profiles;
-- explicitly approve the first RC's version, commit SHA, tag, notes, and distribution path before
-  the tag is created;
 - explicitly approve the final version, RC pairing, commit SHA, final notes, App Store submission,
   automatic-release choice, and post-release bump before the final tag is created; and
 - install and smoke-test the TestFlight build and downloaded Mac zip.
@@ -133,7 +131,7 @@ Milestone 3: GitHub environment secrets (manual)
 Milestone 4: signed validation without release tagging
         |
         v
-Milestone 5: first approved RC tag and automated distribution
+Milestone 5: first RC tag and automated distribution
         |
         v
 Milestone 6: user smoke test and pipeline acceptance
@@ -427,9 +425,9 @@ No release tag is created at this checkpoint.
 **Owner:** User for secret values; Codex may create or inspect non-secret environment settings
 
 1. Create GitHub Actions environments `rc-release` and `production-release` in `ajsutton/bruce`.
-2. Do not configure required reviewers for either environment. The explicit approval obtained
-   before creating a release tag is the authorization gate; tag creation must be sufficient to
-   start signing and distribution automatically.
+2. Do not configure required reviewers for either environment. RC tagging proceeds after the
+   release proposal is shown, while explicit approval of the final-release proposal authorizes the
+   final tag. Tag creation must be sufficient to start signing and distribution automatically.
 3. Store these secrets in `rc-release`:
 
    ```text
@@ -491,7 +489,7 @@ release state, Codex must show the exact command and obtain approval before runn
 
 ## Milestone 5: first RC
 
-**Owners:** User approval, then Codex execution and monitoring
+**Owner:** Codex execution and monitoring
 
 1. Codex runs `just release-preflight` and records the pinned commit SHA.
 2. Codex proposes:
@@ -502,19 +500,19 @@ release state, Codex must show the exact command and obtain approval before runn
    - release notes;
    - iOS App Store/TestFlight signing path; and
    - macOS Developer ID/notarised-zip signing path.
-3. The user explicitly approves those values and authorizes tag creation and upload.
-4. Codex runs `just release-create-rc` with the approved notes.
-5. The `rc-release` job starts immediately. Codex verifies the displayed tag and commit while
+3. After showing the proposal, Codex runs `just release-create-rc` with the proposed notes without
+   waiting for explicit approval.
+4. The `rc-release` job starts immediately. Codex verifies the displayed tag and commit while
    monitoring it.
-6. Codex monitors `release-rc.yml` to completion.
-7. Codex verifies:
-   - the workflow used the approved tag and SHA;
+5. Codex monitors `release-rc.yml` to completion.
+6. Codex verifies:
+   - the workflow used the proposed tag and SHA;
    - the TestFlight upload step succeeded;
    - the macOS notarisation and staple steps succeeded;
    - the GitHub release remains marked as a prerelease;
    - `Bruce-<version>.zip` is attached; and
    - the attested manifest binds the tag, commit, build number, and Mac zip digest.
-8. Codex reports any App Store Connect processing delay separately from workflow success.
+7. Codex reports any App Store Connect processing delay separately from workflow success.
 
 Failures do not justify moving or deleting the RC tag. Fix the cause on `main`, pass review and CI,
 then cut the next RC number.
