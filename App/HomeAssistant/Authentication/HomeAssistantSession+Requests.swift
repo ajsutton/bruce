@@ -25,6 +25,7 @@ extension HomeAssistantSession {
 
   func beginDisconnect() async throws -> HomeAssistantDisconnectContext {
     guard !isDisconnecting else { throw HomeAssistantAPIError.staleOperation }
+    try await settleCredentialRejectionBeforeReplacement()
     isDisconnecting = true
     let generation = reserveCredentialGeneration()
     let context = HomeAssistantDisconnectContext(
@@ -75,6 +76,9 @@ extension HomeAssistantSession {
     routeSelection: RouteSelection = .ordered
   ) async throws -> Data {
     guard !isDisconnecting else { throw HomeAssistantAPIError.noCredentials }
+    if rejectedCredentialGeneration != nil {
+      throw HomeAssistantAPIError.reauthenticationRequired
+    }
     guard pendingReplacementOperationEpoch == nil else {
       throw HomeAssistantAPIError.staleOperation
     }
@@ -299,6 +303,9 @@ extension HomeAssistantSession {
 
   func currentWebSocketAccesses() throws -> [HomeAssistantWebSocketAccess] {
     guard !isDisconnecting else { throw HomeAssistantAPIError.noCredentials }
+    guard rejectedCredentialGeneration == nil else {
+      throw HomeAssistantAPIError.reauthenticationRequired
+    }
     guard pendingReplacementOperationEpoch == nil else {
       throw HomeAssistantAPIError.staleOperation
     }
@@ -312,6 +319,9 @@ extension HomeAssistantSession {
   }
 
   func validateWebSocketAccess(_ access: HomeAssistantWebSocketAccess) throws {
+    guard rejectedCredentialGeneration == nil else {
+      throw HomeAssistantAPIError.reauthenticationRequired
+    }
     guard credentials != nil,
       access.authenticationSessionEpoch == authenticationSessionEpoch,
       access.authenticationOperationEpoch == authenticationOperationEpoch

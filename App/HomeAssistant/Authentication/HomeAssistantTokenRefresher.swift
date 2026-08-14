@@ -6,14 +6,37 @@ actor HomeAssistantTokenRefresher {
 
   private struct Attempt {
     let id: UUID
+    let credentials: HomeAssistantCredentials
     var task: Task<Void, Never>?
     var waiters: [UUID: Waiter]
+  }
+
+  private struct RejectedRefresh {
+    let identity: RefreshIdentity
+    let error: any Error
+  }
+
+  private struct RefreshIdentity: Equatable {
+    let accessToken: String
+    let refreshToken: String
+    let clientID: URL
+    let internalURL: URL?
+    let externalURL: URL?
+
+    init(_ credentials: HomeAssistantCredentials) {
+      accessToken = credentials.accessToken
+      refreshToken = credentials.refreshToken
+      clientID = credentials.clientID
+      internalURL = credentials.internalURL
+      externalURL = credentials.externalURL
+    }
   }
 
   private let authenticationClient: HomeAssistantAuthenticationClient
   private let cancellationDeferral: @Sendable () async -> Void
   private let waiterRegistered: @Sendable (Int) -> Void
   private var attempt: Attempt?
+  private var rejectedRefresh: RejectedRefresh?
 
   init(
     authenticationClient: HomeAssistantAuthenticationClient,
@@ -51,6 +74,7 @@ actor HomeAssistantTokenRefresher {
   func cancel() {
     let activeAttempt = attempt
     attempt = nil
+    rejectedRefresh = nil
     activeAttempt?.task?.cancel()
     activeAttempt?.waiters.values.forEach {
       $0.resume(throwing: CancellationError())
@@ -62,28 +86,12 @@ actor HomeAssistantTokenRefresher {
     continuation: Waiter,
     credentials: HomeAssistantCredentials
   ) {
+    if let rejectedRefresh, rejectedRefresh.identity == RefreshIdentity(credentials) {
+      continuation.resume(throwing: rejectedRefresh.error)
+      return
+    }
     if attempt == nil {
-      let attemptID = UUID()
-      attempt = Attempt(
-        id: attemptID,
-        task: nil,
-        waiters: [waiterID: continuation]
-      )
-      let task = Task { [authenticationClient] in
-        let result: Result<TokenResult, any Error>
-        do {
-          result = .success(
-            try await Self.loadToken(
-              for: credentials,
-              authenticationClient: authenticationClient
-            )
-          )
-        } catch {
-          result = .failure(error)
-        }
-        self.complete(attemptID: attemptID, with: result)
-      }
-      attempt?.task = task
+      startAttempt(credentials: credentials, waiters: [waiterID: continuation])
     } else {
       attempt?.waiters[waiterID] = continuation
     }
@@ -99,7 +107,6 @@ actor HomeAssistantTokenRefresher {
       return
     }
     attempt?.task?.cancel()
-    attempt = nil
   }
 
   private func complete(
@@ -110,9 +117,55 @@ actor HomeAssistantTokenRefresher {
       return
     }
     attempt = nil
+    if case .failure(let error) = result,
+      error is CancellationError,
+      !activeAttempt.waiters.isEmpty
+    {
+      startAttempt(
+        credentials: activeAttempt.credentials,
+        waiters: activeAttempt.waiters
+      )
+      return
+    }
+    if case .failure(let error) = result,
+      HomeAssistantRequestRouter.isRejectedRefresh(error)
+    {
+      rejectedRefresh = RejectedRefresh(
+        identity: RefreshIdentity(activeAttempt.credentials),
+        error: error
+      )
+    }
     for waiter in activeAttempt.waiters.values {
       waiter.resume(with: result)
     }
+  }
+
+  private func startAttempt(
+    credentials: HomeAssistantCredentials,
+    waiters: [UUID: Waiter]
+  ) {
+    let attemptID = UUID()
+    attempt = Attempt(
+      id: attemptID,
+      credentials: credentials,
+      task: nil,
+      waiters: waiters
+    )
+    let task = Task { [authenticationClient] in
+      let result: Result<TokenResult, any Error>
+      do {
+        result = .success(
+          try await Self.loadToken(
+            for: credentials,
+            authenticationClient: authenticationClient
+          )
+        )
+      } catch {
+        result = .failure(error)
+      }
+      self.complete(attemptID: attemptID, with: result)
+    }
+    attempt?.task = task
   }
 
   private static func loadToken(

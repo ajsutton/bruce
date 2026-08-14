@@ -160,7 +160,7 @@ final class HomeAssistantSessionReadRaceTests: XCTestCase {
     do {
       _ = try await session.authenticatedGET(path: "api/")
       XCTFail("Expected new work to be rejected while rejection is pending.")
-    } catch HomeAssistantAPIError.staleOperation {
+    } catch HomeAssistantAPIError.reauthenticationRequired {
     } catch {
       XCTFail("Unexpected error: \(error)")
     }

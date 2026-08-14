@@ -1,6 +1,16 @@
 import Foundation
 
 actor HomeAssistantSession {
+  typealias CredentialRejectionWaiter = CheckedContinuation<Void, any Error>
+
+  struct CredentialRejectionAttempt {
+    let id: UUID
+    let generation: Int
+    let operationEpoch: Int
+    var task: Task<Void, Never>?
+    var waiters: [UUID: CredentialRejectionWaiter]
+  }
+
   let credentialStore: any HomeAssistantCredentialStoring
   let transport: HomeAssistantAuthenticatedTransport
   let tokenRefresher: HomeAssistantTokenRefresher
@@ -8,11 +18,13 @@ actor HomeAssistantSession {
   private let refreshLeeway: TimeInterval
   let persistenceGate: HomeAssistantPersistenceGate
   private let credentialEvents: HomeAssistantCredentialEvents?
+  let rejectionWaiterRegistered: @Sendable (Int) -> Void
 
   var credentials: HomeAssistantCredentials?
   var credentialGeneration = 0, authenticationSessionEpoch = 0
   var authenticationOperationEpoch = 0
   var pendingReplacementOperationEpoch: Int?
+  var credentialRejectionAttempt: CredentialRejectionAttempt?
   var rejectedCredentialGeneration: Int?, successfulRouteSourceGeneration: Int?
   var isDisconnecting = false
 
@@ -23,18 +35,28 @@ actor HomeAssistantSession {
     now: @escaping @Sendable () -> Date = Date.init,
     refreshLeeway: TimeInterval = 60,
     persistenceGate: HomeAssistantPersistenceGate = HomeAssistantPersistenceGate(),
-    credentialEvents: HomeAssistantCredentialEvents? = nil
+    credentialEvents: HomeAssistantCredentialEvents? = nil,
+    refreshWaiterRegistered: @escaping @Sendable (Int) -> Void = { _ in },
+    rejectionWaiterRegistered: @escaping @Sendable (Int) -> Void = { _ in }
   ) {
     self.credentialStore = credentialStore
     transport = HomeAssistantAuthenticatedTransport(loader: loader)
-    tokenRefresher = HomeAssistantTokenRefresher(authenticationClient: authenticationClient)
+    tokenRefresher = HomeAssistantTokenRefresher(
+      authenticationClient: authenticationClient,
+      waiterRegistered: refreshWaiterRegistered
+    )
     self.now = now
     self.refreshLeeway = refreshLeeway
     self.persistenceGate = persistenceGate
     self.credentialEvents = credentialEvents
+    self.rejectionWaiterRegistered = rejectionWaiterRegistered
   }
 
   func restore() async throws -> Bool {
+    try await settleCredentialRejectionBeforeReplacement()
+    guard rejectedCredentialGeneration == nil else {
+      throw HomeAssistantAPIError.reauthenticationRequired
+    }
     let generation = reserveCredentialGeneration()
     let operationEpoch = authenticationOperationEpoch
     defer { finishAuthenticationReplacement(operationEpoch: operationEpoch) }
@@ -54,6 +76,7 @@ actor HomeAssistantSession {
   }
 
   func install(_ newCredentials: HomeAssistantCredentials) async throws {
+    try await settleCredentialRejectionBeforeReplacement()
     let generation = reserveCredentialGeneration()
     let operationEpoch = authenticationOperationEpoch
     defer { finishAuthenticationReplacement(operationEpoch: operationEpoch) }
@@ -85,6 +108,7 @@ actor HomeAssistantSession {
     _ newCredentials: HomeAssistantCredentials,
     validate: @escaping @Sendable (Data) throws -> Void
   ) async throws {
+    try await settleCredentialRejectionBeforeReplacement()
     let generation = reserveCredentialGeneration()
     let operationEpoch = authenticationOperationEpoch
     defer { finishAuthenticationReplacement(operationEpoch: operationEpoch) }
@@ -122,6 +146,9 @@ actor HomeAssistantSession {
 
   func refreshIfNeeded(force: Bool) async throws {
     guard !isDisconnecting else { throw HomeAssistantAPIError.noCredentials }
+    if rejectedCredentialGeneration != nil {
+      throw HomeAssistantAPIError.reauthenticationRequired
+    }
     guard pendingReplacementOperationEpoch == nil else {
       throw HomeAssistantAPIError.staleOperation
     }
@@ -159,10 +186,10 @@ actor HomeAssistantSession {
 extension HomeAssistantSession {
   func credentialSnapshot() -> HomeAssistantCredentialSnapshot {
     let availability: HomeAssistantCredentialSnapshot.Availability
-    if credentials != nil {
-      availability = .ready
-    } else if rejectedCredentialGeneration != nil {
+    if rejectedCredentialGeneration != nil {
       availability = .rejected
+    } else if credentials != nil {
+      availability = .ready
     } else {
       availability = .missing
     }
@@ -266,57 +293,6 @@ extension HomeAssistantSession {
     else {
       throw HomeAssistantAPIError.staleOperation
     }
-  }
-
-  func rejectCredentials(generation: Int) async throws -> Never {
-    if credentials == nil, rejectedCredentialGeneration == generation {
-      throw HomeAssistantAPIError.reauthenticationRequired
-    }
-    guard credentialGeneration == generation, let rejectedCredentials = credentials else {
-      throw HomeAssistantAPIError.staleOperation
-    }
-    guard pendingReplacementOperationEpoch == nil else {
-      throw HomeAssistantAPIError.staleOperation
-    }
-    authenticationOperationEpoch += 1
-    let operationEpoch = authenticationOperationEpoch
-    pendingReplacementOperationEpoch = operationEpoch
-    defer { finishAuthenticationReplacement(operationEpoch: operationEpoch) }
-    try await withHomeAssistantPersistence(gate: persistenceGate) {
-      if credentials == nil, rejectedCredentialGeneration == generation {
-        throw HomeAssistantAPIError.reauthenticationRequired
-      }
-      guard
-        try await credentialStore.replace(nil, ifCurrentIs: rejectedCredentials)
-      else {
-        try await reconcilePersistedCredentials(
-          ifCurrentIs: rejectedCredentials,
-          generation: generation
-        )
-        throw HomeAssistantAPIError.staleOperation
-      }
-      try await checkPersistenceCancellation(
-        restoring: rejectedCredentials,
-        replacing: nil,
-        generation: generation
-      )
-      guard credentialGeneration == generation, credentials == rejectedCredentials else {
-        _ = try await HomeAssistantCredentialRecovery.repair(
-          credentials,
-          replacing: nil,
-          in: credentialStore
-        )
-        throw HomeAssistantAPIError.staleOperation
-      }
-      credentials = nil
-      credentialGeneration += 1
-      authenticationSessionEpoch += 1
-      rejectedCredentialGeneration = generation
-      successfulRouteSourceGeneration = nil
-      finishAuthenticationReplacement(operationEpoch: operationEpoch)
-      await publishCredentialSnapshot()
-    }
-    throw HomeAssistantAPIError.reauthenticationRequired
   }
 
   func reserveCredentialGeneration() -> Int {

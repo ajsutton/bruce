@@ -119,6 +119,29 @@ final class HATokenRefreshCancellationTests: XCTestCase {
     await cancellationDeferral.proceed()
   }
 
+  func testRejectedRefreshIsReusedForLateWaiter() async throws {
+    let fixture = SessionFixture()
+    let refreshLoader = BlockingHomeAssistantLoader()
+    let refresher = makeRefresher(fixture: fixture, refreshLoader: refreshLoader)
+    let credentials = fixture.credentials()
+    let first = Task { [credentials] in try await refresher.token(for: credentials) }
+    await fulfillment(of: [refreshLoader.started], timeout: 1)
+    refreshLoader.succeed(
+      with: Data(#"{"error":"invalid_grant"}"#.utf8),
+      statusCode: 400
+    )
+
+    await assertReauthenticationRequired(first)
+    var routeUpdatedCredentials = credentials
+    routeUpdatedCredentials.lastSuccessfulURL = fixture.externalURL
+    let late = Task { [routeUpdatedCredentials] in
+      try await refresher.token(for: routeUpdatedCredentials)
+    }
+    await assertReauthenticationRequired(late)
+
+    XCTAssertEqual(refreshLoader.requests.count, 2)
+  }
+
   private func makeSession(
     fixture: SessionFixture,
     refreshLoader: BlockingHomeAssistantLoader
@@ -132,6 +155,20 @@ final class HATokenRefreshCancellationTests: XCTestCase {
       loader: fixture.apiLoader,
       now: { [now = fixture.now] in now }
     )
+  }
+
+  private func assertReauthenticationRequired(
+    _ task: Task<HomeAssistantTokenRefresher.TokenResult, any Error>
+  ) async {
+    do {
+      _ = try await task.value
+      XCTFail("Expected reauthentication.")
+    } catch {
+      if case HomeAssistantAPIError.reauthenticationRequired = error {
+      } else if !HomeAssistantRequestRouter.isRejectedRefresh(error) {
+        XCTFail("Unexpected error: \(error)")
+      }
+    }
   }
 
   private func makeRefresher(
