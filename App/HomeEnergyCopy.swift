@@ -48,15 +48,15 @@ struct HomeEnergyCopy {
   var feedInPrice: String { text(.feedInPrice) }
   var feedInCharge: String { text(.feedInCharge) }
   var feedInPriceUnavailable: String { text(.feedInPriceUnavailable) }
-  var costToday: String { text(.costToday) }
-  var costTodayAccessibility: String { text(.costTodayAccessibility) }
-  var feedInEarningsToday: String { text(.feedInEarningsToday) }
-  var feedInEarningsTodayAccessibility: String {
-    text(.feedInEarningsTodayAccessibility)
+  var costLast24Hours: String { text(.costLast24Hours) }
+  var costLast24HoursAccessibility: String { text(.costLast24HoursAccessibility) }
+  var feedInEarningsLast24Hours: String { text(.feedInEarningsLast24Hours) }
+  var feedInEarningsLast24HoursAccessibility: String {
+    text(.feedInEarningsLast24HoursAccessibility)
   }
-  var dailyTotalsLoadFailed: String { text(.dailyTotalsLoadFailed) }
-  var dailyTotalsUpdateFailedLastKnownStatus: String {
-    text(.dailyTotalsUpdateFailedLastKnownStatus)
+  var rollingTotalsLoadFailed: String { text(.rollingTotalsLoadFailed) }
+  var rollingTotalsUpdateFailedLastKnownStatus: String {
+    text(.rollingTotalsUpdateFailedLastKnownStatus)
   }
   var priceHistory: String { text(.priceHistory) }
   var priceHistoryPeriod: String { text(.priceHistoryPeriod) }
@@ -96,8 +96,8 @@ struct HomeEnergyCopy {
     text(.updatingLastKnown).replacingOccurrences(of: "%@", with: value)
   }
 
-  func dailyTotalsUpdateFailed(lastKnown value: String) -> String {
-    text(.dailyTotalsUpdateFailedLastKnown)
+  func rollingTotalsUpdateFailed(lastKnown value: String) -> String {
+    text(.rollingTotalsUpdateFailedLastKnown)
       .replacingOccurrences(of: "%@", with: value)
   }
 
@@ -130,10 +130,10 @@ extension HomeEnergyCopy {
     case usage, usageUnavailable, grid, gridExport, gridImport, gridIdle
     case generalPrice, generalPriceUnavailable, feedInPrice, feedInCharge
     case feedInPriceUnavailable
-    case costToday, costTodayAccessibility
-    case feedInEarningsToday, feedInEarningsTodayAccessibility
-    case dailyTotalsLoadFailed, dailyTotalsUpdateFailedLastKnown
-    case dailyTotalsUpdateFailedLastKnownStatus
+    case costLast24Hours, costLast24HoursAccessibility
+    case feedInEarningsLast24Hours, feedInEarningsLast24HoursAccessibility
+    case rollingTotalsLoadFailed, rollingTotalsUpdateFailedLastKnown
+    case rollingTotalsUpdateFailedLastKnownStatus
     case priceHistory, priceHistoryPeriod, priceHistoryLoading, priceHistoryLoadFailed
     case priceHistoryUnavailable
     case priceHistoryTimeAxis, priceHistoryPriceAxis, priceHistorySeries
@@ -222,20 +222,20 @@ extension HomeEnergyCopy {
       case .feedInCharge: .localized("homeEnergy.feedInCharge")
       case .feedInPriceUnavailable:
         .localized("homeEnergy.feedInPriceUnavailable")
-      case .costToday:
-        .localized("homeEnergy.costToday")
-      case .costTodayAccessibility:
-        .localized("homeEnergy.costTodayAccessibility")
-      case .feedInEarningsToday:
-        .localized("homeEnergy.feedInEarningsToday")
-      case .feedInEarningsTodayAccessibility:
-        .localized("homeEnergy.feedInEarningsTodayAccessibility")
-      case .dailyTotalsLoadFailed:
-        .localized("homeEnergy.dailyTotalsLoadFailed")
-      case .dailyTotalsUpdateFailedLastKnown:
-        .localized("homeEnergy.dailyTotalsUpdateFailedLastKnown")
-      case .dailyTotalsUpdateFailedLastKnownStatus:
-        .localized("homeEnergy.dailyTotalsUpdateFailedLastKnownStatus")
+      case .costLast24Hours:
+        .localized("homeEnergy.costLast24Hours")
+      case .costLast24HoursAccessibility:
+        .localized("homeEnergy.costLast24HoursAccessibility")
+      case .feedInEarningsLast24Hours:
+        .localized("homeEnergy.feedInEarningsLast24Hours")
+      case .feedInEarningsLast24HoursAccessibility:
+        .localized("homeEnergy.feedInEarningsLast24HoursAccessibility")
+      case .rollingTotalsLoadFailed:
+        .localized("homeEnergy.rollingTotalsLoadFailed")
+      case .rollingTotalsUpdateFailedLastKnown:
+        .localized("homeEnergy.rollingTotalsUpdateFailedLastKnown")
+      case .rollingTotalsUpdateFailedLastKnownStatus:
+        .localized("homeEnergy.rollingTotalsUpdateFailedLastKnownStatus")
       case .priceHistory:
         .localized("homeEnergy.priceHistory")
       case .priceHistoryPeriod:

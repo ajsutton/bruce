@@ -5,41 +5,44 @@ struct HomeAssistantHomeEnergyStream: HomeAssistantHomeEnergyLoading {
 
   private let states: any HomeAssistantStateLoading
   private let loader: any HomeAssistantHomeEnergyLoading
-  private let dailyTotalsLoader: (any HomeAssistantDailyEnergyTotalsLoading)?
+  private let rollingTotalsLoader: (any HomeAssistantRollingEnergyTotalsLoading)?
   private let now: @Sendable () -> Date
-  private let dailyRefreshSleep: @Sendable (Date) async throws -> Void
-  private let dailyRequestTimeout: Duration
+  private let rollingRefreshSleep: @Sendable (Date) async throws -> Void
+  private let rollingRequestTimeout: Duration
 
   init(
     states: any HomeAssistantStateLoading,
     loader: any HomeAssistantHomeEnergyLoading,
-    dailyTotalsLoader: (any HomeAssistantDailyEnergyTotalsLoading)? = nil,
+    rollingTotalsLoader: (any HomeAssistantRollingEnergyTotalsLoading)? = nil,
     now: @escaping @Sendable () -> Date = Date.init,
-    dailyRefreshSleep: (@Sendable (Date) async throws -> Void)? = nil,
-    dailyRequestTimeout: Duration = .seconds(15)
+    rollingRefreshSleep: (@Sendable (Date) async throws -> Void)? = nil,
+    rollingRequestTimeout: Duration = .seconds(15)
   ) {
     self.states = states
     self.loader = loader
-    self.dailyTotalsLoader = dailyTotalsLoader
+    self.rollingTotalsLoader = rollingTotalsLoader
     self.now = now
-    self.dailyRefreshSleep =
-      dailyRefreshSleep
+    self.rollingRefreshSleep =
+      rollingRefreshSleep
       ?? { deadline in
         let delay = max(deadline.timeIntervalSince(now()), 0)
-        try await Task.sleep(for: .seconds(delay))
+        try await Task.sleep(
+          for: .seconds(delay),
+          tolerance: .seconds(30)
+        )
       }
-    self.dailyRequestTimeout = dailyRequestTimeout
+    self.rollingRequestTimeout = rollingRequestTimeout
   }
 
   func homeEnergyUpdates() -> HomeAssistantHomeEnergyUpdateStream {
     HomeAssistantHomeEnergyUpdateStream { continuation in
       let task = Task {
         let stateUpdates = await states.stateUpdates()
-        let coordinator = DailyEnergyStreamCoordinator(
-          loader: dailyTotalsLoader,
+        let coordinator = RollingEnergyStreamCoordinator(
+          loader: rollingTotalsLoader,
           now: now,
-          sleepUntil: dailyRefreshSleep,
-          requestTimeout: dailyRequestTimeout,
+          sleepUntil: rollingRefreshSleep,
+          requestTimeout: rollingRequestTimeout,
           yield: { continuation.yield($0) },
           finish: { continuation.finish(throwing: $0) },
           cancelStates: { stateUpdates.cancel() }

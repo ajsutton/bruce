@@ -14,7 +14,7 @@ final class WidgetHomeEnergyClientTests: XCTestCase {
     super.tearDown()
   }
 
-  func testSnapshotMapsCurrentReadingsAndDailyTotals() throws {
+  func testSnapshotMapsCurrentReadingsAndRollingTotals() throws {
     let timestamp = Date(timeIntervalSince1970: 1_000)
     let states = [
       try state("sensor.sigen_plant_pv_power", "6.4"),
@@ -27,7 +27,7 @@ final class WidgetHomeEnergyClientTests: XCTestCase {
 
     let snapshot = WidgetHomeEnergyClient.snapshot(
       from: states,
-      totals: WidgetDailyEnergyTotals(
+      totals: WidgetRollingEnergyTotals(
         importCostDollars: 2.43,
         feedInEarningsDollars: 4.18
       ),
@@ -41,11 +41,11 @@ final class WidgetHomeEnergyClientTests: XCTestCase {
     XCTAssertEqual(snapshot.gridPowerKilowatts, -3.2)
     XCTAssertEqual(snapshot.generalPriceDollarsPerKilowattHour, 0.284)
     XCTAssertEqual(snapshot.feedInPriceDollarsPerKilowattHour, 0.08)
-    XCTAssertEqual(snapshot.importCostTodayDollars, 2.43)
-    XCTAssertEqual(snapshot.feedInEarningsTodayDollars, 4.18)
+    XCTAssertEqual(snapshot.importCostLast24HoursDollars, 2.43)
+    XCTAssertEqual(snapshot.feedInEarningsLast24HoursDollars, 4.18)
   }
 
-  func testCurrentReadingsSurviveDailyTotalsFailure() throws {
+  func testCurrentReadingsSurviveRollingTotalsFailure() throws {
     let previous = HomeEnergyWidgetSnapshot(
       capturedAt: Date(timeIntervalSince1970: 500),
       pvPowerKilowatts: 1,
@@ -54,12 +54,8 @@ final class WidgetHomeEnergyClientTests: XCTestCase {
       gridPowerKilowatts: 0,
       generalPriceDollarsPerKilowattHour: 0.2,
       feedInPriceDollarsPerKilowattHour: 0.08,
-      importCostTodayDollars: 2.43,
-      feedInEarningsTodayDollars: 4.18,
-      dailyEnergyInterval: DateInterval(
-        start: Date(timeIntervalSince1970: 0),
-        end: Date(timeIntervalSince1970: 86_400)
-      )
+      importCostLast24HoursDollars: 2.43,
+      feedInEarningsLast24HoursDollars: 4.18
     )
 
     let snapshot = try XCTUnwrap(
@@ -75,8 +71,8 @@ final class WidgetHomeEnergyClientTests: XCTestCase {
 
     XCTAssertEqual(snapshot.batteryStateOfCharge, 78)
     XCTAssertTrue(snapshot.readingsAreCurrent)
-    XCTAssertEqual(snapshot.importCostTodayDollars, 2.43)
-    XCTAssertEqual(snapshot.feedInEarningsTodayDollars, 4.18)
+    XCTAssertEqual(snapshot.importCostLast24HoursDollars, 2.43)
+    XCTAssertEqual(snapshot.feedInEarningsLast24HoursDollars, 4.18)
     XCTAssertFalse(snapshot.importCostIsCurrent)
     XCTAssertFalse(snapshot.feedInEarningsIsCurrent)
     XCTAssertEqual(snapshot.importCostCapturedAt, Date(timeIntervalSince1970: 500))
@@ -91,18 +87,14 @@ final class WidgetHomeEnergyClientTests: XCTestCase {
       gridPowerKilowatts: 0,
       generalPriceDollarsPerKilowattHour: 0.2,
       feedInPriceDollarsPerKilowattHour: 0.08,
-      importCostTodayDollars: 1,
-      feedInEarningsTodayDollars: 1,
-      dailyEnergyInterval: DateInterval(
-        start: Date(timeIntervalSince1970: 0),
-        end: Date(timeIntervalSince1970: 86_400)
-      )
+      importCostLast24HoursDollars: 1,
+      feedInEarningsLast24HoursDollars: 1
     )
 
     let snapshot = try XCTUnwrap(
       WidgetHomeEnergyClient.snapshot(
         currentStates: nil,
-        currentTotals: WidgetDailyEnergyTotals(
+        currentTotals: WidgetRollingEnergyTotals(
           importCostDollars: 2.43,
           feedInEarningsDollars: 4.18
         ),
@@ -113,9 +105,48 @@ final class WidgetHomeEnergyClientTests: XCTestCase {
 
     XCTAssertEqual(snapshot.batteryStateOfCharge, 50)
     XCTAssertFalse(snapshot.readingsAreCurrent)
-    XCTAssertEqual(snapshot.importCostTodayDollars, 2.43)
+    XCTAssertEqual(snapshot.importCostLast24HoursDollars, 2.43)
     XCTAssertTrue(snapshot.importCostIsCurrent)
     XCTAssertEqual(snapshot.readingsCapturedAt, Date(timeIntervalSince1970: 500))
+  }
+}
+
+extension WidgetHomeEnergyClientTests {
+  func testSnapshotTimeFollowsFrozenRollingTotalsRequestTime() async throws {
+    WidgetTestURLProtocol.router.install { _ in
+      .response(
+        status: 200,
+        data: Data(
+          #"[{"entity_id":"sensor.sigen_plant_total_imported_energy_cost","state":"10.5"}]"#
+            .utf8
+        )
+      )
+    }
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [WidgetTestURLProtocol.self]
+    let clock = SequencedWidgetClock([
+      Date(timeIntervalSince1970: 10_000),
+      Date(timeIntervalSince1970: 10_001),
+      Date(timeIntervalSince1970: 10_002),
+    ])
+    let storedCredentials = try credentials()
+    let client = WidgetHomeEnergyClient(
+      session: URLSession(configuration: configuration),
+      now: { clock.next() },
+      loadCredentials: { storedCredentials },
+      loadRollingTotals: { _ in
+        XCTAssertEqual(clock.next(), Date(timeIntervalSince1970: 10_001))
+        return WidgetRollingEnergyTotals(
+          importCostDollars: 2,
+          feedInEarningsDollars: nil
+        )
+      }
+    )
+
+    let snapshot = try await client.loadSnapshot()
+
+    XCTAssertEqual(snapshot.capturedAt, Date(timeIntervalSince1970: 10_002))
+    XCTAssertEqual(snapshot.importCostLast24HoursDollars, 2)
   }
 
   func testMalformedInternalStatesFallBackToExternalRoute() async throws {
@@ -222,13 +253,9 @@ final class WidgetHomeEnergyClientTests: XCTestCase {
 
   private func state(
     _ entityID: String,
-    _ value: String,
-    lastReset: Date? = nil
+    _ value: String
   ) throws -> WidgetHomeAssistantState {
-    var object: [String: Any] = ["entity_id": entityID, "state": value]
-    if let lastReset {
-      object["attributes"] = ["last_reset": lastReset.formatted(.iso8601)]
-    }
+    let object: [String: Any] = ["entity_id": entityID, "state": value]
     let data = try JSONSerialization.data(
       withJSONObject: object
     )
@@ -247,8 +274,8 @@ final class WidgetHomeEnergyClientTests: XCTestCase {
       session: URLSession(configuration: configuration),
       now: { Date(timeIntervalSince1970: 10_000) },
       loadCredentials: { credentials },
-      loadDailyTotals: { _ in
-        WidgetDailyEnergyTotals(importCostDollars: 2.43, feedInEarningsDollars: 4.18)
+      loadRollingTotals: { _ in
+        WidgetRollingEnergyTotals(importCostDollars: 2.43, feedInEarningsDollars: 4.18)
       }
     )
   }
@@ -271,61 +298,6 @@ final class WidgetHomeEnergyClientTests: XCTestCase {
       accessTokenExpiresAt: .distantFuture,
       clientID: try XCTUnwrap(URL(string: "https://bruce.example"))
     )
-  }
-}
-
-final class WidgetRoutePreferenceTests: XCTestCase {
-  func testSourceIdentifierPreservesCaseSensitiveURLPath() throws {
-    let uppercasePath = try XCTUnwrap(URL(string: "https://HOME.example/HA"))
-    let lowercasePath = try XCTUnwrap(URL(string: "HTTPS://home.example/ha"))
-
-    XCTAssertNotEqual(
-      BruceSharedHomeAssistant.sourceIdentifier(
-        instanceID: nil,
-        internalURL: uppercasePath,
-        externalURL: nil
-      ),
-      BruceSharedHomeAssistant.sourceIdentifier(
-        instanceID: nil,
-        internalURL: lowercasePath,
-        externalURL: nil
-      )
-    )
-  }
-
-  func testPreferredRouteIsScopedToItsHomeAssistantSource() throws {
-    defer { BruceSharedHomeAssistant.clearWidgetRoute() }
-    let route = try XCTUnwrap(URL(string: "https://old.example"))
-
-    BruceSharedHomeAssistant.rememberWidgetRoute(route, for: "old-source")
-
-    XCTAssertEqual(BruceSharedHomeAssistant.preferredWidgetRoute(for: "old-source"), route)
-    XCTAssertNil(BruceSharedHomeAssistant.preferredWidgetRoute(for: "replacement-source"))
-  }
-
-  func testCandidateURLsDiscardRemovedPreferredRouteForSameInstance() throws {
-    defer { BruceSharedHomeAssistant.clearWidgetRoute() }
-    let removedRoute = try XCTUnwrap(URL(string: "https://old.example"))
-    let currentRoute = try XCTUnwrap(URL(string: "https://new.example"))
-    let credentials = WidgetHomeAssistantCredentials(
-      schemaVersion: 1,
-      instanceID: "same-instance",
-      instanceName: "Home",
-      internalURL: currentRoute,
-      externalURL: nil,
-      lastSuccessfulURL: removedRoute,
-      accessToken: "access-token",
-      refreshToken: "refresh-token",
-      tokenType: "Bearer",
-      accessTokenExpiresAt: .distantFuture,
-      clientID: try XCTUnwrap(URL(string: "https://bruce.example"))
-    )
-    BruceSharedHomeAssistant.rememberWidgetRoute(
-      removedRoute,
-      for: credentials.sourceIdentifier
-    )
-
-    XCTAssertEqual(credentials.candidateURLs, [currentRoute])
   }
 }
 

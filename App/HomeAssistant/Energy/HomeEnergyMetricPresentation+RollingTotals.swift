@@ -1,16 +1,16 @@
 import SwiftUI
 
 extension HomeEnergyMetricPresentation {
-  static func costToday(
+  static func costLast24Hours(
     dollars: Double?,
-    status: HomeAssistantDailyEnergyMetricStatus = .current,
+    status: HomeAssistantRollingEnergyMetricStatus = .current,
     mode: BruceMode,
     locale: Locale = .current
   ) -> Self {
     let copy = HomeEnergyCopy(mode: mode)
     return Self(
-      title: copy.costToday,
-      value: dailyTotalValue(
+      title: copy.costLast24Hours,
+      value: rollingTotalValue(
         dollars,
         status: status,
         copy: copy,
@@ -18,23 +18,23 @@ extension HomeEnergyMetricPresentation {
       ),
       icon: "dollarsign.circle.fill",
       color: dollars == nil ? .secondary : .orange,
-      accessibilityLabel: copy.costTodayAccessibility,
-      statusText: dailyTotalStatus(dollars, status: status, copy: copy),
+      accessibilityLabel: copy.costLast24HoursAccessibility,
+      statusText: rollingTotalStatus(dollars, status: status, copy: copy),
       isUpdating: status == .refreshing,
       updateFailed: status == .failed
     )
   }
 
-  static func feedInEarningsToday(
+  static func feedInEarningsLast24Hours(
     dollars: Double?,
-    status: HomeAssistantDailyEnergyMetricStatus = .current,
+    status: HomeAssistantRollingEnergyMetricStatus = .current,
     mode: BruceMode,
     locale: Locale = .current
   ) -> Self {
     let copy = HomeEnergyCopy(mode: mode)
     return Self(
-      title: copy.feedInEarningsToday,
-      value: dailyTotalValue(
+      title: copy.feedInEarningsLast24Hours,
+      value: rollingTotalValue(
         dollars,
         status: status,
         copy: copy,
@@ -42,16 +42,16 @@ extension HomeEnergyMetricPresentation {
       ),
       icon: "banknote.fill",
       color: dollars == nil ? .secondary : .green,
-      accessibilityLabel: copy.feedInEarningsTodayAccessibility,
-      statusText: dailyTotalStatus(dollars, status: status, copy: copy),
+      accessibilityLabel: copy.feedInEarningsLast24HoursAccessibility,
+      statusText: rollingTotalStatus(dollars, status: status, copy: copy),
       isUpdating: status == .refreshing,
       updateFailed: status == .failed
     )
   }
 
-  private static func dailyTotalValue(
+  private static func rollingTotalValue(
     _ dollars: Double?,
-    status: HomeAssistantDailyEnergyMetricStatus,
+    status: HomeAssistantRollingEnergyMetricStatus,
     copy: HomeEnergyCopy,
     locale: Locale
   ) -> String {
@@ -59,7 +59,7 @@ extension HomeEnergyMetricPresentation {
       return copy.updating
     }
     if status == .failed, dollars == nil {
-      return copy.dailyTotalsLoadFailed
+      return copy.rollingTotalsLoadFailed
     }
     guard let dollars else { return copy.unavailable }
     return dollars.formatted(
@@ -69,9 +69,9 @@ extension HomeEnergyMetricPresentation {
     )
   }
 
-  private static func dailyTotalStatus(
+  private static func rollingTotalStatus(
     _ dollars: Double?,
-    status: HomeAssistantDailyEnergyMetricStatus,
+    status: HomeAssistantRollingEnergyMetricStatus,
     copy: HomeEnergyCopy
   ) -> String? {
     guard dollars != nil else { return nil }
@@ -81,7 +81,7 @@ extension HomeEnergyMetricPresentation {
     case .refreshing:
       copy.updatingLastKnownStatus
     case .failed:
-      copy.dailyTotalsUpdateFailedLastKnownStatus
+      copy.rollingTotalsUpdateFailedLastKnownStatus
     }
   }
 }

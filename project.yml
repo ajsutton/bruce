@@ -280,7 +280,8 @@ targets:
     platform: iOS
     sources:
       - path: WidgetTests
-      - path: Widget/WidgetDailyEnergyClient.swift
+      - path: Widget/WidgetRollingEnergyClient.swift
+      - path: Widget/WidgetEnergyWebSocketConnection.swift
       - path: Widget/WidgetHomeAssistantCredentials.swift
       - path: Widget/WidgetHomeEnergyClient+Snapshot.swift
       - path: Widget/WidgetHomeEnergyClient.swift
@@ -288,6 +289,9 @@ targets:
       - path: Widget/SourceScopedTaskCoalescer.swift
       - path: Widget/EnergyWidgetFreshnessSchedule.swift
       - path: Widget/EnergyWidgetRefreshReconciliation.swift
+      - path: Widget/EnergyWidgetCopy.swift
+      - path: App/Localizable.xcstrings
+        buildPhase: resources
       - path: App/WidgetSupport/HomeEnergyWidgetSnapshotStore.swift
         group: App/WidgetSupport
       - path: App/WidgetSupport/BruceSharedKeychain.swift
@@ -312,7 +316,8 @@ targets:
     platform: macOS
     sources:
       - path: WidgetTests
-      - path: Widget/WidgetDailyEnergyClient.swift
+      - path: Widget/WidgetRollingEnergyClient.swift
+      - path: Widget/WidgetEnergyWebSocketConnection.swift
       - path: Widget/WidgetHomeAssistantCredentials.swift
       - path: Widget/WidgetHomeEnergyClient+Snapshot.swift
       - path: Widget/WidgetHomeEnergyClient.swift
@@ -320,6 +325,9 @@ targets:
       - path: Widget/SourceScopedTaskCoalescer.swift
       - path: Widget/EnergyWidgetFreshnessSchedule.swift
       - path: Widget/EnergyWidgetRefreshReconciliation.swift
+      - path: Widget/EnergyWidgetCopy.swift
+      - path: App/Localizable.xcstrings
+        buildPhase: resources
       - path: App/WidgetSupport/HomeEnergyWidgetSnapshotStore.swift
         group: App/WidgetSupport
       - path: App/WidgetSupport/BruceSharedKeychain.swift

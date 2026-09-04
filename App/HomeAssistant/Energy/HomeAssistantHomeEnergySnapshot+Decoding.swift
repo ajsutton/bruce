@@ -36,15 +36,11 @@ extension HomeAssistantHomeEnergySnapshot {
     feedInPriceDollarsPerKilowattHour = value(
       Self.feedInPriceEntityID
     )
-    importCostTodayDollars = nil
-    feedInEarningsTodayDollars = nil
-    importCostCounterDollars = value(Self.importCostEntityID)
-    feedInEarningsCounterDollars = value(Self.feedInEarningsEntityID)
-    importCostCounterLastReset = entity(Self.importCostEntityID)?.lastReset
-    feedInEarningsCounterLastReset =
-      entity(Self.feedInEarningsEntityID)?.lastReset
-    importCostTodayStatus = .current
-    feedInEarningsTodayStatus = .current
-    dailyEnergyInterval = nil
+    importCostLast24HoursDollars = nil
+    feedInEarningsLast24HoursDollars = nil
+    importCostLast24HoursCapturedAt = nil
+    feedInEarningsLast24HoursCapturedAt = nil
+    importCostLast24HoursStatus = .current
+    feedInEarningsLast24HoursStatus = .current
   }
 }

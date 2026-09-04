@@ -9,15 +9,14 @@ struct HomeEnergyWidgetSnapshot: Codable, Equatable, Sendable {
   let gridPowerKilowatts: Double?
   let generalPriceDollarsPerKilowattHour: Double?
   let feedInPriceDollarsPerKilowattHour: Double?
-  let importCostTodayDollars: Double?
-  let feedInEarningsTodayDollars: Double?
+  let importCostLast24HoursDollars: Double?
+  let feedInEarningsLast24HoursDollars: Double?
   let readingsAreCurrent: Bool
   let importCostIsCurrent: Bool
   let feedInEarningsIsCurrent: Bool
   let readingsCapturedAt: Date
   let importCostCapturedAt: Date
   let feedInEarningsCapturedAt: Date
-  let dailyEnergyInterval: DateInterval?
 
   init(
     sourceIdentifier: String = "preview",
@@ -28,15 +27,14 @@ struct HomeEnergyWidgetSnapshot: Codable, Equatable, Sendable {
     gridPowerKilowatts: Double?,
     generalPriceDollarsPerKilowattHour: Double?,
     feedInPriceDollarsPerKilowattHour: Double?,
-    importCostTodayDollars: Double?,
-    feedInEarningsTodayDollars: Double?,
+    importCostLast24HoursDollars: Double?,
+    feedInEarningsLast24HoursDollars: Double?,
     readingsAreCurrent: Bool = true,
     importCostIsCurrent: Bool = true,
     feedInEarningsIsCurrent: Bool = true,
     readingsCapturedAt: Date? = nil,
     importCostCapturedAt: Date? = nil,
     feedInEarningsCapturedAt: Date? = nil,
-    dailyEnergyInterval: DateInterval? = nil
   ) {
     self.sourceIdentifier = sourceIdentifier
     self.capturedAt = capturedAt
@@ -46,15 +44,14 @@ struct HomeEnergyWidgetSnapshot: Codable, Equatable, Sendable {
     self.gridPowerKilowatts = gridPowerKilowatts
     self.generalPriceDollarsPerKilowattHour = generalPriceDollarsPerKilowattHour
     self.feedInPriceDollarsPerKilowattHour = feedInPriceDollarsPerKilowattHour
-    self.importCostTodayDollars = importCostTodayDollars
-    self.feedInEarningsTodayDollars = feedInEarningsTodayDollars
+    self.importCostLast24HoursDollars = importCostLast24HoursDollars
+    self.feedInEarningsLast24HoursDollars = feedInEarningsLast24HoursDollars
     self.readingsAreCurrent = readingsAreCurrent
     self.importCostIsCurrent = importCostIsCurrent
     self.feedInEarningsIsCurrent = feedInEarningsIsCurrent
     self.readingsCapturedAt = readingsCapturedAt ?? capturedAt
     self.importCostCapturedAt = importCostCapturedAt ?? capturedAt
     self.feedInEarningsCapturedAt = feedInEarningsCapturedAt ?? capturedAt
-    self.dailyEnergyInterval = dailyEnergyInterval
   }
 
   func hasSameReadings(as other: Self) -> Bool {
@@ -66,23 +63,28 @@ struct HomeEnergyWidgetSnapshot: Codable, Equatable, Sendable {
         == other.generalPriceDollarsPerKilowattHour
       && feedInPriceDollarsPerKilowattHour
         == other.feedInPriceDollarsPerKilowattHour
-      && importCostTodayDollars == other.importCostTodayDollars
-      && feedInEarningsTodayDollars == other.feedInEarningsTodayDollars
+      && importCostLast24HoursDollars == other.importCostLast24HoursDollars
+      && feedInEarningsLast24HoursDollars == other.feedInEarningsLast24HoursDollars
       && readingsAreCurrent == other.readingsAreCurrent
       && importCostIsCurrent == other.importCostIsCurrent
       && feedInEarningsIsCurrent == other.feedInEarningsIsCurrent
   }
 
-  var oldestLastKnownCapture: Date? {
+  var oldestDisplayedCapture: Date {
     var captures: [Date] = []
-    if !readingsAreCurrent { captures.append(readingsCapturedAt) }
-    if !importCostIsCurrent { captures.append(importCostCapturedAt) }
-    if !feedInEarningsIsCurrent { captures.append(feedInEarningsCapturedAt) }
-    return captures.min()
+    if hasLiveReadings { captures.append(readingsCapturedAt) }
+    if importCostLast24HoursDollars != nil { captures.append(importCostCapturedAt) }
+    if feedInEarningsLast24HoursDollars != nil { captures.append(feedInEarningsCapturedAt) }
+    return captures.min() ?? capturedAt
   }
 
-  static func interval(_ interval: DateInterval?, contains timestamp: Date) -> Bool {
-    guard let interval else { return false }
-    return interval.start <= timestamp && timestamp < interval.end
+  private var hasLiveReadings: Bool {
+    pvPowerKilowatts != nil
+      || batteryStateOfCharge != nil
+      || homeConsumptionKilowatts != nil
+      || gridPowerKilowatts != nil
+      || generalPriceDollarsPerKilowattHour != nil
+      || feedInPriceDollarsPerKilowattHour != nil
   }
+
 }

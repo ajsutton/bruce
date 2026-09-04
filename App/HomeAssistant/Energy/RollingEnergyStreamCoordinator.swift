@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
 
-actor DailyEnergyStreamCoordinator {
+actor RollingEnergyStreamCoordinator {
   typealias Update =
     HomeAssistantLiveUpdate<HomeAssistantHomeEnergySnapshot>
 
@@ -10,7 +10,7 @@ actor DailyEnergyStreamCoordinator {
     category: "HomeAssistantEnergy"
   )
 
-  private let loader: (any HomeAssistantDailyEnergyTotalsLoading)?
+  private let loader: (any HomeAssistantRollingEnergyTotalsLoading)?
   private let now: @Sendable () -> Date
   private let sleepUntil: @Sendable (Date) async throws -> Void
   private let requestTimeout: Duration
@@ -18,19 +18,18 @@ actor DailyEnergyStreamCoordinator {
   private let finishUpdates: @Sendable ((any Error)?) -> Void
   private let cancelStates: @Sendable () -> Void
 
-  private var refreshState = HomeAssistantDailyEnergyRefreshState()
+  private var refreshState = HomeAssistantRollingEnergyRefreshState()
   private var latestSnapshot: HomeAssistantHomeEnergySnapshot?
   private var refreshTask: Task<Void, Never>?
   private var refreshGeneration: UUID?
   private var wakeTask: Task<Void, Never>?
   private var wakeGeneration: UUID?
-  private var importStatus: HomeAssistantDailyEnergyMetricStatus = .refreshing
-  private var feedInStatus: HomeAssistantDailyEnergyMetricStatus = .refreshing
-  private var retriedExpiredResult = false
+  private var importStatus: HomeAssistantRollingEnergyMetricStatus = .refreshing
+  private var feedInStatus: HomeAssistantRollingEnergyMetricStatus = .refreshing
   private var isFinished = false
 
   init(
-    loader: (any HomeAssistantDailyEnergyTotalsLoading)?,
+    loader: (any HomeAssistantRollingEnergyTotalsLoading)?,
     now: @escaping @Sendable () -> Date,
     sleepUntil: @escaping @Sendable (Date) async throws -> Void,
     requestTimeout: Duration,
@@ -45,7 +44,7 @@ actor DailyEnergyStreamCoordinator {
     self.yield = yield
     finishUpdates = finish
     self.cancelStates = cancelStates
-    let initialStatus: HomeAssistantDailyEnergyMetricStatus =
+    let initialStatus: HomeAssistantRollingEnergyMetricStatus =
       loader == nil ? .current : .refreshing
     importStatus = initialStatus
     feedInStatus = initialStatus
@@ -59,13 +58,12 @@ actor DailyEnergyStreamCoordinator {
       refreshState.noteControlTransition()
       cancelRefresh()
       cancelWake()
-      retriedExpiredResult = false
       setTransitionStatus()
       yield(
         Self.controlUpdate(
           phase: update.phase,
-          snapshot: snapshot.replacingDailyTotals(
-            refreshState.totals(adjustedFor: snapshot, at: now()),
+          snapshot: snapshot.replacingRollingTotals(
+            refreshState.totals,
             importStatus: importStatus,
             feedInStatus: feedInStatus
           )
@@ -77,23 +75,16 @@ actor DailyEnergyStreamCoordinator {
     let timestamp = now()
     let shouldRefresh =
       loader != nil
-      && refreshState.shouldRefresh(for: snapshot, at: timestamp)
+      && refreshState.shouldRefresh(at: timestamp)
     if shouldRefresh {
-      if refreshTask != nil, refreshState.detectedDiscontinuity {
-        cancelRefresh()
-      }
       if refreshTask == nil {
-        retriedExpiredResult = false
         startRefresh()
       }
     }
-    let totals = refreshState.totals(
-      adjustedFor: snapshot,
-      at: timestamp
-    )
+    let totals = refreshState.totals
     yield(
       .live(
-        snapshot.replacingDailyTotals(
+        snapshot.replacingRollingTotals(
           totals,
           importStatus: importStatus,
           feedInStatus: feedInStatus
@@ -139,40 +130,22 @@ actor DailyEnergyStreamCoordinator {
   }
 
   private func refreshSucceeded(
-    _ totals: HomeAssistantDailyEnergyTotals,
+    _ totals: HomeAssistantRollingEnergyTotals,
     generation: UUID
   ) {
-    guard !isFinished, refreshGeneration == generation,
-      let latestSnapshot
-    else {
+    guard !isFinished, refreshGeneration == generation, latestSnapshot != nil else {
       return
     }
     let timestamp = now()
-    guard
-      totals.interval.start <= timestamp
-        && timestamp < totals.interval.end
-    else {
-      retryExpiredResult(generation: generation)
-      return
-    }
     refreshTask = nil
     refreshGeneration = nil
-    retriedExpiredResult = false
-    refreshState.noteSuccess(
-      totals,
-      snapshot: latestSnapshot,
-      at: timestamp
-    )
+    refreshState.noteSuccess(totals, at: timestamp)
     importStatus =
-      if refreshState.needsImportRefresh {
-        refreshState.isRecoveringImportReset ? .refreshing : .failed
-      } else {
+      if refreshState.needsImportRefresh { .failed } else {
         refreshState.hasPresentableImportCost ? .current : .failed
       }
     feedInStatus =
-      if refreshState.needsFeedInRefresh {
-        refreshState.isRecoveringFeedInReset ? .refreshing : .failed
-      } else {
+      if refreshState.needsFeedInRefresh { .failed } else {
         refreshState.hasPresentableFeedInEarnings ? .current : .failed
       }
     yieldLatestSnapshot()
@@ -204,36 +177,18 @@ actor DailyEnergyStreamCoordinator {
       feedInStatus = .failed
     }
     Self.logger.error(
-      "Couldn’t refresh today’s Home Assistant energy totals: \(String(describing: error), privacy: .private)"
+      "Couldn’t refresh Home Assistant’s 24-hour energy totals: \(String(describing: error), privacy: .private)"
     )
     yieldLatestSnapshot()
     scheduleWake()
-  }
-
-  private func retryExpiredResult(generation: UUID) {
-    guard !retriedExpiredResult else {
-      refreshFailed(
-        HomeAssistantAPIError.invalidResponse,
-        generation: generation
-      )
-      return
-    }
-    refreshTask = nil
-    refreshGeneration = nil
-    retriedExpiredResult = true
-    startRefresh()
-    yieldLatestSnapshot()
   }
 
   private func yieldLatestSnapshot() {
     guard let latestSnapshot else { return }
     yield(
       .live(
-        latestSnapshot.replacingDailyTotals(
-          refreshState.totals(
-            adjustedFor: latestSnapshot,
-            at: now()
-          ),
+        latestSnapshot.replacingRollingTotals(
+          refreshState.totals,
           importStatus: importStatus,
           feedInStatus: feedInStatus
         )
@@ -248,14 +203,14 @@ actor DailyEnergyStreamCoordinator {
   }
 
   private func setTransitionStatus() {
-    let status: HomeAssistantDailyEnergyMetricStatus =
+    let status: HomeAssistantRollingEnergyMetricStatus =
       loader == nil ? .current : .refreshing
     importStatus = status
     feedInStatus = status
   }
 }
 
-extension DailyEnergyStreamCoordinator {
+extension RollingEnergyStreamCoordinator {
   fileprivate func scheduleWake() {
     cancelWake()
     guard let deadline = refreshState.nextRefreshDate(after: now()) else {
@@ -275,24 +230,16 @@ extension DailyEnergyStreamCoordinator {
   }
 
   fileprivate func wake(generation: UUID) {
-    guard !isFinished, wakeGeneration == generation,
-      let latestSnapshot
-    else {
+    guard !isFinished, wakeGeneration == generation, latestSnapshot != nil else {
       return
     }
     wakeTask = nil
     wakeGeneration = nil
     let timestamp = now()
-    guard
-      refreshState.shouldRefresh(
-        for: latestSnapshot,
-        at: timestamp
-      )
-    else {
+    guard refreshState.shouldRefresh(at: timestamp) else {
       scheduleWake()
       return
     }
-    retriedExpiredResult = false
     startRefresh()
     yieldLatestSnapshot()
   }
@@ -304,14 +251,14 @@ extension DailyEnergyStreamCoordinator {
   }
 
   nonisolated fileprivate static func load(
-    from loader: any HomeAssistantDailyEnergyTotalsLoading,
+    from loader: any HomeAssistantRollingEnergyTotalsLoading,
     timeout: Duration
-  ) async throws -> HomeAssistantDailyEnergyTotals {
+  ) async throws -> HomeAssistantRollingEnergyTotals {
     try await withThrowingTaskGroup(
-      of: HomeAssistantDailyEnergyTotals.self
+      of: HomeAssistantRollingEnergyTotals.self
     ) { group in
       group.addTask {
-        try await loader.loadDailyEnergyTotals()
+        try await loader.loadRollingEnergyTotals()
       }
       group.addTask {
         try await Task.sleep(for: timeout)

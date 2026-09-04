@@ -90,9 +90,7 @@ extension EnergyWidgetView {
 
   private var freshnessCaptureDate: Date? {
     guard let snapshot = entry.snapshot else { return nil }
-    return hasLastKnownValues
-      ? snapshot.oldestLastKnownCapture ?? snapshot.capturedAt
-      : snapshot.capturedAt
+    return snapshot.oldestDisplayedCapture
   }
 
   private var freshnessMinutes: Int {

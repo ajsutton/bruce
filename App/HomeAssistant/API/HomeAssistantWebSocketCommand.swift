@@ -1,12 +1,27 @@
 import Foundation
 
 struct HomeAssistantWebSocketCommand: Sendable {
+  enum StatisticsPeriod: String, Sendable {
+    case fiveMinutes = "5minute"
+  }
+
   let type: String
   let fields: Fields
 
   enum Fields: Sendable {
     case none
-    case statistics(start: String, end: String, statisticIDs: [String])
+    case statistic(
+      start: String,
+      end: String,
+      statisticID: String
+    )
+    case statistics(
+      start: String,
+      end: String,
+      statisticIDs: [String],
+      period: StatisticsPeriod,
+      types: [String]
+    )
   }
 
   init(type: String, fields: Fields = .none) {
@@ -16,12 +31,20 @@ struct HomeAssistantWebSocketCommand: Sendable {
 
   func data(id: Int) throws -> Data {
     var object: [String: Any] = ["id": id, "type": type]
-    if case .statistics(let start, let end, let statisticIDs) = fields {
+    switch fields {
+    case .none:
+      break
+    case .statistic(let start, let end, let statisticID):
+      object["start_time"] = start
+      object["end_time"] = end
+      object["statistic_id"] = statisticID
+      object["types"] = ["change"]
+    case .statistics(let start, let end, let statisticIDs, let period, let types):
       object["start_time"] = start
       object["end_time"] = end
       object["statistic_ids"] = statisticIDs
-      object["period"] = "day"
-      object["types"] = ["change", "last_reset", "state"]
+      object["period"] = period.rawValue
+      object["types"] = types
     }
     return try JSONSerialization.data(withJSONObject: object)
   }

@@ -31,20 +31,20 @@ extension HomeEnergyWidgetSnapshot {
       ),
       EnergyWidgetMetric(
         id: "cost",
-        title: copy.costToday,
-        value: currency(importCostTodayDollars, copy: copy, locale: locale),
+        title: copy.costLast24Hours,
+        value: currency(importCostLast24HoursDollars, copy: copy, locale: locale),
         icon: "dollarsign.circle.fill",
-        color: importCostTodayDollars == nil ? .secondary : .orange,
-        accessibilityLabel: copy.costTodayAccessibility,
+        color: importCostLast24HoursDollars == nil ? .secondary : .orange,
+        accessibilityLabel: copy.costLast24HoursAccessibility,
         isLastKnown: !importCostIsCurrent
       ),
       EnergyWidgetMetric(
         id: "earnings",
-        title: copy.earningsToday,
-        value: currency(feedInEarningsTodayDollars, copy: copy, locale: locale),
+        title: copy.earningsLast24Hours,
+        value: currency(feedInEarningsLast24HoursDollars, copy: copy, locale: locale),
         icon: "banknote.fill",
-        color: feedInEarningsTodayDollars == nil ? .secondary : .green,
-        accessibilityLabel: copy.earningsTodayAccessibility,
+        color: feedInEarningsLast24HoursDollars == nil ? .secondary : .green,
+        accessibilityLabel: copy.earningsLast24HoursAccessibility,
         isLastKnown: !feedInEarningsIsCurrent
       ),
     ]

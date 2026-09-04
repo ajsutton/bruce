@@ -2,18 +2,17 @@ import XCTest
 
 @testable import Bruce
 
-final class DailyEnergyStreamSchedulingTests: XCTestCase {
-  func testDayRolloverRefreshesWithoutAnotherStateUpdate() async throws {
+final class RollingEnergyStreamSchedulingTests: XCTestCase {
+  func testRollingDeadlineRefreshesWithoutAnotherStateUpdate() async throws {
     let timestamp = Date(timeIntervalSince1970: 10_000)
-    let clock = SchedulingDailyEnergyClock(timestamp)
+    let clock = SchedulingRollingEnergyClock(timestamp)
     let delay = ControlledHomeEnergyDelay(delayCount: 2)
-    let loader = SequencedSchedulingDailyTotalsLoader(
+    let loader = SequencedSchedulingRollingTotalsLoader(
       results: [
         .success(
           totals(
             importCost: 0.20,
             earnings: 0.91,
-            start: timestamp.addingTimeInterval(-60),
             end: timestamp.addingTimeInterval(10)
           )
         ),
@@ -21,7 +20,6 @@ final class DailyEnergyStreamSchedulingTests: XCTestCase {
           totals(
             importCost: 0.01,
             earnings: 0.02,
-            start: timestamp.addingTimeInterval(10),
             end: timestamp.addingTimeInterval(24 * 60 * 60)
           )
         ),
@@ -48,23 +46,22 @@ final class DailyEnergyStreamSchedulingTests: XCTestCase {
     let refreshed = try liveSnapshot(probe.value(at: 3))
 
     XCTAssertEqual(loader.requestCount, 2)
-    XCTAssertEqual(refreshed.importCostTodayDollars, 0.01)
-    XCTAssertEqual(refreshed.feedInEarningsTodayDollars, 0.02)
+    XCTAssertEqual(refreshed.importCostLast24HoursDollars, 0.01)
+    XCTAssertEqual(refreshed.feedInEarningsLast24HoursDollars, 0.02)
     await probe.cancel()
   }
 
   func testFailedRequestRetriesWithoutAnotherStateUpdate() async throws {
     let timestamp = Date(timeIntervalSince1970: 10_000)
-    let clock = SchedulingDailyEnergyClock(timestamp)
+    let clock = SchedulingRollingEnergyClock(timestamp)
     let delay = ControlledHomeEnergyDelay(delayCount: 2)
-    let loader = SequencedSchedulingDailyTotalsLoader(
+    let loader = SequencedSchedulingRollingTotalsLoader(
       results: [
         .failure(URLError(.timedOut)),
         .success(
           totals(
             importCost: 0.20,
             earnings: 0.91,
-            start: timestamp,
             end: timestamp.addingTimeInterval(24 * 60 * 60)
           )
         ),
@@ -82,7 +79,7 @@ final class DailyEnergyStreamSchedulingTests: XCTestCase {
       timeout: 1
     )
     let failed = try liveSnapshot(probe.value(at: 1))
-    XCTAssertEqual(failed.importCostTodayStatus, .failed)
+    XCTAssertEqual(failed.importCostLast24HoursStatus, .failed)
 
     clock.advanceToRetry()
     delay.finish(0)
@@ -93,25 +90,24 @@ final class DailyEnergyStreamSchedulingTests: XCTestCase {
     let recovered = try liveSnapshot(probe.value(at: 3))
 
     XCTAssertEqual(loader.requestCount, 2)
-    XCTAssertEqual(recovered.importCostTodayStatus, .current)
-    XCTAssertEqual(recovered.importCostTodayDollars, 0.20)
+    XCTAssertEqual(recovered.importCostLast24HoursStatus, .current)
+    XCTAssertEqual(recovered.importCostLast24HoursDollars, 0.20)
     await probe.cancel()
   }
 
-  func testComplementaryPartialResultsConvergeWithoutAnotherRetry()
+  func testComplementaryPartialResultsKeepOmittedMetricStaleAndRetrying()
     async throws
   {
     let timestamp = Date(timeIntervalSince1970: 10_000)
-    let clock = SchedulingDailyEnergyClock(timestamp)
+    let clock = SchedulingRollingEnergyClock(timestamp)
     let delay = ControlledHomeEnergyDelay(delayCount: 2)
     let intervalEnd = timestamp.addingTimeInterval(24 * 60 * 60)
-    let loader = SequencedSchedulingDailyTotalsLoader(
+    let loader = SequencedSchedulingRollingTotalsLoader(
       results: [
         .success(
           totals(
             importCost: 0.20,
             earnings: nil,
-            start: timestamp,
             end: intervalEnd
           )
         ),
@@ -119,7 +115,6 @@ final class DailyEnergyStreamSchedulingTests: XCTestCase {
           totals(
             importCost: nil,
             earnings: 0.91,
-            start: timestamp,
             end: intervalEnd
           )
         ),
@@ -137,9 +132,7 @@ final class DailyEnergyStreamSchedulingTests: XCTestCase {
       timeout: 1
     )
     let partial = try liveSnapshot(probe.value(at: 1))
-    XCTAssertEqual(partial.importCostTodayDollars, 0.20)
-    XCTAssertEqual(partial.importCostTodayStatus, .current)
-    XCTAssertEqual(partial.feedInEarningsTodayStatus, .failed)
+    assertInitialPartialTotals(partial)
 
     clock.advanceToRetry()
     delay.finish(0)
@@ -150,14 +143,14 @@ final class DailyEnergyStreamSchedulingTests: XCTestCase {
     let complete = try liveSnapshot(probe.value(at: 3))
 
     XCTAssertEqual(loader.requestCount, 2)
-    assertComplementaryTotalsAreCurrent(complete)
-    XCTAssertEqual(clock.deadline(at: 1), intervalEnd)
+    assertComplementaryPartialTotals(complete)
+    assertSecondPartialRetryDeadline(clock.deadline(at: 1), startingAt: timestamp)
     await probe.cancel()
   }
 
   private func makeStream(
-    loader: SequencedSchedulingDailyTotalsLoader,
-    clock: SchedulingDailyEnergyClock,
+    loader: SequencedSchedulingRollingTotalsLoader,
+    clock: SchedulingRollingEnergyClock,
     delay: ControlledHomeEnergyDelay
   ) -> (
     ControlledStateSource,
@@ -169,9 +162,9 @@ final class DailyEnergyStreamSchedulingTests: XCTestCase {
     let stream = HomeAssistantHomeEnergyStream(
       states: HomeAssistantStateHub(source: source),
       loader: SchedulingUnusedHomeEnergyLoader(),
-      dailyTotalsLoader: loader,
+      rollingTotalsLoader: loader,
       now: { clock.now },
-      dailyRefreshSleep: { deadline in
+      rollingRefreshSleep: { deadline in
         clock.record(deadline: deadline)
         try await delay.sleep(.zero)
       }
@@ -189,16 +182,6 @@ final class DailyEnergyStreamSchedulingTests: XCTestCase {
             "entity_id":"\(HomeAssistantHomeEnergySnapshot.pvPowerEntityID)",
             "state":"8.4",
             "attributes":{}
-          },
-          {
-            "entity_id":"\(HomeAssistantHomeEnergySnapshot.importCostEntityID)",
-            "state":"2",
-            "attributes":{"last_reset":"initial"}
-          },
-          {
-            "entity_id":"\(HomeAssistantHomeEnergySnapshot.feedInEarningsEntityID)",
-            "state":"4",
-            "attributes":{"last_reset":"initial"}
           }
         ]
         """.utf8
@@ -209,13 +192,12 @@ final class DailyEnergyStreamSchedulingTests: XCTestCase {
   private func totals(
     importCost: Double?,
     earnings: Double?,
-    start: Date,
     end: Date
-  ) -> HomeAssistantDailyEnergyTotals {
-    HomeAssistantDailyEnergyTotals(
+  ) -> HomeAssistantRollingEnergyTotals {
+    HomeAssistantRollingEnergyTotals(
       importCostDollars: importCost,
       feedInEarningsDollars: earnings,
-      interval: DateInterval(start: start, end: end)
+      refreshAfter: end
     )
   }
 
@@ -229,46 +211,72 @@ final class DailyEnergyStreamSchedulingTests: XCTestCase {
   }
 }
 
-private func assertComplementaryTotalsAreCurrent(
-  _ snapshot: HomeAssistantHomeEnergySnapshot
-) {
-  XCTAssertEqual(snapshot.importCostTodayDollars, 0.20)
-  XCTAssertEqual(snapshot.feedInEarningsTodayDollars, 0.91)
-  XCTAssertEqual(snapshot.importCostTodayStatus, .current)
-  XCTAssertEqual(snapshot.feedInEarningsTodayStatus, .current)
-}
-
-extension DailyEnergyStreamSchedulingTests {
-  func testDayBoundaryPreemptsPartialResultRetry() async throws {
+extension RollingEnergyStreamSchedulingTests {
+  func testRepeatedFailuresDoNotIncreaseNormalRefreshCadence() async throws {
     let timestamp = Date(timeIntervalSince1970: 10_000)
-    let clock = SchedulingDailyEnergyClock(timestamp)
+    let clock = SchedulingRollingEnergyClock(timestamp)
+    let delay = ControlledHomeEnergyDelay(delayCount: 3)
+    let loader = SequencedSchedulingRollingTotalsLoader(
+      results: [
+        .failure(URLError(.timedOut)),
+        .failure(URLError(.timedOut)),
+        .failure(URLError(.timedOut)),
+      ]
+    )
+    let (source, probe) = makeStream(loader: loader, clock: clock, delay: delay)
+    await fulfillment(of: [source.started], timeout: 1)
+    source.yield(.live(try states()))
+    await fulfillment(
+      of: [probe.received(at: 1), delay.started(at: 0)],
+      timeout: 1
+    )
+
+    clock.advanceToRetry()
+    delay.finish(0)
+    await fulfillment(
+      of: [probe.received(at: 3), delay.started(at: 1)],
+      timeout: 1
+    )
+    clock.advanceToRetry()
+    delay.finish(1)
+    await fulfillment(
+      of: [probe.received(at: 5), delay.started(at: 2)],
+      timeout: 1
+    )
+
+    XCTAssertEqual(loader.requestCount, 3)
+    XCTAssertEqual(
+      clock.deadline(at: 0),
+      timestamp.addingTimeInterval(HomeAssistantRollingEnergyRefreshState.failureRetryInterval)
+    )
+    XCTAssertEqual(
+      clock.deadline(at: 1),
+      timestamp.addingTimeInterval(2 * HomeAssistantRollingEnergyRefreshState.failureRetryInterval)
+    )
+    XCTAssertEqual(
+      clock.deadline(at: 2),
+      timestamp.addingTimeInterval(3 * HomeAssistantRollingEnergyRefreshState.failureRetryInterval)
+    )
+    await probe.cancel()
+  }
+
+  func testFailedDeadlineRefreshSchedulesOnlyTheFutureRetry() async throws {
+    let timestamp = Date(timeIntervalSince1970: 10_000)
+    let clock = SchedulingRollingEnergyClock(timestamp)
     let delay = ControlledHomeEnergyDelay(delayCount: 2)
-    let intervalEnd = timestamp.addingTimeInterval(10)
-    let loader = SequencedSchedulingDailyTotalsLoader(
+    let loader = SequencedSchedulingRollingTotalsLoader(
       results: [
         .success(
           totals(
             importCost: 0.20,
-            earnings: nil,
-            start: timestamp.addingTimeInterval(-60),
-            end: intervalEnd
+            earnings: 0.91,
+            end: timestamp.addingTimeInterval(10)
           )
         ),
-        .success(
-          totals(
-            importCost: 0.01,
-            earnings: 0.02,
-            start: intervalEnd,
-            end: intervalEnd.addingTimeInterval(24 * 60 * 60)
-          )
-        ),
+        .failure(URLError(.timedOut)),
       ]
     )
-    let (source, probe) = makeStream(
-      loader: loader,
-      clock: clock,
-      delay: delay
-    )
+    let (source, probe) = makeStream(loader: loader, clock: clock, delay: delay)
     await fulfillment(of: [source.started], timeout: 1)
     source.yield(.live(try states()))
     await fulfillment(
@@ -282,16 +290,20 @@ extension DailyEnergyStreamSchedulingTests {
       of: [probe.received(at: 3), delay.started(at: 1)],
       timeout: 1
     )
-    let refreshed = try liveSnapshot(probe.value(at: 3))
 
     XCTAssertEqual(loader.requestCount, 2)
-    XCTAssertEqual(refreshed.importCostTodayDollars, 0.01)
-    XCTAssertEqual(refreshed.feedInEarningsTodayDollars, 0.02)
+    XCTAssertEqual(
+      clock.deadline(at: 1),
+      timestamp.addingTimeInterval(
+        10 + HomeAssistantRollingEnergyRefreshState.failureRetryInterval
+      )
+    )
     await probe.cancel()
   }
+
 }
 
-private final class SchedulingDailyEnergyClock: @unchecked Sendable {
+private final class SchedulingRollingEnergyClock: @unchecked Sendable {
   private let lock = NSLock()
   private var storedNow: Date
   private var deadlines: [Date] = []
@@ -311,7 +323,7 @@ private final class SchedulingDailyEnergyClock: @unchecked Sendable {
   }
 
   func advanceToRetry() {
-    advance(by: HomeAssistantDailyEnergyRefreshState.failureRetryInterval)
+    advance(by: HomeAssistantRollingEnergyRefreshState.failureRetryInterval)
   }
 
   func record(deadline: Date) {
@@ -327,14 +339,14 @@ private final class SchedulingDailyEnergyClock: @unchecked Sendable {
   }
 }
 
-private final class SequencedSchedulingDailyTotalsLoader:
-  HomeAssistantDailyEnergyTotalsLoading, @unchecked Sendable
+private final class SequencedSchedulingRollingTotalsLoader:
+  HomeAssistantRollingEnergyTotalsLoading, @unchecked Sendable
 {
   private let lock = NSLock()
-  private var results: [Result<HomeAssistantDailyEnergyTotals, any Error>]
+  private var results: [Result<HomeAssistantRollingEnergyTotals, any Error>]
   private var storedRequestCount = 0
 
-  init(results: [Result<HomeAssistantDailyEnergyTotals, any Error>]) {
+  init(results: [Result<HomeAssistantRollingEnergyTotals, any Error>]) {
     self.results = results
   }
 
@@ -342,18 +354,10 @@ private final class SequencedSchedulingDailyTotalsLoader:
     lock.withLock { storedRequestCount }
   }
 
-  func loadDailyEnergyTotals() async throws -> HomeAssistantDailyEnergyTotals {
+  func loadRollingEnergyTotals() async throws -> HomeAssistantRollingEnergyTotals {
     try lock.withLock {
       storedRequestCount += 1
       return try results.removeFirst().get()
     }
-  }
-}
-
-private struct SchedulingUnusedHomeEnergyLoader:
-  HomeAssistantHomeEnergyLoading
-{
-  func loadHomeEnergySnapshot() async throws -> HomeAssistantHomeEnergySnapshot {
-    throw HomeAssistantAPIError.invalidResponse
   }
 }

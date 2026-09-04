@@ -54,17 +54,8 @@ struct EnergyWidgetProvider: TimelineProvider {
 
   private static func minuteEntries(startingWith entry: EnergyWidgetEntry) -> [EnergyWidgetEntry] {
     guard let snapshot = entry.snapshot else { return [entry] }
-    let hasLastKnownValues =
-      entry.freshness == .lastKnown
-      || !snapshot.readingsAreCurrent
-      || !snapshot.importCostIsCurrent
-      || !snapshot.feedInEarningsIsCurrent
-    let referenceDate =
-      hasLastKnownValues
-      ? snapshot.oldestLastKnownCapture ?? snapshot.capturedAt
-      : snapshot.capturedAt
     return EnergyWidgetFreshnessSchedule.entryDates(
-      referenceDate: referenceDate,
+      referenceDate: snapshot.oldestDisplayedCapture,
       startingAt: entry.date
     ).map { date in
       if date == entry.date {
@@ -275,8 +266,8 @@ extension EnergyWidgetEntry {
       gridPowerKilowatts: -3.2,
       generalPriceDollarsPerKilowattHour: 0.284,
       feedInPriceDollarsPerKilowattHour: 0.08,
-      importCostTodayDollars: 2.43,
-      feedInEarningsTodayDollars: 4.18
+      importCostLast24HoursDollars: 2.43,
+      feedInEarningsLast24HoursDollars: 4.18
     ),
     freshness: .current,
     isFullBruce: false
@@ -292,8 +283,8 @@ extension EnergyWidgetEntry {
       gridPowerKilowatts: 4.8,
       generalPriceDollarsPerKilowattHour: 0.612,
       feedInPriceDollarsPerKilowattHour: -0.05,
-      importCostTodayDollars: 12.48,
-      feedInEarningsTodayDollars: 0.04,
+      importCostLast24HoursDollars: 12.48,
+      feedInEarningsLast24HoursDollars: 0.04,
       importCostIsCurrent: false,
       feedInEarningsIsCurrent: false
     ),

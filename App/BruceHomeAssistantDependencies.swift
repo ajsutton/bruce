@@ -143,7 +143,7 @@ struct BruceHomeAssistantDependencies {
       loader: HomeAssistantHomeEnergyStream(
         states: context.states,
         loader: context.apiClient,
-        dailyTotalsLoader: HomeAssistantDailyEnergyTotalsClient(
+        rollingTotalsLoader: HomeAssistantRollingEnergyTotalsClient(
           commands: context.states
         )
       ),

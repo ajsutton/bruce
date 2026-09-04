@@ -4417,39 +4417,39 @@
         }
       }
     },
-    "homeEnergy.costToday" : {
+    "homeEnergy.costLast24Hours" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cost today"
+            "value" : "24-hour cost"
           }
         },
         "en-AU" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Today’s Wallet Barbecue"
+            "value" : "24-Hour Wallet Barbecue"
           }
         }
       }
     },
-    "homeEnergy.costTodayAccessibility" : {
+    "homeEnergy.costLast24HoursAccessibility" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Electricity import cost today"
+            "value" : "Electricity import cost over the last 24 hours"
           }
         },
         "en-AU" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Electricity import cost today — today’s wallet barbecue"
+            "value" : "Electricity import cost over the last 24 hours — 24-hour wallet barbecue"
           }
         }
       }
     },
-    "homeEnergy.dailyTotalsLoadFailed" : {
+    "homeEnergy.rollingTotalsLoadFailed" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4465,7 +4465,7 @@
         }
       }
     },
-    "homeEnergy.dailyTotalsUpdateFailedLastKnown" : {
+    "homeEnergy.rollingTotalsUpdateFailedLastKnown" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4481,7 +4481,7 @@
         }
       }
     },
-    "homeEnergy.dailyTotalsUpdateFailedLastKnownStatus" : {
+    "homeEnergy.rollingTotalsUpdateFailedLastKnownStatus" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4545,34 +4545,34 @@
         }
       }
     },
-    "homeEnergy.feedInEarningsToday" : {
+    "homeEnergy.feedInEarningsLast24Hours" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Feed-in earnings"
+            "value" : "24-hour feed-in earnings"
           }
         },
         "en-AU" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sunshine Cash Haul"
+            "value" : "24-Hour Sunshine Cash Haul"
           }
         }
       }
     },
-    "homeEnergy.feedInEarningsTodayAccessibility" : {
+    "homeEnergy.feedInEarningsLast24HoursAccessibility" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Electricity feed-in earnings today"
+            "value" : "Electricity feed-in earnings over the last 24 hours"
           }
         },
         "en-AU" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Electricity feed-in earnings today — sunshine cash haul"
+            "value" : "Electricity feed-in earnings over the last 24 hours — 24-hour sunshine cash haul"
           }
         }
       }
@@ -6418,36 +6418,36 @@
         }
       }
     },
-    "widget.costToday" : {
+    "widget.costLast24Hours" : {
       "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cost"
+            "value" : "24h cost"
           }
         },
         "en-AU" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wallet"
+            "value" : "24h wallet"
           }
         }
       }
     },
-    "widget.earningsToday" : {
+    "widget.earningsLast24Hours" : {
       "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Earnings"
+            "value" : "24h earnings"
           }
         },
         "en-AU" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Payday"
+            "value" : "24h payday"
           }
         }
       }

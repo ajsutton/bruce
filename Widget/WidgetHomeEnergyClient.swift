@@ -9,8 +9,8 @@ struct WidgetHomeEnergyClient: Sendable {
       WidgetHomeAssistantCredentials,
       WidgetHomeAssistantCredentials
     ) throws -> Void
-  private let loadDailyTotals:
-    @Sendable (WidgetHomeAssistantCredentials) async throws -> WidgetDailyEnergyTotals
+  private let loadRollingTotals:
+    @Sendable (WidgetHomeAssistantCredentials) async throws -> WidgetRollingEnergyTotals
 
   init(
     session: URLSession = .shared,
@@ -25,8 +25,8 @@ struct WidgetHomeEnergyClient: Sendable {
         replacing: originalCredentials
       )
     }
-    loadDailyTotals = {
-      try await WidgetDailyEnergyClient(session: session, now: now)
+    loadRollingTotals = {
+      try await WidgetRollingEnergyClient(session: session, now: now)
         .loadTotals(using: $0)
     }
   }
@@ -40,21 +40,20 @@ struct WidgetHomeEnergyClient: Sendable {
         WidgetHomeAssistantCredentials,
         WidgetHomeAssistantCredentials
       ) throws -> Void = { _, _ in },
-    loadDailyTotals:
+    loadRollingTotals:
       @escaping @Sendable (WidgetHomeAssistantCredentials) async throws
-      -> WidgetDailyEnergyTotals
+      -> WidgetRollingEnergyTotals
   ) {
     self.session = session
     self.now = now
     self.loadCredentials = loadCredentials
     self.persistCredentials = persistCredentials
-    self.loadDailyTotals = loadDailyTotals
+    self.loadRollingTotals = loadRollingTotals
   }
 
   func loadSnapshot(
     previous: HomeEnergyWidgetSnapshot? = nil
   ) async throws -> HomeEnergyWidgetSnapshot {
-    let capturedAt = now()
     guard var credentials = try loadCredentials() else {
       throw WidgetHomeEnergyError.credentialsUnavailable
     }
@@ -76,6 +75,7 @@ struct WidgetHomeEnergyClient: Sendable {
         if !components.hasSuccess { throw error }
       }
     }
+    let capturedAt = now()
     guard
       let snapshot = Self.snapshot(
         from: components,
@@ -93,10 +93,10 @@ struct WidgetHomeEnergyClient: Sendable {
     using credentials: WidgetHomeAssistantCredentials
   ) async throws -> WidgetHomeEnergyComponents {
     async let states = capture { try await loadStates(using: credentials) }
-    async let dailyTotals = capture {
-      try await loadDailyTotals(credentials)
+    async let rollingTotals = capture {
+      try await loadRollingTotals(credentials)
     }
-    return try await WidgetHomeEnergyComponents(states: states, dailyTotals: dailyTotals)
+    return try await WidgetHomeEnergyComponents(states: states, rollingTotals: rollingTotals)
   }
 
   private func loadStates(
@@ -204,26 +204,10 @@ struct WidgetHomeEnergyClient: Sendable {
 struct WidgetHomeAssistantState: Decodable, Sendable {
   let entityID: String
   let state: String
-  fileprivate let attributes: WidgetHomeAssistantStateAttributes?
-
-  var lastReset: Date? {
-    guard let value = attributes?.lastReset else { return nil }
-    return (try? Date(value, strategy: .iso8601))
-      ?? (try? Date(value, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
-  }
 
   enum CodingKeys: String, CodingKey {
     case entityID = "entity_id"
     case state
-    case attributes
-  }
-}
-
-private struct WidgetHomeAssistantStateAttributes: Decodable, Sendable {
-  let lastReset: String?
-
-  enum CodingKeys: String, CodingKey {
-    case lastReset = "last_reset"
   }
 }
 
