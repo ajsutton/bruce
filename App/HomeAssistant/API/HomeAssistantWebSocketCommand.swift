@@ -35,8 +35,10 @@ struct HomeAssistantWebSocketCommand: Sendable {
     case .none:
       break
     case .statistic(let start, let end, let statisticID):
-      object["start_time"] = start
-      object["end_time"] = end
+      object["fixed_period"] = [
+        "start_time": start,
+        "end_time": end,
+      ]
       object["statistic_id"] = statisticID
       object["types"] = ["change"]
     case .statistics(let start, let end, let statisticIDs, let period, let types):

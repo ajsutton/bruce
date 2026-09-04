@@ -66,14 +66,17 @@ final class RollingEnergyTotalsClientTests: XCTestCase {
     )
     XCTAssertEqual(totalRequests.count, 2)
     for request in totalRequests {
+      let fixedPeriod = try XCTUnwrap(request["fixed_period"] as? [String: String])
       XCTAssertEqual(
-        request["end_time"] as? String,
+        fixedPeriod["end_time"],
         timestamp.addingTimeInterval(-301).formatted(timestampStyle)
       )
       XCTAssertEqual(
-        request["start_time"] as? String,
+        fixedPeriod["start_time"],
         timestamp.addingTimeInterval(-24 * 60 * 60 - 301).formatted(timestampStyle)
       )
+      XCTAssertNil(request["start_time"])
+      XCTAssertNil(request["end_time"])
       XCTAssertEqual(request["types"] as? [String], ["change"])
     }
   }
