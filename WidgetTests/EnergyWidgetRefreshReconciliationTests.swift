@@ -64,8 +64,8 @@ final class EnergyWidgetRefreshReconciliationTests: XCTestCase {
       gridPowerKilowatts: currentSnapshot.gridPowerKilowatts,
       generalPriceDollarsPerKilowattHour: currentSnapshot.generalPriceDollarsPerKilowattHour,
       feedInPriceDollarsPerKilowattHour: currentSnapshot.feedInPriceDollarsPerKilowattHour,
-      importCostTodayDollars: currentSnapshot.importCostTodayDollars,
-      feedInEarningsTodayDollars: currentSnapshot.feedInEarningsTodayDollars,
+      importCostLast24HoursDollars: currentSnapshot.importCostLast24HoursDollars,
+      feedInEarningsLast24HoursDollars: currentSnapshot.feedInEarningsLast24HoursDollars,
       importCostIsCurrent: false
     )
 
@@ -111,8 +111,8 @@ final class EnergyWidgetRefreshReconciliationTests: XCTestCase {
       gridPowerKilowatts: -3.2,
       generalPriceDollarsPerKilowattHour: 0.284,
       feedInPriceDollarsPerKilowattHour: 0.08,
-      importCostTodayDollars: 2.43,
-      feedInEarningsTodayDollars: 4.19
+      importCostLast24HoursDollars: 2.43,
+      feedInEarningsLast24HoursDollars: 4.19
     )
   }
 }

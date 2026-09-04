@@ -1,107 +1,69 @@
 import XCTest
 
-final class WidgetDailyEnergyClientTests: XCTestCase {
-  func testTotalsSelectStatisticsContainingTheRefreshTime() throws {
-    let timestamp = Date(timeIntervalSince1970: 10_000)
-    let data = try JSONSerialization.data(
-      withJSONObject: [
-        "id": 1,
-        "type": "result",
-        "success": true,
-        "result": [
-          "sensor.sigen_plant_total_imported_energy_cost": [
-            statistic(start: 9_000, end: 11_000, change: 2.43)
-          ],
-          "sensor.sigen_plant_total_exported_energy_compensation": [
-            statistic(start: 9_000, end: 11_000, change: 4.18)
-          ],
-        ],
-      ]
+final class WidgetRollingEnergyClientTests: XCTestCase {
+  func testTotalsPackageRollingAggregates() throws {
+    let totals = try WidgetRollingEnergyClient.totals(
+      importCost: 2.43,
+      feedInEarnings: 4.18
     )
-
-    let totals = try WidgetDailyEnergyClient.totals(from: data, at: timestamp)
 
     XCTAssertEqual(totals.importCostDollars, 2.43)
     XCTAssertEqual(totals.feedInEarningsDollars, 4.18)
-    XCTAssertEqual(
-      totals.interval,
-      DateInterval(
-        start: timestamp.addingTimeInterval(-1_000), end: timestamp.addingTimeInterval(1_000)))
   }
 
-  func testTotalsRejectMalformedStatisticsResponse() throws {
-    let data = try JSONSerialization.data(
-      withJSONObject: ["id": 1, "type": "result", "success": false]
-    )
-
+  func testTotalsRejectResponseWithoutEitherAggregate() {
     XCTAssertThrowsError(
-      try WidgetDailyEnergyClient.totals(from: data, at: Date())
+      try WidgetRollingEnergyClient.totals(
+        importCost: nil,
+        feedInEarnings: nil
+      )
     )
   }
 
-  func testTotalsRejectDifferentCalendarIntervals() throws {
-    let timestamp = Date(timeIntervalSince1970: 10_000)
-    let data = try JSONSerialization.data(
-      withJSONObject: [
-        "id": 1,
-        "type": "result",
-        "success": true,
-        "result": [
-          "sensor.sigen_plant_total_imported_energy_cost": [
-            statistic(start: 9_000, end: 11_000, change: 2.43)
-          ],
-          "sensor.sigen_plant_total_exported_energy_compensation": [
-            statistic(start: 9_100, end: 11_000, change: 4.18)
-          ],
-        ],
-      ]
+  func testTotalsMarkAMissingAggregateStale() throws {
+    let totals = try WidgetRollingEnergyClient.totals(
+      importCost: 2.43,
+      feedInEarnings: nil
     )
-
-    XCTAssertThrowsError(
-      try WidgetDailyEnergyClient.totals(from: data, at: timestamp)
-    )
-  }
-
-  func testTotalsMarkAMissingSingleStatisticStale() throws {
-    let timestamp = Date(timeIntervalSince1970: 10_000)
-    let data = try JSONSerialization.data(
-      withJSONObject: [
-        "id": 1,
-        "type": "result",
-        "success": true,
-        "result": [
-          "sensor.sigen_plant_total_imported_energy_cost": [
-            statistic(start: 9_000, end: 11_000, change: 2.43)
-          ]
-        ],
-      ]
-    )
-
-    let totals = try WidgetDailyEnergyClient.totals(from: data, at: timestamp)
 
     XCTAssertTrue(totals.importIsCurrent)
     XCTAssertFalse(totals.feedInIsCurrent)
   }
 
-  func testTotalsMarkStatisticWithoutChangeStale() throws {
-    let timestamp = Date(timeIntervalSince1970: 10_000)
-    let data = try JSONSerialization.data(
+  func testLoadingUsesCounterCutoffForABucketAlignedRollingWindow() async throws {
+    let timestamp = Date(timeIntervalSince1970: 100_201)
+    let counterResponse = try JSONSerialization.data(
       withJSONObject: [
         "id": 1,
         "type": "result",
         "success": true,
         "result": [
           "sensor.sigen_plant_total_imported_energy_cost": [
-            statistic(start: 9_000, end: 11_000, change: nil)
-          ]
+            counterStatistic(start: 99_600, end: 99_900, state: 12)
+          ],
+          "sensor.sigen_plant_total_exported_energy_compensation": [
+            counterStatistic(start: 99_600, end: 99_900, state: 24)
+          ],
         ],
       ]
     )
+    let connection = WidgetTestEnergyConnection(messages: [
+      Data(#"{"type":"auth_required"}"#.utf8),
+      Data(#"{"type":"auth_ok"}"#.utf8),
+      counterResponse,
+      try totalResponse(id: 2, change: 2.43),
+      try totalResponse(id: 3, change: 4.18),
+    ])
+    let timeout = WidgetTestTimeoutGate()
+    let client = WidgetRollingEnergyClient(
+      connect: { _ in connection },
+      now: { timestamp },
+      waitForTimeout: { try await timeout.wait() }
+    )
 
-    let totals = try WidgetDailyEnergyClient.totals(from: data, at: timestamp)
+    _ = try await client.loadTotals(using: credentials())
 
-    XCTAssertNil(totals.importCostDollars)
-    XCTAssertFalse(totals.importIsCurrent)
+    try assertRollingStatisticsRequests(connection.sentMessageJSON, at: timestamp)
   }
 
   func testTimeoutClosesBlockedWebSocket() async throws {
@@ -110,7 +72,7 @@ final class WidgetDailyEnergyClientTests: XCTestCase {
       Data(#"{"type":"auth_ok"}"#.utf8),
     ])
     let timeout = WidgetTestTimeoutGate()
-    let client = WidgetDailyEnergyClient(
+    let client = WidgetRollingEnergyClient(
       connect: { _ in connection },
       now: { Date(timeIntervalSince1970: 10_000) },
       waitForTimeout: { try await timeout.wait() }
@@ -131,6 +93,71 @@ final class WidgetDailyEnergyClientTests: XCTestCase {
     }
   }
 
+  func testOverlappingCounterBucketsAreRejectedBeforeAggregateRequests() async throws {
+    let response = try JSONSerialization.data(
+      withJSONObject: [
+        "id": 1,
+        "type": "result",
+        "success": true,
+        "result": [
+          "sensor.sigen_plant_total_imported_energy_cost": [
+            counterStatistic(start: 99_600, end: 99_900, state: 12),
+            counterStatistic(start: 99_750, end: 100_000, state: 13),
+          ]
+        ],
+      ]
+    )
+    let connection = WidgetTestEnergyConnection(messages: [
+      Data(#"{"type":"auth_required"}"#.utf8),
+      Data(#"{"type":"auth_ok"}"#.utf8),
+      response,
+    ])
+    let client = WidgetRollingEnergyClient(
+      connect: { _ in connection },
+      now: { Date(timeIntervalSince1970: 100_200) },
+      waitForTimeout: { try await WidgetTestTimeoutGate().wait() }
+    )
+
+    do {
+      _ = try await client.loadTotals(using: credentials())
+      XCTFail("Expected overlapping recorder buckets to be rejected.")
+    } catch WidgetHomeEnergyError.noReachableServer {
+      XCTAssertEqual(connection.sentMessageJSON.count, 2)
+    }
+  }
+
+  func testFutureCounterBucketIsRejectedBeforeAggregateRequests() async throws {
+    let response = try JSONSerialization.data(
+      withJSONObject: [
+        "id": 1,
+        "type": "result",
+        "success": true,
+        "result": [
+          "sensor.sigen_plant_total_imported_energy_cost": [
+            counterStatistic(start: 99_000, end: 100_300, state: 12)
+          ]
+        ],
+      ]
+    )
+    let connection = WidgetTestEnergyConnection(messages: [
+      Data(#"{"type":"auth_required"}"#.utf8),
+      Data(#"{"type":"auth_ok"}"#.utf8),
+      response,
+    ])
+    let client = WidgetRollingEnergyClient(
+      connect: { _ in connection },
+      now: { Date(timeIntervalSince1970: 100_000) },
+      waitForTimeout: { try await WidgetTestTimeoutGate().wait() }
+    )
+
+    do {
+      _ = try await client.loadTotals(using: credentials())
+      XCTFail("Expected a future recorder bucket to be rejected.")
+    } catch WidgetHomeEnergyError.noReachableServer {
+      XCTAssertEqual(connection.sentMessageJSON.count, 2)
+    }
+  }
+
   func testCancellationClosesWebSocketWithoutTryingAnotherRoute() async throws {
     let connection = WidgetTestEnergyConnection(messages: [
       Data(#"{"type":"auth_required"}"#.utf8),
@@ -138,7 +165,7 @@ final class WidgetDailyEnergyClientTests: XCTestCase {
     ])
     let connector = WidgetTestEnergyConnector(connection: connection)
     let timeout = WidgetTestTimeoutGate()
-    let client = WidgetDailyEnergyClient(
+    let client = WidgetRollingEnergyClient(
       connect: { connector.connect(to: $0) },
       now: { Date(timeIntervalSince1970: 10_000) },
       waitForTimeout: { try await timeout.wait() }
@@ -160,16 +187,59 @@ final class WidgetDailyEnergyClientTests: XCTestCase {
     }
   }
 
-  private func statistic(
+  private func counterStatistic(
     start: TimeInterval,
     end: TimeInterval,
-    change: Double?
+    state: Double
   ) -> [String: Any] {
     [
       "start": start * 1_000,
       "end": end * 1_000,
-      "change": change ?? NSNull(),
+      "state": state,
+      "last_reset": 1_000,
     ]
+  }
+
+  private func totalResponse(id: Int, change: Double) throws -> Data {
+    try JSONSerialization.data(
+      withJSONObject: [
+        "id": id,
+        "type": "result",
+        "success": true,
+        "result": ["change": change],
+      ]
+    )
+  }
+
+  private func assertRollingStatisticsRequests(
+    _ requestJSON: [[String: Any]],
+    at timestamp: Date
+  ) throws {
+    let counterRequest = try XCTUnwrap(
+      requestJSON.first { $0["type"] as? String == "recorder/statistics_during_period" }
+    )
+    XCTAssertEqual(
+      counterRequest["start_time"] as? String,
+      timestamp.addingTimeInterval(-15 * 60).formatted(.iso8601)
+    )
+    XCTAssertEqual(counterRequest["end_time"] as? String, timestamp.formatted(.iso8601))
+    XCTAssertEqual(counterRequest["period"] as? String, "5minute")
+    XCTAssertEqual(counterRequest["types"] as? [String], ["state"])
+    let totalRequests = requestJSON.filter {
+      $0["type"] as? String == "recorder/statistic_during_period"
+    }
+    XCTAssertEqual(totalRequests.count, 2)
+    for request in totalRequests {
+      XCTAssertEqual(
+        request["start_time"] as? String,
+        Date(timeIntervalSince1970: 13_500).formatted(.iso8601)
+      )
+      XCTAssertEqual(
+        request["end_time"] as? String,
+        Date(timeIntervalSince1970: 99_900).formatted(.iso8601)
+      )
+      XCTAssertEqual(request["types"] as? [String], ["change"])
+    }
   }
 
   private func credentials(
@@ -203,6 +273,7 @@ private final class WidgetTestEnergyConnection:
   private var receiveContinuation: CheckedContinuation<Data, Error>?
   private var cancellationCount = 0
   private var isCancelled = false
+  private var sentMessages: [Data] = []
 
   init(messages: [Data]) {
     self.messages = messages
@@ -210,9 +281,19 @@ private final class WidgetTestEnergyConnection:
 
   var cancelCount: Int { lock.withLock { cancellationCount } }
 
+  var sentMessageJSON: [[String: Any]] {
+    lock.withLock {
+      sentMessages.compactMap {
+        try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
+      }
+    }
+  }
+
   func resume() {}
 
-  func send(_ data: Data) async throws {}
+  func send(_ data: Data) async throws {
+    lock.withLock { sentMessages.append(data) }
+  }
 
   func receive() async throws -> Data {
     if let message = lock.withLock({ messages.isEmpty ? nil : messages.removeFirst() }) {

@@ -143,48 +143,48 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
     )
   }
 
-  func testDailyMoneyPresentationUsesAustralianCurrency() {
-    let cost = HomeEnergyMetricPresentation.costToday(
+  func testRollingMoneyPresentationUsesAustralianCurrency() {
+    let cost = HomeEnergyMetricPresentation.costLast24Hours(
       dollars: 4.829,
       mode: .standard,
       locale: locale
     )
-    let earnings = HomeEnergyMetricPresentation.feedInEarningsToday(
+    let earnings = HomeEnergyMetricPresentation.feedInEarningsLast24Hours(
       dollars: 0.9086,
       mode: .standard,
       locale: locale
     )
 
-    XCTAssertEqual(cost.title, "Cost today")
+    XCTAssertEqual(cost.title, "24-hour cost")
     XCTAssertEqual(cost.value, "$4.83")
-    XCTAssertEqual(earnings.title, "Feed-in earnings")
+    XCTAssertEqual(earnings.title, "24-hour feed-in earnings")
     XCTAssertEqual(earnings.value, "$0.91")
   }
 
-  func testFullBruceDailyMoneyPresentationGoesTheFullBruce() {
-    let cost = HomeEnergyMetricPresentation.costToday(
+  func testFullBruceRollingMoneyPresentationGoesTheFullBruce() {
+    let cost = HomeEnergyMetricPresentation.costLast24Hours(
       dollars: 4.83,
       mode: .full,
       locale: locale
     )
-    let earnings = HomeEnergyMetricPresentation.feedInEarningsToday(
+    let earnings = HomeEnergyMetricPresentation.feedInEarningsLast24Hours(
       dollars: 0.91,
       mode: .full,
       locale: locale
     )
 
-    XCTAssertEqual(cost.title, "Today’s Wallet Barbecue")
-    XCTAssertEqual(earnings.title, "Sunshine Cash Haul")
+    XCTAssertEqual(cost.title, "24-Hour Wallet Barbecue")
+    XCTAssertEqual(earnings.title, "24-Hour Sunshine Cash Haul")
   }
 
-  func testPendingDailyMoneyUsesModeSpecificUpdatingCopy() {
-    let standard = HomeEnergyMetricPresentation.costToday(
+  func testPendingRollingMoneyUsesModeSpecificUpdatingCopy() {
+    let standard = HomeEnergyMetricPresentation.costLast24Hours(
       dollars: nil,
       status: .refreshing,
       mode: .standard,
       locale: locale
     )
-    let fullBruce = HomeEnergyMetricPresentation.feedInEarningsToday(
+    let fullBruce = HomeEnergyMetricPresentation.feedInEarningsLast24Hours(
       dollars: nil,
       status: .refreshing,
       mode: .full,
@@ -196,7 +196,7 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
     XCTAssertEqual(fullBruce.value, "Getting the latest")
     XCTAssertTrue(fullBruce.isUpdating)
 
-    let lastKnown = HomeEnergyMetricPresentation.costToday(
+    let lastKnown = HomeEnergyMetricPresentation.costLast24Hours(
       dollars: 4.83,
       status: .refreshing,
       mode: .full,
@@ -208,14 +208,14 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
     )
   }
 
-  func testFailedDailyMoneyUsesBoldFullBruceCopy() {
-    let standard = HomeEnergyMetricPresentation.costToday(
+  func testFailedRollingMoneyUsesBoldFullBruceCopy() {
+    let standard = HomeEnergyMetricPresentation.costLast24Hours(
       dollars: nil,
       status: .failed,
       mode: .standard,
       locale: locale
     )
-    let fullBruce = HomeEnergyMetricPresentation.feedInEarningsToday(
+    let fullBruce = HomeEnergyMetricPresentation.feedInEarningsLast24Hours(
       dollars: nil,
       status: .failed,
       mode: .full,
@@ -227,7 +227,7 @@ final class HomeAssistantHomeEnergyPresentationTests: XCTestCase {
     XCTAssertEqual(fullBruce.value, "Wallet radar carked it")
     XCTAssertTrue(fullBruce.updateFailed)
 
-    let lastKnown = HomeEnergyMetricPresentation.costToday(
+    let lastKnown = HomeEnergyMetricPresentation.costLast24Hours(
       dollars: 4.83,
       status: .failed,
       mode: .full,

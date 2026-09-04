@@ -3,13 +3,13 @@ import Foundation
 extension WidgetHomeEnergyClient {
   static func snapshot(
     from states: [WidgetHomeAssistantState],
-    totals: WidgetDailyEnergyTotals,
+    totals: WidgetRollingEnergyTotals,
     capturedAt: Date
   ) -> HomeEnergyWidgetSnapshot {
     snapshot(
       from: WidgetHomeEnergyComponents(
         states: .success(states),
-        dailyTotals: .success(totals)
+        rollingTotals: .success(totals)
       ),
       previous: nil,
       capturedAt: capturedAt,
@@ -23,14 +23,14 @@ extension WidgetHomeEnergyClient {
         gridPowerKilowatts: nil,
         generalPriceDollarsPerKilowattHour: nil,
         feedInPriceDollarsPerKilowattHour: nil,
-        importCostTodayDollars: nil,
-        feedInEarningsTodayDollars: nil
+        importCostLast24HoursDollars: nil,
+        feedInEarningsLast24HoursDollars: nil
       )
   }
 
   static func snapshot(
     currentStates: [WidgetHomeAssistantState]?,
-    currentTotals: WidgetDailyEnergyTotals?,
+    currentTotals: WidgetRollingEnergyTotals?,
     previous: HomeEnergyWidgetSnapshot?,
     capturedAt: Date
   ) -> HomeEnergyWidgetSnapshot? {
@@ -38,7 +38,7 @@ extension WidgetHomeEnergyClient {
       from: WidgetHomeEnergyComponents(
         states: currentStates.map(WidgetHomeEnergyComponent.success)
           ?? .failure(.noReachableServer),
-        dailyTotals: currentTotals.map(WidgetHomeEnergyComponent.success)
+        rollingTotals: currentTotals.map(WidgetHomeEnergyComponent.success)
           ?? .failure(.noReachableServer)
       ),
       previous: previous,
@@ -59,15 +59,12 @@ extension WidgetHomeEnergyClient {
       previous: previous
     )
     let (loadedTotals, totalsAreCurrent) = totals(
-      from: components.dailyTotals,
-      previous: previous,
-      capturedAt: capturedAt
+      from: components.rollingTotals,
+      previous: previous
     )
     let totals = reconciled(
       loadedTotals,
-      states: components.states.value,
-      previous: previous,
-      capturedAt: capturedAt
+      previous: previous
     )
     return HomeEnergyWidgetSnapshot(
       sourceIdentifier: sourceIdentifier,
@@ -78,8 +75,8 @@ extension WidgetHomeEnergyClient {
       gridPowerKilowatts: readings.gridPowerKilowatts,
       generalPriceDollarsPerKilowattHour: readings.generalPriceDollarsPerKilowattHour,
       feedInPriceDollarsPerKilowattHour: readings.feedInPriceDollarsPerKilowattHour,
-      importCostTodayDollars: totals.importCostDollars,
-      feedInEarningsTodayDollars: totals.feedInEarningsDollars,
+      importCostLast24HoursDollars: totals.importCostDollars,
+      feedInEarningsLast24HoursDollars: totals.feedInEarningsDollars,
       readingsAreCurrent: readingsAreCurrent,
       importCostIsCurrent: totalsAreCurrent && totals.importIsCurrent,
       feedInEarningsIsCurrent: totalsAreCurrent && totals.feedInIsCurrent,
@@ -87,17 +84,10 @@ extension WidgetHomeEnergyClient {
         readingsAreCurrent ? capturedAt : previous?.readingsCapturedAt,
       importCostCapturedAt:
         totalsAreCurrent && totals.importIsCurrent
-        ? capturedAt : previous?.importCostCapturedAt,
+        ? totals.importCapturedAt ?? capturedAt : previous?.importCostCapturedAt,
       feedInEarningsCapturedAt:
         totalsAreCurrent && totals.feedInIsCurrent
-        ? capturedAt : previous?.feedInEarningsCapturedAt,
-      dailyEnergyInterval:
-        totals.interval
-        ?? (HomeEnergyWidgetSnapshot.interval(
-          previous?.dailyEnergyInterval,
-          contains: capturedAt
-        )
-          ? previous?.dailyEnergyInterval : nil)
+        ? totals.feedInCapturedAt ?? capturedAt : previous?.feedInEarningsCapturedAt
     )
   }
 
@@ -126,23 +116,16 @@ extension WidgetHomeEnergyClient {
   }
 
   private static func totals(
-    from component: WidgetHomeEnergyComponent<WidgetDailyEnergyTotals>,
-    previous: HomeEnergyWidgetSnapshot?,
-    capturedAt: Date
-  ) -> (WidgetDailyEnergyTotals, Bool) {
+    from component: WidgetHomeEnergyComponent<WidgetRollingEnergyTotals>,
+    previous: HomeEnergyWidgetSnapshot?
+  ) -> (WidgetRollingEnergyTotals, Bool) {
     switch component {
     case .success(let totals): return (totals, true)
     case .failure:
-      let previousIsCurrentDay = HomeEnergyWidgetSnapshot.interval(
-        previous?.dailyEnergyInterval,
-        contains: capturedAt
-      )
-      let importCost = previousIsCurrentDay ? previous?.importCostTodayDollars : nil
-      let feedInEarnings = previousIsCurrentDay ? previous?.feedInEarningsTodayDollars : nil
       return (
-        WidgetDailyEnergyTotals(
-          importCostDollars: importCost,
-          feedInEarningsDollars: feedInEarnings,
+        WidgetRollingEnergyTotals(
+          importCostDollars: previous?.importCostLast24HoursDollars,
+          feedInEarningsDollars: previous?.feedInEarningsLast24HoursDollars,
           importIsCurrent: false,
           feedInIsCurrent: false
         ),
@@ -152,109 +135,65 @@ extension WidgetHomeEnergyClient {
   }
 
   private static func reconciled(
-    _ totals: WidgetDailyEnergyTotals,
-    states: [WidgetHomeAssistantState]?,
-    previous: HomeEnergyWidgetSnapshot?,
-    capturedAt: Date
-  ) -> WidgetDailyEnergyTotals {
-    guard
-      totals.interval.map({ HomeEnergyWidgetSnapshot.interval($0, contains: capturedAt) }) ?? true
-    else {
-      return totals
-    }
-    let previousIsCurrentInterval =
-      previous?.dailyEnergyInterval == totals.interval
-      || HomeEnergyWidgetSnapshot.interval(previous?.dailyEnergyInterval, contains: capturedAt)
-    let previousImportCost =
-      previousIsCurrentInterval
-      ? previous?.importCostTodayDollars : nil
-    let previousFeedInEarnings =
-      previousIsCurrentInterval
-      ? previous?.feedInEarningsTodayDollars : nil
-    guard let states else {
-      return reconciledWithoutLiveCounters(
-        totals,
-        previousImportCost: previousImportCost,
-        previousFeedInEarnings: previousFeedInEarnings
-      )
-    }
-    let loadedImport =
-      totals.importIsCurrent
-      ? totals.importCostDollars : previousImportCost
-    let loadedFeedIn =
-      totals.feedInIsCurrent
-      ? totals.feedInEarningsDollars : previousFeedInEarnings
-    let importCost = adjusted(
-      loadedImport,
-      baseline: totals.importCounter,
-      live: state(Self.importCostEntityID, in: states),
-      previous: previousImportCost,
-      isCurrent: totals.importIsCurrent
+    _ totals: WidgetRollingEnergyTotals,
+    previous: HomeEnergyWidgetSnapshot?
+  ) -> WidgetRollingEnergyTotals {
+    let previousImportCost = previous?.importCostLast24HoursDollars
+    let previousFeedInEarnings = previous?.feedInEarningsLast24HoursDollars
+    let importIsNewer = Self.isNewer(
+      totals.importCapturedAt,
+      than:
+        previousImportCost == nil
+        ? nil : previous?.importCostCapturedAt
     )
-    let feedInEarnings = adjusted(
-      loadedFeedIn,
-      baseline: totals.feedInCounter,
-      live: state(Self.feedInEarningsEntityID, in: states),
-      previous: previousFeedInEarnings,
-      isCurrent: totals.feedInIsCurrent
+    let feedInIsNewer = Self.isNewer(
+      totals.feedInCapturedAt,
+      than:
+        previousFeedInEarnings == nil
+        ? nil : previous?.feedInEarningsCapturedAt
     )
-    return resolvedTotals(totals, importCost: importCost, feedInEarnings: feedInEarnings)
+    return reconciledTotals(
+      totals,
+      previousImportCost: previousImportCost,
+      previousFeedInEarnings: previousFeedInEarnings,
+      importIsCurrent: totals.importIsCurrent && importIsNewer,
+      feedInIsCurrent: totals.feedInIsCurrent && feedInIsNewer
+    )
   }
 
-  private static func reconciledWithoutLiveCounters(
-    _ totals: WidgetDailyEnergyTotals,
+  private static func reconciledTotals(
+    _ totals: WidgetRollingEnergyTotals,
     previousImportCost: Double?,
-    previousFeedInEarnings: Double?
-  ) -> WidgetDailyEnergyTotals {
+    previousFeedInEarnings: Double?,
+    importIsCurrent: Bool? = nil,
+    feedInIsCurrent: Bool? = nil
+  ) -> WidgetRollingEnergyTotals {
     let importCost = currentOrPrevious(
       totals.importCostDollars,
       previous: previousImportCost,
-      isCurrent: totals.importIsCurrent
+      isCurrent: importIsCurrent ?? totals.importIsCurrent
     )
     let feedInEarnings = currentOrPrevious(
       totals.feedInEarningsDollars,
       previous: previousFeedInEarnings,
-      isCurrent: totals.feedInIsCurrent
+      isCurrent: feedInIsCurrent ?? totals.feedInIsCurrent
     )
     return resolvedTotals(totals, importCost: importCost, feedInEarnings: feedInEarnings)
   }
 
   private static func resolvedTotals(
-    _ totals: WidgetDailyEnergyTotals,
+    _ totals: WidgetRollingEnergyTotals,
     importCost: (value: Double?, isCurrent: Bool),
     feedInEarnings: (value: Double?, isCurrent: Bool)
-  ) -> WidgetDailyEnergyTotals {
-    WidgetDailyEnergyTotals(
+  ) -> WidgetRollingEnergyTotals {
+    WidgetRollingEnergyTotals(
       importCostDollars: importCost.value,
       feedInEarningsDollars: feedInEarnings.value,
-      interval: totals.interval,
-      importCounter: totals.importCounter,
-      feedInCounter: totals.feedInCounter,
+      importCapturedAt: totals.importCapturedAt,
+      feedInCapturedAt: totals.feedInCapturedAt,
       importIsCurrent: importCost.isCurrent,
       feedInIsCurrent: feedInEarnings.isCurrent
     )
-  }
-
-  private static func adjusted(
-    _ total: Double?,
-    baseline: WidgetEnergyCounterReference?,
-    live: (value: Double, lastReset: Date?)?,
-    previous: Double?,
-    isCurrent: Bool
-  ) -> (value: Double?, isCurrent: Bool) {
-    guard isCurrent else { return (previous, false) }
-    guard let total else { return (previous, false) }
-    guard let baseline, let live else {
-      return (total, true)
-    }
-    if let baselineReset = baseline.lastReset, let liveReset = live.lastReset,
-      baselineReset != liveReset
-    {
-      return (previous, false)
-    }
-    let adjusted = total + live.value - baseline.value
-    guard adjusted.isFinite else { return (total, true) }
-    return (adjusted, true)
   }
 
   private static func currentOrPrevious(
@@ -267,14 +206,9 @@ extension WidgetHomeEnergyClient {
     return (total, true)
   }
 
-  private static func state(
-    _ entityID: String,
-    in states: [WidgetHomeAssistantState]
-  ) -> (value: Double, lastReset: Date?)? {
-    guard let state = states.first(where: { $0.entityID == entityID }),
-      let value = Double(state.state), value.isFinite
-    else { return nil }
-    return (value, state.lastReset)
+  private static func isNewer(_ current: Date?, than previous: Date?) -> Bool {
+    guard let current, let previous else { return true }
+    return current >= previous
   }
 
   static let pvPowerEntityID = "sensor.sigen_plant_pv_power"
@@ -286,9 +220,6 @@ extension WidgetHomeEnergyClient {
     "sensor.01krmdgkh60wyckeepvgtbbgv3_general_price"
   static let feedInPriceEntityID =
     "sensor.01krmdgkh60wyckeepvgtbbgv3_feed_in_price"
-  static let importCostEntityID = "sensor.sigen_plant_total_imported_energy_cost"
-  static let feedInEarningsEntityID =
-    "sensor.sigen_plant_total_exported_energy_compensation"
 }
 
 extension WidgetHomeEnergyComponent {
@@ -321,18 +252,18 @@ enum WidgetHomeEnergyComponent<Value: Sendable>: Sendable {
 
 struct WidgetHomeEnergyComponents: Sendable {
   let states: WidgetHomeEnergyComponent<[WidgetHomeAssistantState]>
-  let dailyTotals: WidgetHomeEnergyComponent<WidgetDailyEnergyTotals>
+  let rollingTotals: WidgetHomeEnergyComponent<WidgetRollingEnergyTotals>
 
-  var hasSuccess: Bool { states.isSuccess || dailyTotals.isSuccess }
+  var hasSuccess: Bool { states.isSuccess || rollingTotals.isSuccess }
   var needsAuthenticationRefresh: Bool {
-    states.failure == .unauthorized || dailyTotals.failure == .unauthorized
+    states.failure == .unauthorized || rollingTotals.failure == .unauthorized
   }
-  var failure: WidgetHomeEnergyError? { states.failure ?? dailyTotals.failure }
+  var failure: WidgetHomeEnergyError? { states.failure ?? rollingTotals.failure }
 
   func preservingSuccesses(from previous: Self) -> Self {
     Self(
       states: states.preservingSuccess(from: previous.states),
-      dailyTotals: dailyTotals.preservingSuccess(from: previous.dailyTotals)
+      rollingTotals: rollingTotals.preservingSuccess(from: previous.rollingTotals)
     )
   }
 }

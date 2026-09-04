@@ -36,8 +36,8 @@ final class WidgetCredentialRefreshPersistenceTests: XCTestCase {
       persistCredentials: { refreshed, original in
         box.replace(refreshed, ifCurrentIs: original)
       },
-      loadDailyTotals: { _ in
-        WidgetDailyEnergyTotals(importCostDollars: nil, feedInEarningsDollars: nil)
+      loadRollingTotals: { _ in
+        WidgetRollingEnergyTotals(importCostDollars: nil, feedInEarningsDollars: nil)
       }
     )
 

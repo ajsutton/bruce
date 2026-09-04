@@ -1,6 +1,6 @@
 import Foundation
 
-enum HomeAssistantDailyEnergyMetricStatus: Equatable, Sendable {
+enum HomeAssistantRollingEnergyMetricStatus: Equatable, Sendable {
   case current
   case refreshing
   case failed
@@ -29,15 +29,12 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
   let gridPowerKilowatts: Double?
   let generalPriceDollarsPerKilowattHour: Double?
   let feedInPriceDollarsPerKilowattHour: Double?
-  let importCostTodayDollars: Double?
-  let feedInEarningsTodayDollars: Double?
-  let importCostCounterDollars: Double?
-  let feedInEarningsCounterDollars: Double?
-  let importCostCounterLastReset: Date?
-  let feedInEarningsCounterLastReset: Date?
-  let importCostTodayStatus: HomeAssistantDailyEnergyMetricStatus
-  let feedInEarningsTodayStatus: HomeAssistantDailyEnergyMetricStatus
-  let dailyEnergyInterval: DateInterval?
+  let importCostLast24HoursDollars: Double?
+  let feedInEarningsLast24HoursDollars: Double?
+  let importCostLast24HoursStatus: HomeAssistantRollingEnergyMetricStatus
+  let feedInEarningsLast24HoursStatus: HomeAssistantRollingEnergyMetricStatus
+  let importCostLast24HoursCapturedAt: Date?
+  let feedInEarningsLast24HoursCapturedAt: Date?
 
   init(
     pvPowerKilowatts: Double?,
@@ -47,15 +44,12 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
     gridPowerKilowatts: Double?,
     generalPriceDollarsPerKilowattHour: Double?,
     feedInPriceDollarsPerKilowattHour: Double?,
-    importCostTodayDollars: Double? = nil,
-    feedInEarningsTodayDollars: Double? = nil,
-    importCostCounterDollars: Double? = nil,
-    feedInEarningsCounterDollars: Double? = nil,
-    importCostCounterLastReset: Date? = nil,
-    feedInEarningsCounterLastReset: Date? = nil,
-    importCostTodayStatus: HomeAssistantDailyEnergyMetricStatus = .current,
-    feedInEarningsTodayStatus: HomeAssistantDailyEnergyMetricStatus = .current,
-    dailyEnergyInterval: DateInterval? = nil
+    importCostLast24HoursDollars: Double? = nil,
+    feedInEarningsLast24HoursDollars: Double? = nil,
+    importCostLast24HoursStatus: HomeAssistantRollingEnergyMetricStatus = .current,
+    feedInEarningsLast24HoursStatus: HomeAssistantRollingEnergyMetricStatus = .current,
+    importCostLast24HoursCapturedAt: Date? = nil,
+    feedInEarningsLast24HoursCapturedAt: Date? = nil
   ) {
     self.pvPowerKilowatts = pvPowerKilowatts
     self.batteryStateOfCharge = batteryStateOfCharge
@@ -64,15 +58,12 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
     self.gridPowerKilowatts = gridPowerKilowatts
     self.generalPriceDollarsPerKilowattHour = generalPriceDollarsPerKilowattHour
     self.feedInPriceDollarsPerKilowattHour = feedInPriceDollarsPerKilowattHour
-    self.importCostTodayDollars = importCostTodayDollars
-    self.feedInEarningsTodayDollars = feedInEarningsTodayDollars
-    self.importCostCounterDollars = importCostCounterDollars
-    self.feedInEarningsCounterDollars = feedInEarningsCounterDollars
-    self.importCostCounterLastReset = importCostCounterLastReset
-    self.feedInEarningsCounterLastReset = feedInEarningsCounterLastReset
-    self.importCostTodayStatus = importCostTodayStatus
-    self.feedInEarningsTodayStatus = feedInEarningsTodayStatus
-    self.dailyEnergyInterval = dailyEnergyInterval
+    self.importCostLast24HoursDollars = importCostLast24HoursDollars
+    self.feedInEarningsLast24HoursDollars = feedInEarningsLast24HoursDollars
+    self.importCostLast24HoursStatus = importCostLast24HoursStatus
+    self.feedInEarningsLast24HoursStatus = feedInEarningsLast24HoursStatus
+    self.importCostLast24HoursCapturedAt = importCostLast24HoursCapturedAt
+    self.feedInEarningsLast24HoursCapturedAt = feedInEarningsLast24HoursCapturedAt
   }
 
   static let unavailable = HomeAssistantHomeEnergySnapshot(
@@ -83,8 +74,8 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
     gridPowerKilowatts: nil,
     generalPriceDollarsPerKilowattHour: nil,
     feedInPriceDollarsPerKilowattHour: nil,
-    importCostTodayDollars: nil,
-    feedInEarningsTodayDollars: nil
+    importCostLast24HoursDollars: nil,
+    feedInEarningsLast24HoursDollars: nil
   )
 
   var hasReadings: Bool {
@@ -95,8 +86,8 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
       || gridPowerKilowatts != nil
       || generalPriceDollarsPerKilowattHour != nil
       || feedInPriceDollarsPerKilowattHour != nil
-      || importCostTodayDollars != nil
-      || feedInEarningsTodayDollars != nil
+      || importCostLast24HoursDollars != nil
+      || feedInEarningsLast24HoursDollars != nil
   }
 
   func hasAvailabilityTransition(from previous: Self) -> Bool {
@@ -108,8 +99,8 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
       gridPowerKilowatts != nil,
       generalPriceDollarsPerKilowattHour != nil,
       feedInPriceDollarsPerKilowattHour != nil,
-      importCostTodayDollars != nil,
-      feedInEarningsTodayDollars != nil,
+      importCostLast24HoursDollars != nil,
+      feedInEarningsLast24HoursDollars != nil,
     ] != [
       previous.pvPowerKilowatts != nil,
       previous.batteryStateOfCharge != nil,
@@ -118,8 +109,8 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
       previous.gridPowerKilowatts != nil,
       previous.generalPriceDollarsPerKilowattHour != nil,
       previous.feedInPriceDollarsPerKilowattHour != nil,
-      previous.importCostTodayDollars != nil,
-      previous.feedInEarningsTodayDollars != nil,
+      previous.importCostLast24HoursDollars != nil,
+      previous.feedInEarningsLast24HoursDollars != nil,
     ]
   }
 
@@ -136,18 +127,18 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
         == Self.pricePresentation(other.generalPriceDollarsPerKilowattHour)
       && Self.feedInPresentation(feedInPriceDollarsPerKilowattHour)
         == Self.feedInPresentation(other.feedInPriceDollarsPerKilowattHour)
-      && Self.quantize(importCostTodayDollars, scale: 100)
-        == Self.quantize(other.importCostTodayDollars, scale: 100)
-      && Self.quantize(feedInEarningsTodayDollars, scale: 100)
-        == Self.quantize(other.feedInEarningsTodayDollars, scale: 100)
-      && importCostTodayStatus == other.importCostTodayStatus
-      && feedInEarningsTodayStatus == other.feedInEarningsTodayStatus
+      && Self.quantize(importCostLast24HoursDollars, scale: 100)
+        == Self.quantize(other.importCostLast24HoursDollars, scale: 100)
+      && Self.quantize(feedInEarningsLast24HoursDollars, scale: 100)
+        == Self.quantize(other.feedInEarningsLast24HoursDollars, scale: 100)
+      && importCostLast24HoursStatus == other.importCostLast24HoursStatus
+      && feedInEarningsLast24HoursStatus == other.feedInEarningsLast24HoursStatus
   }
 
-  func replacingDailyTotals(
-    _ totals: HomeAssistantDailyEnergyTotals?,
-    importStatus: HomeAssistantDailyEnergyMetricStatus? = nil,
-    feedInStatus: HomeAssistantDailyEnergyMetricStatus? = nil
+  func replacingRollingTotals(
+    _ totals: HomeAssistantRollingEnergyTotals?,
+    importStatus: HomeAssistantRollingEnergyMetricStatus? = nil,
+    feedInStatus: HomeAssistantRollingEnergyMetricStatus? = nil
   ) -> Self {
     Self(
       pvPowerKilowatts: pvPowerKilowatts,
@@ -157,16 +148,15 @@ struct HomeAssistantHomeEnergySnapshot: Equatable, Sendable {
       gridPowerKilowatts: gridPowerKilowatts,
       generalPriceDollarsPerKilowattHour: generalPriceDollarsPerKilowattHour,
       feedInPriceDollarsPerKilowattHour: feedInPriceDollarsPerKilowattHour,
-      importCostTodayDollars: totals?.importCostDollars,
-      feedInEarningsTodayDollars: totals?.feedInEarningsDollars,
-      importCostCounterDollars: importCostCounterDollars,
-      feedInEarningsCounterDollars: feedInEarningsCounterDollars,
-      importCostCounterLastReset: importCostCounterLastReset,
-      feedInEarningsCounterLastReset: feedInEarningsCounterLastReset,
-      importCostTodayStatus: importStatus ?? importCostTodayStatus,
-      feedInEarningsTodayStatus:
-        feedInStatus ?? feedInEarningsTodayStatus,
-      dailyEnergyInterval: totals?.interval ?? dailyEnergyInterval
+      importCostLast24HoursDollars: totals?.importCostDollars,
+      feedInEarningsLast24HoursDollars: totals?.feedInEarningsDollars,
+      importCostLast24HoursStatus: importStatus ?? importCostLast24HoursStatus,
+      feedInEarningsLast24HoursStatus:
+        feedInStatus ?? feedInEarningsLast24HoursStatus,
+      importCostLast24HoursCapturedAt:
+        totals?.importCapturedAt ?? importCostLast24HoursCapturedAt,
+      feedInEarningsLast24HoursCapturedAt:
+        totals?.feedInCapturedAt ?? feedInEarningsLast24HoursCapturedAt
     )
   }
 

@@ -95,23 +95,23 @@ final class HomeAssistantHomeEnergyStoreTests: XCTestCase {
 
   func testSnapshotPresentationEquivalencePublishesVisibleCurrencyChangesOnly() {
     let snapshot = presentationSnapshot(
-      importCostToday: 0.201,
-      feedInEarningsToday: 0.911
+      importCostLast24Hours: 0.201,
+      feedInEarningsLast24Hours: 0.911
     )
 
     XCTAssertTrue(
       snapshot.hasSamePresentation(
         as: presentationSnapshot(
-          importCostToday: 0.204,
-          feedInEarningsToday: 0.914
+          importCostLast24Hours: 0.204,
+          feedInEarningsLast24Hours: 0.914
         )
       )
     )
     XCTAssertFalse(
       snapshot.hasSamePresentation(
         as: presentationSnapshot(
-          importCostToday: 0.206,
-          feedInEarningsToday: 0.916
+          importCostLast24Hours: 0.206,
+          feedInEarningsLast24Hours: 0.916
         )
       )
     )
@@ -258,8 +258,8 @@ final class HomeAssistantHomeEnergyStoreTests: XCTestCase {
     grid: Double = -2.25,
     generalPrice: Double = 0.340_5,
     feedInPrice: Double = 0.127_5,
-    importCostToday: Double? = nil,
-    feedInEarningsToday: Double? = nil
+    importCostLast24Hours: Double? = nil,
+    feedInEarningsLast24Hours: Double? = nil
   ) -> HomeAssistantHomeEnergySnapshot {
     HomeAssistantHomeEnergySnapshot(
       pvPowerKilowatts: solarPower,
@@ -268,8 +268,8 @@ final class HomeAssistantHomeEnergyStoreTests: XCTestCase {
       gridPowerKilowatts: grid,
       generalPriceDollarsPerKilowattHour: generalPrice,
       feedInPriceDollarsPerKilowattHour: feedInPrice,
-      importCostTodayDollars: importCostToday,
-      feedInEarningsTodayDollars: feedInEarningsToday
+      importCostLast24HoursDollars: importCostLast24Hours,
+      feedInEarningsLast24HoursDollars: feedInEarningsLast24Hours
     )
   }
 }

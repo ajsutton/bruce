@@ -130,16 +130,16 @@ struct HomeAssistantHomeEnergyCard: View {
       )
     )
     metric(
-      .costToday(
-        dollars: store.snapshot.importCostTodayDollars,
-        status: store.snapshot.importCostTodayStatus,
+      .costLast24Hours(
+        dollars: store.snapshot.importCostLast24HoursDollars,
+        status: store.snapshot.importCostLast24HoursStatus,
         mode: mode
       )
     )
     metric(
-      .feedInEarningsToday(
-        dollars: store.snapshot.feedInEarningsTodayDollars,
-        status: store.snapshot.feedInEarningsTodayStatus,
+      .feedInEarningsLast24Hours(
+        dollars: store.snapshot.feedInEarningsLast24HoursDollars,
+        status: store.snapshot.feedInEarningsLast24HoursStatus,
         mode: mode
       )
     )
@@ -188,9 +188,9 @@ struct HomeAssistantHomeEnergyCard: View {
         : copy.updating(lastKnown: presentation.value)
     }
     if presentation.updateFailed {
-      return presentation.value == copy.dailyTotalsLoadFailed
-        ? copy.dailyTotalsLoadFailed
-        : copy.dailyTotalsUpdateFailed(lastKnown: presentation.value)
+      return presentation.value == copy.rollingTotalsLoadFailed
+        ? copy.rollingTotalsLoadFailed
+        : copy.rollingTotalsUpdateFailed(lastKnown: presentation.value)
     }
     if store.showsProgress || store.isRefreshing {
       return presentation.value == copy.unavailable

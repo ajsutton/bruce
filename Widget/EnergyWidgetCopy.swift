@@ -2,12 +2,18 @@ import Foundation
 
 struct EnergyWidgetCopy {
   let isFullBruce: Bool
+  private let bundle: Bundle
+
+  init(isFullBruce: Bool, bundle: Bundle = .main) {
+    self.isFullBruce = isFullBruce
+    self.bundle = bundle
+  }
 
   var energy: String { text("widget.energy") }
   var energyNow: String { text("widget.energyNow") }
   var battery: String { text("widget.battery") }
-  var costToday: String { text("widget.costToday") }
-  var earningsToday: String { text("widget.earningsToday") }
+  var costLast24Hours: String { text("widget.costLast24Hours") }
+  var earningsLast24Hours: String { text("widget.earningsLast24Hours") }
   var solar: String { text("widget.solar") }
   var usage: String { text("widget.usage") }
   var gridExport: String { text("widget.gridExport") }
@@ -25,9 +31,9 @@ struct EnergyWidgetCopy {
   var openBruceDetails: String { text("widget.openBruceDetails") }
 
   var batteryAccessibility: String { text("homeEnergy.batteryAccessibility") }
-  var costTodayAccessibility: String { text("homeEnergy.costTodayAccessibility") }
-  var earningsTodayAccessibility: String {
-    text("homeEnergy.feedInEarningsTodayAccessibility")
+  var costLast24HoursAccessibility: String { text("homeEnergy.costLast24HoursAccessibility") }
+  var earningsLast24HoursAccessibility: String {
+    text("homeEnergy.feedInEarningsLast24HoursAccessibility")
   }
   var solarAccessibility: String { text("homeEnergy.pvGenerationAccessibility") }
   var usageAccessibility: String { text("homeEnergy.usageAccessibility") }
@@ -53,7 +59,7 @@ struct EnergyWidgetCopy {
 
   private var localizationBundle: Bundle {
     let localization = isFullBruce ? "en-AU" : "en"
-    guard let path = Bundle.main.path(forResource: localization, ofType: "lproj"),
+    guard let path = bundle.path(forResource: localization, ofType: "lproj"),
       let bundle = Bundle(path: path)
     else { return .main }
     return bundle
