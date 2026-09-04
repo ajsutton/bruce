@@ -208,8 +208,10 @@ struct WidgetRollingEnergyClient: Sendable {
       WidgetEnergyTotalRequest(
         id: id,
         type: "recorder/statistic_during_period",
-        startTime: start.formatted(.iso8601),
-        endTime: end.formatted(.iso8601),
+        fixedPeriod: WidgetEnergyFixedPeriod(
+          startTime: start.formatted(.iso8601),
+          endTime: end.formatted(.iso8601)
+        ),
         statisticID: statisticID,
         types: ["change"]
       ),

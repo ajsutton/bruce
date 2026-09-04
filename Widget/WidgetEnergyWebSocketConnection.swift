@@ -61,18 +61,26 @@ struct WidgetEnergyAuthentication: Encodable {
   }
 }
 
+struct WidgetEnergyFixedPeriod: Encodable {
+  let startTime: String
+  let endTime: String
+
+  enum CodingKeys: String, CodingKey {
+    case startTime = "start_time"
+    case endTime = "end_time"
+  }
+}
+
 struct WidgetEnergyTotalRequest: Encodable {
   let id: Int
   let type: String
-  let startTime: String
-  let endTime: String
+  let fixedPeriod: WidgetEnergyFixedPeriod
   let statisticID: String
   let types: [String]
 
   enum CodingKeys: String, CodingKey {
     case id, type, types
-    case startTime = "start_time"
-    case endTime = "end_time"
+    case fixedPeriod = "fixed_period"
     case statisticID = "statistic_id"
   }
 }
