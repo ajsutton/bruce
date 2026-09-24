@@ -39,7 +39,13 @@ extension HomeAssistantTemperatureStore {
       try await updates?.waitUntilSubscribed()
       try await withThrowingTaskGroup(of: Void.self) { group in
         group.addTask { try await supervisor.requireFreshLiveData() }
-        group.addTask { try await readiness.value }
+        group.addTask {
+          try await withTaskCancellationHandler {
+            try await readiness.value
+          } onCancel: {
+            readiness.cancel()
+          }
+        }
         while try await group.next() != nil {}
       }
     } catch {
