@@ -151,16 +151,14 @@ final class ScriptedHomeAssistantConnection:
   }
 
   func receive() async throws -> Data {
-    if let result = lock.withLock({ messages.isEmpty ? nil : messages.removeFirst() }) {
-      return try result.get()
-    }
-    return try await withCheckedThrowingContinuation { continuation in
-      let shouldCancel = lock.withLock {
-        if cancellationRequested { return true }
+    try await withCheckedThrowingContinuation { continuation in
+      let result: Result<Data, any Error>? = lock.withLock {
+        if !messages.isEmpty { return messages.removeFirst() }
+        if cancellationRequested { return .failure(CancellationError()) }
         self.continuation = continuation
-        return false
+        return nil
       }
-      if shouldCancel { continuation.resume(throwing: CancellationError()) }
+      if let result { continuation.resume(with: result) }
     }
   }
 

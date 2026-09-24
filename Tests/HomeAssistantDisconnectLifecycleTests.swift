@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 
 @testable import Bruce
@@ -11,9 +12,14 @@ final class HomeAssistantDisconnectLifecycleTests: XCTestCase {
     await store.restoreSavedConnection()
     store.requireReauthentication()
 
+    let finished = expectation(description: "Failed disconnect restored configured step")
+    let observation = store.$step.dropFirst().filter {
+      if case .configured = $0 { return true }
+      return false
+    }.prefix(1).sink { _ in finished.fulfill() }
     store.disconnect()
-    await fulfillment(of: [connection.disconnectStarted], timeout: 1)
-    await Task.yield()
+    await fulfillment(of: [finished], timeout: 1)
+    withExtendedLifetime(observation) {}
 
     XCTAssertEqual(store.step, .configured(credentials()))
     let presentation = HomeAssistantPresentation(
@@ -29,12 +35,17 @@ final class HomeAssistantDisconnectLifecycleTests: XCTestCase {
     let store = makeStore(connection: connection)
     await store.restoreSavedConnection()
 
+    let finished = expectation(description: "Disconnect completed")
+    let observation = store.$step.dropFirst().filter {
+      if case .introduction = $0 { return true }
+      return false
+    }.prefix(1).sink { _ in finished.fulfill() }
     store.disconnect()
     await fulfillment(of: [connection.disconnectStarted], timeout: 1)
     store.disconnect()
     connection.resumeDisconnect()
-    await Task.yield()
-    await Task.yield()
+    await fulfillment(of: [finished], timeout: 1)
+    withExtendedLifetime(observation) {}
 
     XCTAssertEqual(connection.disconnectCount, 1)
     XCTAssertFalse(store.isDisconnecting)
@@ -67,8 +78,10 @@ final class HomeAssistantDisconnectLifecycleTests: XCTestCase {
 
 private final class DisconnectLifecycleConnection: HomeAssistantConnecting, @unchecked Sendable {
   let disconnectStarted = XCTestExpectation(description: "Disconnect started")
+  private let lock = NSLock()
   var disconnectError: (any Error)?
-  private(set) var disconnectCount = 0
+  private var storedDisconnectCount = 0
+  var disconnectCount: Int { lock.withLock { storedDisconnectCount } }
   private let blocksDisconnect: Bool
   private var disconnectContinuation: CheckedContinuation<Void, Never>?
 
@@ -108,17 +121,24 @@ private final class DisconnectLifecycleConnection: HomeAssistantConnecting, @unc
   }
 
   func disconnect() async throws {
-    disconnectCount += 1
-    disconnectStarted.fulfill()
+    lock.withLock { storedDisconnectCount += 1 }
     if blocksDisconnect {
-      await withCheckedContinuation { disconnectContinuation = $0 }
+      await withCheckedContinuation { continuation in
+        lock.withLock { disconnectContinuation = continuation }
+        disconnectStarted.fulfill()
+      }
+    } else {
+      disconnectStarted.fulfill()
     }
     if let disconnectError { throw disconnectError }
   }
 
   func resumeDisconnect() {
-    disconnectContinuation?.resume()
-    disconnectContinuation = nil
+    let continuation = lock.withLock {
+      defer { disconnectContinuation = nil }
+      return disconnectContinuation
+    }
+    continuation?.resume()
   }
 
   func cancel() {}
