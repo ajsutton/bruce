@@ -78,7 +78,7 @@ struct ClimateHistoryChart: View, Equatable {
         }
       }
       .chartYAxis { valueAxes(data) }
-      .chartYAxisLabel(unit, position: .leading)
+      .chartYAxisLabel(unit, position: .trailing)
       .frame(height: height)
       .accessibilityChartDescriptor(
         ClimateHistoryAccessibilityDescriptor(
@@ -140,12 +140,12 @@ struct ClimateHistoryChart: View, Equatable {
 
   @AxisContentBuilder
   private func valueAxes(_ data: ClimateHistoryChartData) -> some AxisContent {
-    AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) {
+    AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) {
       AxisGridLine()
       AxisValueLabel()
     }
     AxisMarks(
-      position: .trailing,
+      position: .leading,
       values: [data.temperatureRange.lowerBound, data.temperatureRange.upperBound]
     ) { value in
       AxisValueLabel {
