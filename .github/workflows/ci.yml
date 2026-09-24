@@ -38,7 +38,13 @@ jobs:
         run: just generate
 
       - name: Test
-        run: just test-mac
+        run: |
+          # Stream logs only after tests finish: slow CI output can otherwise block
+          # OSLog's stderr writes inside the app and trigger async test timeouts.
+          test_status=0
+          just test-mac > "$RUNNER_TEMP/test-mac.log" 2>&1 || test_status=$?
+          cat "$RUNNER_TEMP/test-mac.log"
+          exit "$test_status"
 
   test-ios:
     name: Test (iOS)
@@ -54,7 +60,12 @@ jobs:
         run: just generate
 
       - name: Test
-        run: just test-ios
+        run: |
+          # Keep test execution independent of CI log-stream backpressure.
+          test_status=0
+          just test-ios > "$RUNNER_TEMP/test-ios.log" 2>&1 || test_status=$?
+          cat "$RUNNER_TEMP/test-ios.log"
+          exit "$test_status"
 
   test:
     name: Test
