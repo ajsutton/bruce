@@ -10,6 +10,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   @Published private(set) var problem: Problem?
   @Published var controllingEntityIDs: Set<String> = []
   @Published var controlProblem: ControlProblem?
+  let historyStore: ClimateHistoryStore?
   let loader: any HomeAssistantTemperatureLoading
   let controller: (any HomeAssistantClimateControlling)?
   private let now: @Sendable () -> Date
@@ -40,6 +41,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   init(
     loader: any HomeAssistantTemperatureLoading,
     controller: (any HomeAssistantClimateControlling)? = nil,
+    historyStore: ClimateHistoryStore? = nil,
     now: @escaping @Sendable () -> Date = Date.init,
     confirmationTimeout: Duration = .seconds(5),
     sleep: @escaping @Sendable (Duration) async throws -> Void = {
@@ -47,6 +49,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     },
     onAuthenticationRequired: @escaping @MainActor @Sendable () -> Void = {}
   ) {
+    self.historyStore = historyStore
     self.loader = loader
     self.controller = controller
     self.now = now
@@ -172,6 +175,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   }
 
   func reset() {
+    historyStore?.reset()
     readinessLoadTask?.cancel()
     readinessLoadTask = nil
     invalidateLoad()

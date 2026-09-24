@@ -64,18 +64,31 @@ build-mac-for-running: generate
 
 # Build and launch the macOS app; extra arguments are forwarded to the app.
 [positional-arguments]
-run-mac *args: build-mac-for-running
+run-mac *args: generate
     #!/usr/bin/env bash
     set -euo pipefail
-    app_path=".build/Build/Products/Debug/Bruce.app"
+    app_path="$(pwd)/.build/Build/Products/Debug/Bruce.app"
     app_binary="$app_path/Contents/MacOS/Bruce"
-    if [ "$#" -gt 0 ]; then
-        pkill -f "Bruce.app/Contents/MacOS/Bruce" 2>/dev/null || true
-        nohup "$app_binary" "$@" >/dev/null 2>&1 &
-        disown
-    else
-        open "$app_path"
+    mkdir -p .agent-tmp
+    launch_lock=".agent-tmp/run-mac-with-logs.lock"
+    if ! mkdir "$launch_lock" 2>/dev/null; then
+        echo "Another worktree launch is in progress." >&2
+        exit 1
     fi
+    trap 'rmdir "$launch_lock"' EXIT
+    check_existing_worktree() {
+        while read -r candidate_pid; do
+            if lsof -a -p "$candidate_pid" -d txt -Fn 2>/dev/null | grep -Fxq "n$app_binary"; then
+                echo "This worktree's Bruce is already running (PID: $candidate_pid)."
+                echo "Stop that PID before launching with new arguments."
+                exit 0
+            fi
+        done < <(pgrep -x Bruce || true)
+    }
+    check_existing_worktree
+    just build-mac-for-running
+    check_existing_worktree
+    open -n "$app_path" --args "$@"
 
 # Launch the macOS app and capture this process's unified logs.
 [positional-arguments]
