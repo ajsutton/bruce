@@ -47,10 +47,6 @@ struct HomeAssistantTemperatureView: View {
     return !zones.isEmpty && !isControllingClimatePreset && zones.allSatisfy(store.canControl)
   }
 
-  private var screenBackground: Color {
-    mode.panelBackgroundColor(for: colorScheme)
-  }
-
   private var primaryCardForeground: AnyShapeStyle {
     mode.isFullBruce ? AnyShapeStyle(mode.foregroundColor) : AnyShapeStyle(.primary)
   }
@@ -97,7 +93,7 @@ struct HomeAssistantTemperatureView: View {
       }
       temperatureContent
     }
-    .background(screenBackground)
+    .background(mode.panelBackgroundColor(for: colorScheme))
     .onGeometryChange(for: CGFloat.self) { geometry in
       geometry.size.width
     } action: { width in
@@ -198,6 +194,11 @@ struct HomeAssistantTemperatureView: View {
             .equatable()
           }
         }
+      }
+      if let historyStore = store.historyStore {
+        ClimateHistorySection(
+          store: historyStore, mode: mode, unit: summary.rooms.first?.unit ?? "°C"
+        )
       }
     }
     .padding(BrucePanelLayout.contentPadding)

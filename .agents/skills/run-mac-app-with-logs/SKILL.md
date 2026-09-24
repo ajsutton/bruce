@@ -21,7 +21,9 @@ startup messages are captured. Logs go to `.agent-tmp/app-logs.txt`.
 In an interactive terminal it runs until Ctrl-C and cleans up. In non-interactive agent execution,
 the recipe returns after detaching Bruce and the log stream. Do not add `&`.
 
-If Bruce is already running, stop or use that instance rather than silently launching another.
+The installed app may remain running alongside the development build. Identify instances by
+executable path and capture only the worktree process. Avoid duplicate instances of the same
+worktree build, and never terminate the installed app to make room for a development launch.
 
 Inspect with:
 

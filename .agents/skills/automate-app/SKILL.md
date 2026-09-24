@@ -22,9 +22,13 @@ Before launching, check for another Bruce instance:
 ps ax -o pid=,command= | rg '[B]ruce.app/Contents/MacOS/Bruce' || true
 ```
 
-If another instance is running, resolve its executable with `lsof -p <pid> -d txt`.
-Do not launch a second instance silently. Stop and tell the user which bundle is running.
-Launch the verified worktree bundle only after this check.
+Resolve existing instances with `lsof -p <pid> -d txt` so the installed app and worktree
+build are distinguishable. The development build may run alongside `/Applications/Bruce.app`;
+an installed instance is not a reason to stop or ask for permission. Leave it running.
+Build with `just build-mac-for-running`, then use `open -n "$app"` to launch the verified
+worktree bundle as a separate instance. Avoid launching duplicate instances of the same
+worktree build. For cleanup, use only the verified PID belonging to this task; never use
+a broad `pkill` that could terminate the installed app.
 
 ## Choose the automation surface
 

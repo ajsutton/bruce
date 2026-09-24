@@ -12,6 +12,8 @@ struct HomeAssistantState: Decodable, Equatable, Sendable {
   var options: [String] { attributes.options ?? [] }
   var unitOfMeasurement: String? { attributes.unitOfMeasurement }
   var currentPosition: Double? { attributes.currentPosition }
+  var currentTemperature: Double? { attributes.currentTemperature }
+  var targetTemperature: Double? { attributes.targetTemperature }
   var lastReset: Date? {
     attributes.lastReset
       .flatMap(Self.date(from:))

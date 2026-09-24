@@ -16,18 +16,32 @@ LOG_DIR=".agent-tmp"
 LOG_FILE="$LOG_DIR/app-logs.txt"
 APP_PATH=".build/Build/Products/Debug/Bruce.app"
 APP_BINARY="$APP_PATH/Contents/MacOS/Bruce"
-PROCESS_PATTERN="Bruce.app/Contents/MacOS/Bruce"
+APP_BINARY="$(pwd)/$APP_BINARY"
 
 mkdir -p "$LOG_DIR"
 
-if pgrep -f "$PROCESS_PATTERN" >/dev/null 2>&1; then
-    echo "Bruce is already running. Stop it before capturing a new launch."
-    echo "  pkill -f '$PROCESS_PATTERN'"
+LAUNCH_LOCK="$LOG_DIR/run-mac-with-logs.lock"
+if ! mkdir "$LAUNCH_LOCK" 2>/dev/null; then
+    echo "Another worktree launch is in progress ($LAUNCH_LOCK)." >&2
     exit 1
 fi
+trap 'rmdir "$LAUNCH_LOCK"' EXIT
+
+check_existing_worktree() {
+    # Match this worktree only; the installed application may remain running.
+    while read -r candidate_pid; do
+        if lsof -a -p "$candidate_pid" -d txt -Fn 2>/dev/null | grep -Fxq "n$APP_BINARY"; then
+            echo "This worktree's Bruce is already running (PID: $candidate_pid)."
+            echo "Use that instance or stop that PID before capturing a new launch."
+            exit 1
+        fi
+    done < <(pgrep -x Bruce || true)
+}
+check_existing_worktree
 
 echo "Building macOS app..."
 just build-mac-for-running
+check_existing_worktree
 
 # Stop a wrapper before it execs Bruce so the PID-filtered log stream is
 # subscribed before the app emits its first log. exec preserves the PID.
@@ -74,6 +88,8 @@ if ! kill -0 "$LOG_PID" 2>/dev/null; then
 fi
 kill -CONT "$APP_PID"
 trap - ERR
+rmdir "$LAUNCH_LOCK"
+trap - EXIT
 
 echo "App running (PID: $APP_PID). Logs streaming to $LOG_FILE"
 echo "Log stream PID: $LOG_PID"
@@ -95,6 +111,6 @@ else
     disown "$LOG_PID" 2>/dev/null || true
     echo "Non-interactive mode — app and log stream will keep running."
     echo "To stop later:"
-    echo "  kill $APP_PID  # or: pkill -f '$PROCESS_PATTERN'"
-    echo "  kill $LOG_PID  # or: pkill -f 'log stream.*processIdentifier'"
+    echo "  kill $APP_PID"
+    echo "  kill $LOG_PID"
 fi
