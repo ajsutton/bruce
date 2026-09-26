@@ -1,5 +1,11 @@
 # Release Automation Plan
 
+> Historical implementation plan. Operational instructions, triggers, and authorization boundaries
+> below are superseded by `guides/RELEASE_GUIDE.md`. Every push to `main` now creates an automatic
+> prerelease with generated notes and publishes TestFlight and Mac builds. The one-time account,
+> signing, and secret setup below remains applicable.
+
+
 ## Status
 
 Ready for implementation, subject to the Apple signing and GitHub secret checkpoints below.

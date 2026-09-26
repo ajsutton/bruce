@@ -28,13 +28,21 @@ else
     printf '\nGitHub release: NOT FOUND\n'
 fi
 
+source "$(dirname "${BASH_SOURCE[0]}")/lib/release-common.sh"
+
 # Workflow run.
 printf '\nWorkflow:\n'
-run_status=$(gh run list --workflow="$workflow" --branch="$tag" \
-    --limit 1 --json status,conclusion,databaseId,createdAt --jq '.[0]' 2>/dev/null || true)
+run_identity=$(find_release_run "$tag" "$workflow" || true)
+run_status=""
+if [[ -n "$run_identity" ]]; then
+    read -r run_id attempt <<< "$run_identity"
+    view_args=(run view "$run_id" --json status,conclusion,databaseId,createdAt,attempt)
+    [[ -z "$attempt" ]] || view_args+=(--attempt "$attempt")
+    run_status=$(gh "${view_args[@]}")
+fi
 if [[ -z "$run_status" || "$run_status" == "null" ]]; then
     printf '  no run found for %s\n' "$workflow"
 else
     printf '%s' "$run_status" \
-        | jq -r '"  workflow:   '"$workflow"'\n  run id:     \(.databaseId)\n  status:     \(.status)\n  conclusion: \(.conclusion // "-")\n  created:    \(.createdAt)"'
+        | jq -r '"  workflow:   '"$workflow"'\n  run id:     \(.databaseId)\n  attempt:    \(.attempt)\n  status:     \(.status)\n  conclusion: \(.conclusion // "-")\n  created:    \(.createdAt)"'
 fi
