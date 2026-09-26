@@ -1,9 +1,9 @@
 import AppIntents
 
 struct GetElectricityUsageIntent: AppIntent {
-  static let title: LocalizedStringResource = "siri.usage.title"
+  static let title: LocalizedStringResource = "Get Electricity Usage"
   static let description = IntentDescription(
-    "siri.usage.description")
+    "Get current home electricity consumption in kilowatts, not accumulated energy usage.")
   static let supportedModes: IntentModes = .background
 
   @Dependency var service: BruceSiriService

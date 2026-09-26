@@ -1,14 +1,14 @@
 import AppIntents
 
 struct SetEVChargerModeIntent: AppIntent {
-  static let title: LocalizedStringResource = "siri.setMode.title"
+  static let title: LocalizedStringResource = "Set EV Charger Mode"
   static let description = IntentDescription(
-    "siri.setMode.description"
+    "Set the EV charger to Off, Smart Charging, or On. On requests charging immediately; the vehicle may still be unplugged or waiting."
   )
   static let supportedModes: IntentModes = .background
   static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
-  @Parameter(title: "siri.mode.parameter") var mode: EVChargerMode
+  @Parameter(title: "Mode") var mode: EVChargerMode
   @Dependency var service: BruceSiriService
 
   static var parameterSummary: some ParameterSummary {

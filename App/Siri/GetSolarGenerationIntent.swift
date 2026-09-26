@@ -1,8 +1,8 @@
 import AppIntents
 
 struct GetSolarGenerationIntent: AppIntent {
-  static let title: LocalizedStringResource = "siri.solar.title"
-  static let description = IntentDescription("siri.solar.description")
+  static let title: LocalizedStringResource = "Get Solar Generation"
+  static let description = IntentDescription("Get current solar or PV generation in kilowatts.")
   static let supportedModes: IntentModes = .background
 
   @Dependency var service: BruceSiriService

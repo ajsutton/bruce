@@ -7097,7 +7097,7 @@
         }
       }
     },
-    "siri.battery.description" : {
+    "Get the current home battery state of charge as a percentage." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7131,7 +7131,7 @@
         }
       }
     },
-    "siri.battery.shortTitle" : {
+    "Home Battery Level" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7148,7 +7148,7 @@
         }
       }
     },
-    "siri.battery.title" : {
+    "Get Home Battery Level" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7233,7 +7233,7 @@
         }
       }
     },
-    "siri.mode.automatic.synonym" : {
+    "Automatic" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7250,7 +7250,7 @@
         }
       }
     },
-    "siri.mode.description" : {
+    "Get the EV charger’s selected mode: Off, Smart Charging, or On." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7267,7 +7267,7 @@
         }
       }
     },
-    "siri.mode.off" : {
+    "Off" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7301,7 +7301,7 @@
         }
       }
     },
-    "siri.mode.on" : {
+    "On" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7335,7 +7335,7 @@
         }
       }
     },
-    "siri.mode.on.synonym" : {
+    "Charge now" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7352,7 +7352,7 @@
         }
       }
     },
-    "siri.mode.parameter" : {
+    "Mode" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7386,7 +7386,7 @@
         }
       }
     },
-    "siri.mode.shortTitle" : {
+    "EV Charger Mode" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7403,7 +7403,7 @@
         }
       }
     },
-    "siri.mode.smart" : {
+    "Smart Charging" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7437,7 +7437,7 @@
         }
       }
     },
-    "siri.mode.smart.synonym" : {
+    "Smart" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7454,7 +7454,7 @@
         }
       }
     },
-    "siri.mode.title" : {
+    "Get EV Charger Mode" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7471,7 +7471,7 @@
         }
       }
     },
-    "siri.mode.type" : {
+    "EV charger mode" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7488,7 +7488,7 @@
         }
       }
     },
-    "siri.setMode.description" : {
+    "Set the EV charger to Off, Smart Charging, or On. On requests charging immediately; the vehicle may still be unplugged or waiting." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7522,7 +7522,7 @@
         }
       }
     },
-    "siri.setMode.shortTitle" : {
+    "Set EV Charger Mode" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7539,24 +7539,7 @@
         }
       }
     },
-    "siri.setMode.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Set EV Charger Mode"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Set EV Charger Mode"
-          }
-        }
-      }
-    },
-    "siri.solar.description" : {
+    "Get current solar or PV generation in kilowatts." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7590,7 +7573,7 @@
         }
       }
     },
-    "siri.solar.shortTitle" : {
+    "Solar Generation" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7607,7 +7590,7 @@
         }
       }
     },
-    "siri.solar.title" : {
+    "Get Solar Generation" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7624,7 +7607,7 @@
         }
       }
     },
-    "siri.status.description" : {
+    "Check whether the electric vehicle is charging, connected, unplugged, paused, or finished." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7658,7 +7641,7 @@
         }
       }
     },
-    "siri.status.shortTitle" : {
+    "EV Charger Status" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7675,7 +7658,7 @@
         }
       }
     },
-    "siri.status.title" : {
+    "Get EV Charger Status" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7692,7 +7675,7 @@
         }
       }
     },
-    "siri.usage.description" : {
+    "Get current home electricity consumption in kilowatts, not accumulated energy usage." : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7726,7 +7709,7 @@
         }
       }
     },
-    "siri.usage.shortTitle" : {
+    "Electricity Usage" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -7743,7 +7726,7 @@
         }
       }
     },
-    "siri.usage.title" : {
+    "Get Electricity Usage" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {

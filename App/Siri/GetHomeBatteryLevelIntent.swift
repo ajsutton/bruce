@@ -1,9 +1,9 @@
 import AppIntents
 
 struct GetHomeBatteryLevelIntent: AppIntent {
-  static let title: LocalizedStringResource = "siri.battery.title"
+  static let title: LocalizedStringResource = "Get Home Battery Level"
   static let description = IntentDescription(
-    "siri.battery.description")
+    "Get the current home battery state of charge as a percentage.")
   static let supportedModes: IntentModes = .background
 
   @Dependency var service: BruceSiriService

@@ -1,9 +1,9 @@
 import AppIntents
 
 struct GetEVChargerStatusIntent: AppIntent {
-  static let title: LocalizedStringResource = "siri.status.title"
+  static let title: LocalizedStringResource = "Get EV Charger Status"
   static let description = IntentDescription(
-    "siri.status.description")
+    "Check whether the electric vehicle is charging, connected, unplugged, paused, or finished.")
   static let supportedModes: IntentModes = .background
 
   @Dependency var service: BruceSiriService

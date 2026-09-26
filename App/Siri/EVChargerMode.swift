@@ -5,13 +5,13 @@ enum EVChargerMode: String, AppEnum {
   case smart
   case charging
 
-  static let typeDisplayRepresentation: TypeDisplayRepresentation = "siri.mode.type"
+  static let typeDisplayRepresentation: TypeDisplayRepresentation = "EV charger mode"
   static let caseDisplayRepresentations: [Self: DisplayRepresentation] = [
-    .off: "siri.mode.off",
+    .off: "Off",
     .smart: DisplayRepresentation(
-      title: "siri.mode.smart",
-      synonyms: ["siri.mode.smart.synonym", "siri.mode.automatic.synonym"]),
-    .charging: DisplayRepresentation(title: "siri.mode.on", synonyms: ["siri.mode.on.synonym"]),
+      title: "Smart Charging",
+      synonyms: ["Smart", "Automatic"]),
+    .charging: DisplayRepresentation(title: "On", synonyms: ["Charge now"]),
   ]
 
   var homeAssistantMode: HomeAssistantEVChargingMode {

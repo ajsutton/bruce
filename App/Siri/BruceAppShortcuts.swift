@@ -9,7 +9,7 @@ struct BruceAppShortcuts: AppShortcutsProvider {
         "What’s the current PV generation in \(.applicationName)",
         "How much solar power am I generating in \(.applicationName)",
       ],
-      shortTitle: "siri.solar.shortTitle",
+      shortTitle: "Solar Generation",
       systemImageName: "sun.max"
     )
     AppShortcut(
@@ -18,7 +18,7 @@ struct BruceAppShortcuts: AppShortcutsProvider {
         "What’s the current battery level in \(.applicationName)",
         "What’s the home battery level in \(.applicationName)",
       ],
-      shortTitle: "siri.battery.shortTitle",
+      shortTitle: "Home Battery Level",
       systemImageName: "battery.100percent"
     )
     AppShortcut(
@@ -27,13 +27,13 @@ struct BruceAppShortcuts: AppShortcutsProvider {
         "What’s the current electricity usage in \(.applicationName)",
         "How much power is the house using in \(.applicationName)",
       ],
-      shortTitle: "siri.usage.shortTitle",
+      shortTitle: "Electricity Usage",
       systemImageName: "bolt"
     )
     AppShortcut(
       intent: GetEVChargerModeIntent(),
       phrases: ["What’s the EV charger mode in \(.applicationName)"],
-      shortTitle: "siri.mode.shortTitle",
+      shortTitle: "EV Charger Mode",
       systemImageName: "bolt.car"
     )
     AppShortcut(
@@ -42,7 +42,7 @@ struct BruceAppShortcuts: AppShortcutsProvider {
         "What’s the EV charger status in \(.applicationName)",
         "Is the car charging in \(.applicationName)",
       ],
-      shortTitle: "siri.status.shortTitle",
+      shortTitle: "EV Charger Status",
       systemImageName: "ev.charger"
     )
     AppShortcut(
@@ -51,7 +51,7 @@ struct BruceAppShortcuts: AppShortcutsProvider {
         "Set the EV charger in \(.applicationName) to \(\.$mode)",
         "Set the EV charger mode in \(.applicationName)",
       ],
-      shortTitle: "siri.setMode.shortTitle",
+      shortTitle: "Set EV Charger Mode",
       systemImageName: "bolt.car"
     )
   }

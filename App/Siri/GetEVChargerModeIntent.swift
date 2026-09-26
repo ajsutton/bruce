@@ -1,9 +1,9 @@
 import AppIntents
 
 struct GetEVChargerModeIntent: AppIntent {
-  static let title: LocalizedStringResource = "siri.mode.title"
+  static let title: LocalizedStringResource = "Get EV Charger Mode"
   static let description = IntentDescription(
-    "siri.mode.description")
+    "Get the EV charger’s selected mode: Off, Smart Charging, or On.")
   static let supportedModes: IntentModes = .background
 
   @Dependency var service: BruceSiriService
