@@ -265,6 +265,11 @@ final class HomeAssistantSetupStore: ObservableObject {
     return !Task.isCancelled
   }
 
+  func prepareSavedConnection() async throws {
+    let outcome = await connectionController.restoreSavedConnection()
+    try connectionController.checkRestoredConnection(outcome)
+  }
+
   func testConnection() {
     connectionController.testConnection()
   }

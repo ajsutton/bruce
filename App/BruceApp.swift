@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 
 @main
@@ -22,6 +23,8 @@ struct BruceApp: App {
   init() {
     HomeAssistantMaterialDesignIcon.prepare()
     let dependencies = BruceHomeAssistantDependencies()
+    AppDependencyManager.shared.add(dependency: dependencies.siriService)
+    BruceAppShortcuts.updateAppShortcutParameters()
     _setupStore = StateObject(wrappedValue: dependencies.setupStore)
     _chargingStore = StateObject(wrappedValue: dependencies.chargingStore)
     _garageDoorStore = StateObject(wrappedValue: dependencies.garageDoorStore)

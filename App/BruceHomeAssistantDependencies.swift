@@ -3,6 +3,7 @@ import WidgetKit
 
 @MainActor
 struct BruceHomeAssistantDependencies {
+  let siriService: BruceSiriService
   let setupStore: HomeAssistantSetupStore
   let temperatureStore: HomeAssistantTemperatureStore
   let chargingStore: HomeAssistantEVChargingStore
@@ -38,9 +39,15 @@ struct BruceHomeAssistantDependencies {
     self.garageDoorStore = garageDoorStore
     self.homeEnergyStore = homeEnergyStore
     self.temperatureStore = temperatureStore
-    setupStore = context.makeSetupStore {
+    let setupStore = context.makeSetupStore {
       try await temperatureStore.requireFreshLiveData(from: context.states)
     }
+    self.setupStore = setupStore
+    siriService = BruceSiriService(
+      energy: context.apiClient,
+      charger: context.apiClient,
+      prepare: { try await setupStore.prepareSavedConnection() }
+    )
     let observationCoordinator = HomeAssistantObservationCoordinator(
       temperatureStore: temperatureStore,
       chargingStore: chargingStore,

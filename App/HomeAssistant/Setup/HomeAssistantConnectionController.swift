@@ -27,7 +27,9 @@ final class HomeAssistantConnectionController: ObservableObject {
   private var connectionTask: Task<Void, Never>?
   private var credentialTask: Task<Void, Never>?
   private var connectionGeneration = UUID()
+  private var restoreWaiters: HomeAssistantRestoreWaiters?
   private var hasAttemptedRestore = false
+  private(set) var restoreError: (any Error)?
   var onStepChange: ((HomeAssistantSetupStore.Step) -> Void)?
 
   init(
@@ -104,14 +106,27 @@ final class HomeAssistantConnectionController: ObservableObject {
     requestAuthentication()
   }
 
-  func restoreSavedConnection() async {
+  @discardableResult
+  func restoreSavedConnection() async -> HomeAssistantRestoreWaiters.Outcome {
+    // Siri and the first scene can request restoration concurrently at cold launch.
+    if case .restoring = step {
+      return await restoreWaiters?.wait() ?? .invalidated
+    }
+    if case .restoreFailed = step { hasAttemptedRestore = false }
     guard !hasAttemptedRestore, let connection else {
-      return
+      return Task.isCancelled ? .invalidated : .finished
     }
     hasAttemptedRestore = true
+    restoreError = nil
     step = .restoring
     let generation = beginConnectionOperation()
+    let waiters = HomeAssistantRestoreWaiters()
+    restoreWaiters = waiters
     let task = Task { [weak self, connection] in
+      defer {
+        waiters.finish()
+        if self?.restoreWaiters === waiters { self?.restoreWaiters = nil }
+      }
       do {
         guard let credentials = try await connection.restore() else {
           self?.applyNoSavedConnection(generation: generation)
@@ -121,11 +136,11 @@ final class HomeAssistantConnectionController: ObservableObject {
         self?.applyRestored(credentials, generation: generation)
       } catch is CancellationError {
       } catch {
-        self?.applyRestoreFailure(generation: generation)
+        self?.applyRestoreFailure(error, generation: generation)
       }
     }
     connectionTask = task
-    await task.value
+    return await waiters.wait()
   }
 
   func testConnection() {
@@ -289,13 +304,14 @@ extension HomeAssistantConnectionController {
     step = .connected(credentials)
   }
 
-  private func applyRestoreFailure(generation: UUID) {
+  private func applyRestoreFailure(_ error: any Error, generation: UUID) {
     guard connectionGeneration == generation else {
       return
     }
     connectionTask = nil
     connectedCredentials = nil
     connectionCheckState = .idle
+    restoreError = error
     step = .restoreFailed
   }
 
@@ -366,6 +382,8 @@ extension HomeAssistantConnectionController {
   }
 
   func invalidateConnectionOperation() {
+    restoreWaiters?.finish(.invalidated)
+    restoreWaiters = nil
     connectionGeneration = UUID()
     connectionTask?.cancel()
     connectionTask = nil
