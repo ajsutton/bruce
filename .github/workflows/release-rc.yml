@@ -2,6 +2,8 @@ name: Release RC
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+"
 
@@ -13,6 +15,7 @@ permissions:
 concurrency:
   group: bruce-release-rc
   cancel-in-progress: false
+  queue: max
 
 jobs:
   build:
@@ -25,7 +28,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.sha }}
 
       - name: Install tools
         run: bash scripts/install-ci-tools.sh xcodegen
@@ -36,10 +39,36 @@ jobs:
           ruby-version: "3.3"
           bundler-cache: true
 
+      - name: Create prerelease for main push
+        if: github.ref == 'refs/heads/main'
+        id: prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          source scripts/lib/release-common.sh
+          VERSION=$(read_marketing_version_from_project_yml)
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Invalid marketing version: $VERSION" >&2
+              exit 1
+          fi
+          NEXT=$(compute_next_rc_version "$VERSION" "$(read_all_tags)")
+          TAG="v$(jq -r .version <<< "$NEXT")"
+          NOTES_BASE=$(jq -r .notes_base <<< "$NEXT")
+          release_args=(release create "$TAG" --target "$COMMIT_SHA"
+              --title "$TAG" --prerelease --generate-notes
+              --notes "<!-- bruce-release-run:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT} -->")
+          if [[ -n "$NOTES_BASE" ]]; then
+              release_args+=(--notes-start-tag "$NOTES_BASE")
+          fi
+          gh "${release_args[@]}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "### Prerelease: $TAG" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Validate tag and extract version
         id: version
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.prerelease.outputs.tag || github.ref_name }}
         run: |
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
               echo "Invalid RC tag: $TAG" >&2

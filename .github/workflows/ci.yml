@@ -21,6 +21,9 @@ jobs:
       - name: Generate Xcode project
         run: just generate
 
+      - name: Test release scripts
+        run: just test-release-scripts
+
       - name: Format check
         run: just format-check
 

@@ -132,3 +132,17 @@ validate_final_pair() {
         return 1
     }
 }
+
+# find_release_run TAG WORKFLOW
+# Emits "RUN_ID ATTEMPT" for automatic releases, or "RUN_ID" for manual tags.
+find_release_run() {
+    local tag="$1" workflow="$2" body run_id
+    body=$(gh release view "$tag" --json body --jq .body) || return
+    run_id=$(printf '%s\n' "$body" | sed -n 's/^<!-- bruce-release-run:\([0-9][0-9]*\):\([0-9][0-9]*\) -->$/\1 \2/p')
+    if [[ -n "$run_id" ]]; then
+        printf '%s\n' "$run_id"
+    else
+        gh run list --workflow="$workflow" --branch="$tag" \
+            --limit 1 --json databaseId --jq '.[0].databaseId // empty'
+    fi
+}

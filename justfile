@@ -119,6 +119,7 @@ test-ui *FILTERS: generate
 
 test-release-scripts:
     bash scripts/tests/test-release-common.sh
+    python3 scripts/tests/test-automatic-prerelease.py
 
 validate-ios: generate
     bundle exec fastlane ios validate

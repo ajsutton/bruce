@@ -197,5 +197,31 @@ else
 fi
 
 echo
+echo "== find_release_run =="
+
+gh() {
+    if [[ "$1 $2" == "release view" ]]; then
+        printf '%s\n' "$release_body"
+    elif [[ "$1 $2" == "run list" ]]; then
+        # A manual tag must never resolve the main-branch run for the same SHA.
+        [[ "$*" == *"--branch=v1.0.0-rc.2"* ]] || return 1
+        [[ "$*" == *"--workflow=release-rc.yml"* ]] || return 1
+        printf '67890\n'
+    else
+        return 1
+    fi
+}
+release_body=$'<!-- bruce-release-run:12345:1 -->\n\nGenerated notes'
+assert_eq "12345 1" "$(find_release_run v1.0.0-rc.1 release-rc.yml)" \
+    "automatic release resolves its recorded run"
+release_body=$'<!-- bruce-release-run:12345:2 -->\n\nGenerated notes'
+assert_eq "12345 2" "$(find_release_run v1.0.0-rc.2 release-rc.yml)" \
+    "rerun release resolves its own attempt"
+release_body="Manual RC notes"
+assert_eq "67890" "$(find_release_run v1.0.0-rc.2 release-rc.yml)" \
+    "manual release resolves its exact tag run"
+unset -f gh
+
+echo
 echo "Total: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

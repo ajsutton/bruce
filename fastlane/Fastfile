@@ -103,9 +103,11 @@ platform :ios do
       output_name: "Bruce.ipa"
     )
 
+    # The release queue must wait until this build is visible before the next
+    # run allocates its build number from App Store Connect.
     upload_to_testflight(
       api_key: api_key,
-      skip_waiting_for_build_processing: true
+      skip_waiting_for_build_processing: false
     )
   end
 
