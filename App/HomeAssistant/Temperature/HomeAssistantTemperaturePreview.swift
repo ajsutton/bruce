@@ -240,6 +240,7 @@ private struct PreviewHomeAssistantClimateController: HomeAssistantClimateContro
   func setPower(entityID: String, isOn: Bool) {}
 
   func setTargetValue(_ value: Double, entityID: String) {}
+  func setOpening(_ value: Double, entityID: String) {}
 
   func setMode(
     _ mode: HomeAssistantTemperatureReading.ClimateMode,

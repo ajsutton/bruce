@@ -21,6 +21,10 @@ struct TemperatureCopy {
   var lastKnown: String { text(.lastKnown) }
   var lastKnownUpdating: String { text(.lastKnownUpdating) }
   var updatingTemperatures: String { text(.updatingTemperatures) }
+  var opening: String { copy.text(.localized("temperature.opening")) }
+  func opening(name: String) -> String {
+    copy.text(.localized("temperature.namedOpening")).replacingOccurrences(of: "%@", with: name)
+  }
   var current: String { text(.current) }
   var target: String { text(.target) }
   var average: String { text(.average) }

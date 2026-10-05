@@ -20,7 +20,7 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
 
     XCTAssertTrue(store.isControlling(entityID: reading.id))
     XCTAssertTrue(store.isControllingClimateState(entityID: reading.id))
-    XCTAssertFalse(store.isAdjustingTarget(entityID: reading.id))
+    XCTAssertFalse(store.isAdjusting(entityID: reading.id))
     XCTAssertEqual(store.readings.first?.powerState, .off)
     controller.succeed()
     await command.value
@@ -104,7 +104,7 @@ final class OptimisticClimateControlStoreTests: XCTestCase {
     await fulfillment(of: [controller.started], timeout: 1)
 
     XCTAssertEqual(store.readings.first?.targetValue, 24.5)
-    XCTAssertTrue(store.isAdjustingTarget(entityID: reading.id))
+    XCTAssertTrue(store.isAdjusting(entityID: reading.id))
     XCTAssertFalse(store.isControllingClimateState(entityID: reading.id))
     controller.succeed()
 

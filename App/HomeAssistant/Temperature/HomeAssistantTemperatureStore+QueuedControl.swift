@@ -4,7 +4,7 @@ extension HomeAssistantTemperatureStore {
   func beginControl(
     for reading: HomeAssistantTemperatureReading,
     intent: ClimateControlIntent,
-    allowsTargetReplacement: Bool,
+    allowsAdjustmentReplacement: Bool,
     allowsPresetTransaction: Bool = false,
     publishesReadings: Bool = true
   ) -> ClimateControlAttempt? {
@@ -14,7 +14,8 @@ extension HomeAssistantTemperatureStore {
     let currentControl = pendingControls[reading.id]
     guard
       currentControl == nil
-        || (allowsTargetReplacement && currentControl?.intent.isTargetValue == true)
+        || (allowsAdjustmentReplacement
+          && currentControl.map { intent.canReplaceAdjustment($0.intent) } == true)
     else { return nil }
     latestControlSequence += 1
     let sequence = latestControlSequence

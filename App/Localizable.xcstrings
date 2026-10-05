@@ -256,12 +256,8 @@
         }
       }
     },
-    "·" : {
-
-    },
-    "%@ kW" : {
-
-    },
+    "·" : {},
+    "%@ kW" : {},
     "%@, %@ %@" : {
       "localizations" : {
         "en" : {
@@ -282,12 +278,8 @@
         }
       }
     },
-    "%@%%" : {
-
-    },
-    "%@¢" : {
-
-    },
+    "%@%%" : {},
+    "%@¢" : {},
     "app.carTab" : {
       "localizations" : {
         "en" : {
@@ -7739,6 +7731,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Get Electricity Usage"
+          }
+        }
+      }
+    },
+    "temperature.opening" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vent opening"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vent’s open"
+          }
+        }
+      }
+    },
+    "temperature.namedOpening" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ vent opening"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ vent: how far it’s open"
           }
         }
       }

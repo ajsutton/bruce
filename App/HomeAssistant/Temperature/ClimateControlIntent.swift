@@ -10,12 +10,20 @@ enum ClimateControlIntent {
   case power(isOn: Bool)
   case mode(HomeAssistantTemperatureReading.ClimateMode)
   case targetValue(Double)
+  case opening(value: Double, entityID: String)
 
-  var isTargetValue: Bool {
-    if case .targetValue = self {
-      return true
+  var isAdjustment: Bool {
+    switch self {
+    case .targetValue, .opening: true
+    case .power, .mode: false
     }
-    return false
+  }
+
+  func canReplaceAdjustment(_ other: Self) -> Bool {
+    switch (self, other) {
+    case (.targetValue, .targetValue), (.opening, .opening): true
+    default: false
+    }
   }
 
   func applying(
@@ -34,6 +42,16 @@ enum ClimateControlIntent {
       )
     case .targetValue(let value):
       reading.replacingTargetValue(value)
+    case .opening(let value, let entityID):
+      if let opening = reading.opening, opening.entityID == entityID {
+        reading.replacingOpening(opening.replacingValue(value))
+          .replacingClimateState(
+            powerState: value == 0 ? .off : .poweredOn,
+            operatingMode: value == 0 ? .off : .active
+          )
+      } else {
+        reading
+      }
     }
   }
 
@@ -43,6 +61,14 @@ enum ClimateControlIntent {
       return reading.powerState == (isOn ? .poweredOn : .off)
     case .mode(let mode):
       return reading.operatingMode == mode.operatingMode
+    case .opening(let value, let entityID):
+      guard let opening = reading.opening, opening.entityID == entityID, opening.isAvailable,
+        let currentValue = opening.value
+      else { return false }
+      // AirTouch uses a zero-position command to switch off; the reported opening
+      // can retain the minimum damper position while the zone is off.
+      if value == 0 { return reading.powerState == .off }
+      return abs(currentValue - value) < 0.000_1 && reading.powerState == .poweredOn
     case .targetValue(let value):
       guard let targetValue = reading.targetValue else {
         return false

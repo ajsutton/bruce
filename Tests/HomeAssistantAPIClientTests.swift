@@ -152,7 +152,7 @@ extension HomeAssistantAPIClientTests {
     )
   }
 
-  func testTemperatureLoadingReturnsOnlyClimateCurrentTemperatures() throws {
+  func testTemperatureLoadingFiltersUnrelatedEntitiesWithoutCurrentTemperatures() throws {
     let temperatures = try HomeAssistantAPIClient.temperatures(
       from: temperatureStatesData,
       unit: "°C"

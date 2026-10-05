@@ -168,28 +168,10 @@ struct HomeAssistantTemperatureView: View {
           spacing: 14
         ) {
           ForEach(summary.rooms) { reading in
-            HomeAssistantTemperatureCard(
-              reading: reading,
-              mode: mode,
-              showsControl: reading.kind == .zone && store.supportsControl,
-              isControlEnabled: store.canControl(reading),
-              isControlling: store.isControllingClimateState(entityID: reading.id),
-              isTargetControlling: store.isAdjustingTarget(entityID: reading.id),
+            HomeAssistantClimateZoneCard(
+              reading: reading, mode: mode, store: store,
               isLastKnown: isDisplayingLastKnown,
-              showsTargetControl: reading.kind == .zone
-                && reading.targetValue != nil
-                && store.supportsControl,
-              targetValueFractionLength: summary.targetValueFractionLength,
-              setPower: { isOn in
-                Task {
-                  await store.setPower(for: reading, isOn: isOn)
-                }
-              },
-              setTargetValue: { value in
-                MainActor.assumeIsolated {
-                  store.setTargetValue(value, for: reading)
-                }
-              }
+              targetValueFractionLength: summary.targetValueFractionLength
             )
             .equatable()
           }

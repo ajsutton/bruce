@@ -25,7 +25,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   var serverReadings: [HomeAssistantTemperatureReading] = []
   var pendingControls: [String: PendingClimateControl] = [:]
   var confirmationTasks: [String: Task<Void, Never>] = [:]
-  private var targetControlTasks: [String: Task<Void, Never>] = [:]
+  var adjustmentControlTasks: [String: Task<Void, Never>] = [:]
   var liveSequence = 0
   struct LiveWaiter {
     let baseline: Int
@@ -73,39 +73,6 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     guard let controller, reading.availableModes.contains(mode) else { return }
     await performControl(for: reading, intent: .mode(mode)) { _ in
       try await controller.setMode(mode, entityID: reading.id)
-    }
-  }
-
-  func setTargetValue(
-    _ value: Double,
-    for reading: HomeAssistantTemperatureReading
-  ) {
-    guard let controller, reading.canSetTargetValue(value) else { return }
-    let intent = ClimateControlIntent.targetValue(value)
-    guard
-      let attempt = beginControl(
-        for: reading,
-        intent: intent,
-        allowsTargetReplacement: true
-      ),
-      attempt.shouldPerform
-    else {
-      return
-    }
-    targetControlTasks[reading.id] = Task { [weak self] in
-      guard let self else { return }
-      _ = await performQueuedControl(
-        for: reading,
-        intent: intent,
-        sequence: attempt.sequence,
-        generation: attempt.generation
-      ) { intent in
-        guard case .targetValue(let latestValue) = intent else { return }
-        try await controller.setTargetValue(latestValue, entityID: reading.id)
-      }
-      if controlGeneration == attempt.generation {
-        targetControlTasks[reading.id] = nil
-      }
     }
   }
 
@@ -212,8 +179,8 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     pendingControls = [:]
     confirmationTasks.values.forEach { $0.cancel() }
     confirmationTasks = [:]
-    targetControlTasks.values.forEach { $0.cancel() }
-    targetControlTasks = [:]
+    adjustmentControlTasks.values.forEach { $0.cancel() }
+    adjustmentControlTasks = [:]
     presetControlGeneration = UUID()
     presetControlTask?.cancel()
     presetControlTask = nil

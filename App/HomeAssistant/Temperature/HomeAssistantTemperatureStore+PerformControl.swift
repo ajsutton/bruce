@@ -2,7 +2,7 @@ extension HomeAssistantTemperatureStore {
   func performControl(
     for reading: HomeAssistantTemperatureReading,
     intent: ClimateControlIntent,
-    allowsTargetReplacement: Bool = false,
+    allowsAdjustmentReplacement: Bool = false,
     operation: (ClimateControlIntent) async throws -> Void
   ) async {
     guard !Task.isCancelled else { return }
@@ -10,7 +10,7 @@ extension HomeAssistantTemperatureStore {
       let attempt = beginControl(
         for: reading,
         intent: intent,
-        allowsTargetReplacement: allowsTargetReplacement
+        allowsAdjustmentReplacement: allowsAdjustmentReplacement
       ),
       attempt.shouldPerform
     else {
