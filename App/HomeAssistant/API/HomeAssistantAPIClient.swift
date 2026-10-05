@@ -225,10 +225,14 @@ struct HomeAssistantAPIClient:
     from states: [HomeAssistantState],
     context: HomeAssistantTemperatureContext
   ) -> [HomeAssistantTemperatureReading] {
-    states.compactMap {
+    let statesByID = states.reduce(into: [String: HomeAssistantState]()) {
+      $0[$1.entityID] = $1
+    }
+    return states.compactMap {
       $0.temperatureReading(
         unit: context.unit,
-        metadata: context.climateMetadata[$0.entityID]
+        metadata: context.climateMetadata[$0.entityID],
+        damper: context.climateMetadata[$0.entityID]?.damperEntityID.flatMap { statesByID[$0] }
       )
     }.sorted {
       $0.name.localizedStandardCompare($1.name) == .orderedAscending

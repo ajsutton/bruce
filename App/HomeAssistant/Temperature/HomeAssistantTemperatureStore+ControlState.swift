@@ -11,8 +11,8 @@ extension HomeAssistantTemperatureStore {
 
   var supportsControl: Bool { controller != nil }
 
-  func isAdjustingTarget(entityID: String) -> Bool {
-    pendingControls[entityID]?.intent.isTargetValue == true
+  func isAdjusting(entityID: String) -> Bool {
+    pendingControls[entityID]?.intent.isAdjustment == true
   }
 
   func isControlling(entityID: String) -> Bool {
@@ -20,6 +20,6 @@ extension HomeAssistantTemperatureStore {
   }
 
   func isControllingClimateState(entityID: String) -> Bool {
-    isControlling(entityID: entityID) && !isAdjustingTarget(entityID: entityID)
+    isControlling(entityID: entityID) && !isAdjusting(entityID: entityID)
   }
 }

@@ -34,7 +34,8 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
 
   let id: String
   let name: String
-  let value: Double
+  let value: Double?
+  let opening: HomeAssistantZoneOpening?
   let targetValue: Double?
   let unit: String?
   let powerState: PowerState
@@ -51,7 +52,7 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
   init(
     id: String,
     name: String,
-    value: Double,
+    value: Double?,
     targetValue: Double?,
     unit: String?,
     powerState: PowerState,
@@ -63,10 +64,12 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     maximumTargetValue: Double? = nil,
     targetValueStep: Double? = nil,
     floor: HomeAssistantClimateFloor? = nil,
-    presetLabels: [HomeAssistantClimatePresetLabel] = []
+    presetLabels: [HomeAssistantClimatePresetLabel] = [],
+    opening: HomeAssistantZoneOpening? = nil
   ) {
     self.id = id
     self.name = name
+    self.opening = opening
     self.value = value
     self.targetValue = targetValue
     self.unit = unit
@@ -101,7 +104,8 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
       maximumTargetValue: maximumTargetValue,
       targetValueStep: targetValueStep,
       floor: floor,
-      presetLabels: presetLabels
+      presetLabels: presetLabels,
+      opening: opening
     )
   }
 
@@ -121,7 +125,29 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
       maximumTargetValue: maximumTargetValue,
       targetValueStep: targetValueStep,
       floor: floor,
-      presetLabels: presetLabels
+      presetLabels: presetLabels,
+      opening: opening
+    )
+  }
+
+  func replacingOpening(_ opening: HomeAssistantZoneOpening) -> Self {
+    Self(
+      id: id,
+      name: name,
+      value: value,
+      targetValue: self.targetValue,
+      unit: unit,
+      powerState: powerState,
+      kind: kind,
+      operatingMode: operatingMode,
+      availableModes: availableModes,
+      icon: icon,
+      minimumTargetValue: minimumTargetValue,
+      maximumTargetValue: maximumTargetValue,
+      targetValueStep: targetValueStep,
+      floor: floor,
+      presetLabels: presetLabels,
+      opening: opening
     )
   }
 
@@ -133,7 +159,7 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
   }
 
   func canSetTargetValue(_ value: Double) -> Bool {
-    kind == .zone && value.isFinite
+    kind == .zone && targetValue != nil && value.isFinite
       && (minimumTargetValue.map { value >= $0 } ?? true)
       && (maximumTargetValue.map { value <= $0 } ?? true)
   }

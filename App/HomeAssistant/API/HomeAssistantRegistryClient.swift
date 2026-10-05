@@ -9,6 +9,7 @@ protocol HomeAssistantGarageDoorRegistryLoading: Sendable {
 }
 
 struct HomeAssistantClimateMetadata: Equatable, Sendable {
+  let damperEntityID: String?
   let icon: String?
   let kind: HomeAssistantTemperatureReading.Kind
   let floor: HomeAssistantClimateFloor?
@@ -18,8 +19,10 @@ struct HomeAssistantClimateMetadata: Equatable, Sendable {
     icon: String?,
     kind: HomeAssistantTemperatureReading.Kind,
     floor: HomeAssistantClimateFloor? = nil,
-    presetLabels: [HomeAssistantClimatePresetLabel] = []
+    presetLabels: [HomeAssistantClimatePresetLabel] = [],
+    damperEntityID: String? = nil
   ) {
+    self.damperEntityID = damperEntityID
     self.icon = icon
     self.kind = kind
     self.floor = floor
@@ -109,7 +112,13 @@ struct HomeAssistantRegistryClient:
         floor: registryFloor.map {
           HomeAssistantClimateFloor(id: $0.id, name: $0.name, level: $0.level)
         },
-        presetLabels: presetLabels
+        presetLabels: presetLabels,
+        damperEntityID: entities.first {
+          $0.id.hasPrefix("cover.") && $0.platform == "airtouch5"
+            && entity.platform == "airtouch5" && kind(for: entity) == .zone
+            && entity.deviceID != nil && $0.deviceID == entity.deviceID
+            && $0.uniqueID == entity.uniqueID.map { "\($0)_open_percentage" }
+        }?.id
       )
     }
   }

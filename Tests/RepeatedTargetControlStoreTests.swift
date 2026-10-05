@@ -38,7 +38,7 @@ final class RepeatedTargetControlStoreTests: XCTestCase {
       update: .live([reading.replacingTargetValue(24)])
     )
     XCTAssertEqual(store.readings.first?.targetValue, 24.5)
-    XCTAssertTrue(store.isAdjustingTarget(entityID: reading.id))
+    XCTAssertTrue(store.isAdjusting(entityID: reading.id))
 
     fixture.controller.succeed(command: 1)
     await confirm(fixture, targetValue: 24.5)

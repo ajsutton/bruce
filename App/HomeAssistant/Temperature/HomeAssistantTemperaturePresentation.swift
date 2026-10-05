@@ -59,6 +59,7 @@ enum HomeAssistantTemperaturePresentation {
     current.id == candidate.id
       && current.name == candidate.name
       && current.targetValue == candidate.targetValue
+      && current.opening == candidate.opening
       && current.unit == candidate.unit
       && current.powerState == candidate.powerState
       && current.kind == candidate.kind

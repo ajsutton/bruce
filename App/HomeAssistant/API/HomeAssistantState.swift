@@ -56,20 +56,20 @@ struct HomeAssistantState: Decodable, Equatable, Sendable {
 
   func temperatureReading(
     unit: String,
-    metadata: HomeAssistantClimateMetadata?
+    metadata: HomeAssistantClimateMetadata?,
+    damper: HomeAssistantState? = nil
   ) -> HomeAssistantTemperatureReading? {
-    guard
-      entityID.hasPrefix("climate."),
-      let value = attributes.currentTemperature,
-      value.isFinite
+    guard entityID.hasPrefix("climate."),
+      attributes.currentTemperature?.isFinite == true || metadata?.kind == .zone
     else {
       return nil
     }
     return HomeAssistantTemperatureReading(
       id: entityID,
       name: attributes.friendlyName ?? fallbackName,
-      value: value,
-      targetValue: finiteTargetTemperature,
+      value: attributes.currentTemperature.flatMap { $0.isFinite ? $0 : nil },
+      targetValue: metadata?.kind == .zone && attributes.currentTemperature == nil
+        ? nil : finiteTargetTemperature,
       unit: unit,
       powerState: powerState,
       kind: metadata?.kind ?? .other,
@@ -80,7 +80,9 @@ struct HomeAssistantState: Decodable, Equatable, Sendable {
       maximumTargetValue: attributes.maximumTemperature,
       targetValueStep: attributes.targetTemperatureStep ?? attributes.temperaturePrecision,
       floor: metadata?.floor,
-      presetLabels: metadata?.presetLabels ?? []
+      presetLabels: metadata?.presetLabels ?? [],
+      opening: metadata?.kind == .zone && attributes.currentTemperature == nil
+        ? damper.map(HomeAssistantZoneOpening.init) : nil
     )
   }
 

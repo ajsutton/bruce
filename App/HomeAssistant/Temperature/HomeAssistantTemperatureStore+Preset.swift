@@ -43,7 +43,7 @@ extension HomeAssistantTemperatureStore {
       return beginControl(
         for: zone,
         intent: .power(isOn: isOn),
-        allowsTargetReplacement: false,
+        allowsAdjustmentReplacement: false,
         allowsPresetTransaction: true,
         publishesReadings: false
       ).map {

@@ -90,6 +90,30 @@ final class HomeAssistantClimateControlClientTests: XCTestCase {
       ClimateTemperatureRequest(entityID: "climate.living_room", temperature: 22.5)
     )
   }
+
+  func testSettingOpeningCallsCoverPositionService() async throws {
+    let fixture = SessionFixture()
+    let session = fixture.makeSession(
+      apiResponses: [.success(Data("[]".utf8), statusCode: 200)]
+    )
+    try await session.install(fixture.credentials())
+
+    try await HomeAssistantAPIClient(session: session).setOpening(
+      50,
+      entityID: "cover.kitchen_damper"
+    )
+
+    let request = try XCTUnwrap(fixture.apiLoader.requests.first)
+    XCTAssertEqual(request.httpMethod, "POST")
+    XCTAssertEqual(request.url?.path, "/api/services/cover/set_cover_position")
+    XCTAssertEqual(
+      try JSONDecoder().decode(
+        CoverPositionRequest.self,
+        from: try XCTUnwrap(request.httpBody)
+      ),
+      CoverPositionRequest(entityID: "cover.kitchen_damper", position: 50)
+    )
+  }
 }
 
 private struct ClimateTarget: Codable, Equatable {
@@ -117,5 +141,14 @@ private struct ClimateTemperatureRequest: Codable, Equatable {
   enum CodingKeys: String, CodingKey {
     case entityID = "entity_id"
     case temperature
+  }
+}
+
+private struct CoverPositionRequest: Decodable, Equatable {
+  let entityID: String
+  let position: Double
+  enum CodingKeys: String, CodingKey {
+    case entityID = "entity_id"
+    case position
   }
 }

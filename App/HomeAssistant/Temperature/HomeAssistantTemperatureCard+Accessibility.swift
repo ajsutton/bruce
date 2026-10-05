@@ -30,10 +30,10 @@ extension HomeAssistantTemperatureCard {
 
   var powerAccessibilityValue: String {
     let copy = TemperatureCopy(mode: mode)
-    let currentValue = temperatureAccessibilityValue(
-      reading.value,
-      fractionLength: 1
-    )
+    let currentValue =
+      reading.value.map {
+        temperatureAccessibilityValue($0, fractionLength: 1)
+      } ?? copy.unavailable
     let targetValue =
       reading.targetValue.map {
         temperatureAccessibilityValue(
