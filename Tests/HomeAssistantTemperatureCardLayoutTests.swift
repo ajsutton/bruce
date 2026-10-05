@@ -8,11 +8,11 @@
   @MainActor
   final class HomeAssistantTemperatureCardLayoutTests: XCTestCase {
     func testRoomCardUsesOneRowAtEveryNonAccessibilityTextSize() {
-      for showsTargetControl in [false, true] {
+      for showsAdjustmentControl in [false, true] {
         for dynamicTypeSize in nonAccessibilityTextSizes {
           let height = renderedCardHeight(
             dynamicTypeSize: dynamicTypeSize,
-            showsTargetControl: showsTargetControl
+            showsAdjustmentControl: showsAdjustmentControl
           )
 
           XCTAssertLessThanOrEqual(
@@ -20,7 +20,7 @@
             singleRowMaximumHeight,
             """
             Room card wrapped at \(dynamicTypeSize) with target controls \
-            \(showsTargetControl) and a height of \(height) points.
+            \(showsAdjustmentControl) and a height of \(height) points.
             """
           )
         }
@@ -28,17 +28,17 @@
     }
 
     func testRoomCardMayStackAtAccessibilityTextSizes() {
-      for showsTargetControl in [false, true] {
+      for showsAdjustmentControl in [false, true] {
         let height = renderedCardHeight(
           dynamicTypeSize: .accessibility1,
-          showsTargetControl: showsTargetControl
+          showsAdjustmentControl: showsAdjustmentControl
         )
 
         XCTAssertGreaterThan(
           height,
           singleRowMaximumHeight,
           """
-          Room card with target controls \(showsTargetControl) did not use its \
+          Room card with target controls \(showsAdjustmentControl) did not use its \
           accessibility layout.
           """
         )
@@ -46,13 +46,13 @@
     }
 
     func testTargetControlExpandsItsHitWidthAcrossTheTargetValue() {
-      let control = ZoneTargetTemperatureControl(
+      let control = ZoneAdjustmentControl(
         reading: room,
         mode: .standard,
         isEnabled: true,
         isLastKnown: false,
         fractionLength: 1,
-        setTargetValue: { _ in }
+        setAdjustmentValue: { _ in }
       )
 
       let host = UIHostingController(rootView: control)
@@ -69,14 +69,14 @@
 
     private func renderedCardHeight(
       dynamicTypeSize: DynamicTypeSize,
-      showsTargetControl: Bool
+      showsAdjustmentControl: Bool
     ) -> CGFloat {
       let card = HomeAssistantTemperatureCard(
         reading: room,
         mode: .standard,
         showsControl: true,
         isControlEnabled: true,
-        showsTargetControl: showsTargetControl
+        showsAdjustmentControl: showsAdjustmentControl
       )
       .environment(\.dynamicTypeSize, dynamicTypeSize)
       .environment(\.horizontalSizeClass, .compact)

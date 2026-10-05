@@ -7735,23 +7735,6 @@
         }
       }
     },
-    "temperature.opening" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vent opening"
-          }
-        },
-        "en-AU" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vent’s open"
-          }
-        }
-      }
-    },
     "temperature.namedOpening" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7765,6 +7748,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ vent: how far it’s open"
+          }
+        }
+      }
+    },
+    "temperature.vent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vent"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Let ’er Blow"
+          }
+        }
+      }
+    },
+    "temperature.increaseVent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Increase %@ vent opening"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open %@ vent a bit more"
+          }
+        }
+      }
+    },
+    "temperature.decreaseVent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decrease %@ vent opening"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close %@ vent a bit more"
           }
         }
       }

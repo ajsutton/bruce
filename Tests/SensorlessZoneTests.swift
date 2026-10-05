@@ -62,6 +62,7 @@ final class SensorlessZoneTests: XCTestCase {
       ).first)
     XCTAssertEqual(kitchen.powerState, .off)
     XCTAssertFalse(kitchen.opening?.canSetValue(50) == true)
+    XCTAssertNil(kitchen.adjustmentValue)
   }
 
   func testRegistryLinksDamperByAirTouchZoneIdentityRatherThanEntityName() {
@@ -87,6 +88,16 @@ final class SensorlessZoneTests: XCTestCase {
       HomeAssistantTemperaturePresentation.matches(
         [kitchen], [kitchen.replacingOpening(opening.replacingValue(50))]
       ))
+  }
+
+  func testVentAdjustmentUsesFivePercentStepsAndPercentageUnits() throws {
+    let kitchen = try XCTUnwrap(
+      HomeAssistantAPIClient.temperatures(
+        from: kitchenStates, unit: "°C", climateMetadata: kitchenMetadata
+      ).first)
+    XCTAssertEqual(kitchen.adjustmentStep, 5)
+    XCTAssertEqual(kitchen.adjustmentValue, 5)
+    XCTAssertEqual(kitchen.adjustmentUnit, "%")
   }
 
   func testOpeningRejectsInvalidPercentages() {

@@ -21,7 +21,13 @@ struct TemperatureCopy {
   var lastKnown: String { text(.lastKnown) }
   var lastKnownUpdating: String { text(.lastKnownUpdating) }
   var updatingTemperatures: String { text(.updatingTemperatures) }
-  var opening: String { copy.text(.localized("temperature.opening")) }
+  var vent: String { copy.text(.localized("temperature.vent")) }
+  func increaseVent(name: String) -> String {
+    copy.text(.localized("temperature.increaseVent")).replacingOccurrences(of: "%@", with: name)
+  }
+  func decreaseVent(name: String) -> String {
+    copy.text(.localized("temperature.decreaseVent")).replacingOccurrences(of: "%@", with: name)
+  }
   func opening(name: String) -> String {
     copy.text(.localized("temperature.namedOpening")).replacingOccurrences(of: "%@", with: name)
   }

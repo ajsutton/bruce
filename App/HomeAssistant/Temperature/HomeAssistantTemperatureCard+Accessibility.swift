@@ -30,6 +30,14 @@ extension HomeAssistantTemperatureCard {
 
   var powerAccessibilityValue: String {
     let copy = TemperatureCopy(mode: mode)
+    if reading.isSensorlessZone {
+      let openingValue =
+        reading.opening.flatMap { opening in
+          opening.isAvailable ? opening.value : nil
+        }.map { "\($0.formatted(.number.precision(.fractionLength(0))))%" } ?? copy.unavailable
+      let value = "\(powerStateLabel). \(copy.opening(name: reading.name)): \(openingValue)"
+      return isLastKnown ? copy.lastKnown(value) : value
+    }
     let currentValue =
       reading.value.map {
         temperatureAccessibilityValue($0, fractionLength: 1)
@@ -38,7 +46,7 @@ extension HomeAssistantTemperatureCard {
       reading.targetValue.map {
         temperatureAccessibilityValue(
           $0,
-          fractionLength: targetValueFractionLength
+          fractionLength: adjustmentFractionLength
         )
       } ?? copy.unavailable
     let value = copy.accessibilityValue(

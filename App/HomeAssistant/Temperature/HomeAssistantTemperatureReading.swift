@@ -151,6 +151,17 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     )
   }
 
+  var isSensorlessZone: Bool {
+    kind == .zone && value == nil && targetValue == nil
+  }
+
+  var adjustmentValue: Double? {
+    guard isSensorlessZone else { return targetValue }
+    return opening.flatMap { $0.isAvailable ? $0.value : nil }
+  }
+  var adjustmentUnit: String? { isSensorlessZone ? "%" : unit }
+  var adjustmentStep: Double { isSensorlessZone ? 5 : effectiveTargetValueStep }
+
   var effectiveTargetValueStep: Double {
     guard let targetValueStep, targetValueStep.isFinite, targetValueStep > 0 else {
       return unit == "°F" ? 1 : 0.5
