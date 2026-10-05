@@ -1,12 +1,12 @@
 import SwiftUI
 
-struct ZoneTargetTemperatureControl: View {
+struct ZoneAdjustmentControl: View {
   let reading: HomeAssistantTemperatureReading
   let mode: BruceMode
   let isEnabled: Bool
   let isLastKnown: Bool
   let fractionLength: Int
-  let setTargetValue: @Sendable (Double) -> Void
+  let setAdjustmentValue: @Sendable (Double) -> Void
 
   private var style: TemperatureCardStyle {
     TemperatureCardStyle(reading: reading, mode: mode)
@@ -16,8 +16,15 @@ struct ZoneTargetTemperatureControl: View {
     TemperatureCopy(mode: mode)
   }
 
+  private var isAdjustmentEnabled: Bool {
+    guard isEnabled else { return false }
+    guard reading.isSensorlessZone else { return true }
+    guard let opening = reading.opening, let value = opening.value else { return false }
+    return opening.canSetValue(value)
+  }
+
   private var step: Double {
-    reading.effectiveTargetValueStep
+    reading.adjustmentStep
   }
 
   @ViewBuilder
@@ -27,37 +34,42 @@ struct ZoneTargetTemperatureControl: View {
         VStack(spacing: 0) {
           adjustmentSymbol(
             systemName: "chevron.up",
-            value: adjustedTarget(by: step)
+            value: adjustedValue(by: step)
           )
           adjustmentSymbol(
             systemName: "chevron.down",
-            value: adjustedTarget(by: -step)
+            value: adjustedValue(by: -step)
           )
         }
         .accessibilityHidden(true)
 
         VStack(spacing: 0) {
           adjustmentButton(
-            accessibilityLabel: copy.increaseTarget(name: reading.name),
-            value: adjustedTarget(by: step)
+            accessibilityLabel: reading.isSensorlessZone
+              ? copy.increaseVent(name: reading.name) : copy.increaseTarget(name: reading.name),
+            value: adjustedValue(by: step)
           )
           adjustmentButton(
-            accessibilityLabel: copy.decreaseTarget(name: reading.name),
-            value: adjustedTarget(by: -step)
+            accessibilityLabel: reading.isSensorlessZone
+              ? copy.decreaseVent(name: reading.name) : copy.decreaseTarget(name: reading.name),
+            value: adjustedValue(by: -step)
           )
         }
       }
       .frame(width: 84, height: 88)
     #else
       Stepper(
-        value: targetBinding,
-        in: targetRange,
+        value: valueBinding,
+        in: valueRange,
         step: step
       ) {}
       .labelsHidden()
-      .disabled(!isEnabled)
-      .accessibilityLabel(copy.target(name: reading.name))
-      .accessibilityValue(targetAccessibilityValue)
+      .disabled(!isAdjustmentEnabled)
+      .accessibilityLabel(
+        reading.isSensorlessZone
+          ? copy.opening(name: reading.name) : copy.target(name: reading.name)
+      )
+      .accessibilityValue(valueAccessibilityValue)
       .tint(style.controlTint)
       .foregroundStyle(style.primaryForeground)
     #endif
@@ -72,7 +84,7 @@ struct ZoneTargetTemperatureControl: View {
         .font(.caption.weight(.semibold))
         .foregroundStyle(style.controlTint)
         .frame(width: 16, height: 44)
-        .opacity(isEnabled && value != nil ? 1 : 0.35)
+        .opacity(isAdjustmentEnabled && value != nil ? 1 : 0.35)
     }
 
     private func adjustmentButton(
@@ -83,24 +95,24 @@ struct ZoneTargetTemperatureControl: View {
         guard let value else {
           return
         }
-        setTargetValue(value)
+        setAdjustmentValue(value)
       } label: {
         Color.clear
           .frame(width: 84, height: 44)
           .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
-      .disabled(!isEnabled || value == nil)
+      .disabled(!isAdjustmentEnabled || value == nil)
       .accessibilityLabel(accessibilityLabel)
-      .accessibilityValue(targetAccessibilityValue)
+      .accessibilityValue(valueAccessibilityValue)
     }
 
-    private func adjustedTarget(by adjustment: Double) -> Double? {
-      guard let targetValue = reading.targetValue else {
+    private func adjustedValue(by adjustment: Double) -> Double? {
+      guard let targetValue = reading.adjustmentValue else {
         return nil
       }
       let adjustedValue = targetValue + adjustment
-      guard targetRange.contains(adjustedValue) else {
+      guard valueRange.contains(adjustedValue) else {
         return nil
       }
       return adjustedValue
@@ -108,26 +120,27 @@ struct ZoneTargetTemperatureControl: View {
 
   #endif
 
-  private var targetAccessibilityValue: String {
-    guard let value = reading.targetValue else {
+  private var valueAccessibilityValue: String {
+    guard let value = reading.adjustmentValue else {
       return copy.unavailable
     }
     let formattedValue = value.formatted(
-      .number.precision(.fractionLength(fractionLength))
+      .number.precision(.fractionLength(reading.isSensorlessZone ? 0 : fractionLength))
     )
-    let presentedValue = "\(formattedValue)\(reading.unit ?? "")"
+    let presentedValue = "\(formattedValue)\(reading.adjustmentUnit ?? "")"
     return isLastKnown ? copy.lastKnown(presentedValue) : presentedValue
   }
 
-  private var targetBinding: Binding<Double> {
+  private var valueBinding: Binding<Double> {
     Binding(
-      get: { reading.targetValue ?? targetRange.lowerBound },
-      set: setTargetValue
+      get: { reading.adjustmentValue ?? valueRange.lowerBound },
+      set: setAdjustmentValue
     )
   }
 
-  private var targetRange: ClosedRange<Double> {
-    let targetValue = reading.targetValue ?? 0
+  private var valueRange: ClosedRange<Double> {
+    if reading.isSensorlessZone { return 0...100 }
+    let targetValue = reading.adjustmentValue ?? 0
     let lowerBound = reading.minimumTargetValue ?? targetValue - 1_000
     let upperBound = reading.maximumTargetValue ?? targetValue + 1_000
     guard lowerBound <= upperBound else {

@@ -98,8 +98,8 @@ import SwiftUI
       mode: .standard,
       showsControl: true,
       isControlEnabled: true,
-      showsTargetControl: true,
-      targetValueFractionLength: 1
+      showsAdjustmentControl: true,
+      adjustmentFractionLength: 1
     )
   }
   .padding()
@@ -111,9 +111,9 @@ import SwiftUI
     mode: .standard,
     showsControl: true,
     isControlEnabled: true,
-    isTargetControlling: true,
-    showsTargetControl: true,
-    targetValueFractionLength: 1
+    isAdjustmentControlling: true,
+    showsAdjustmentControl: true,
+    adjustmentFractionLength: 1
   )
   .frame(width: 300)
   .padding()

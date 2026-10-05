@@ -1,23 +1,23 @@
 import SwiftUI
 
 #Preview("Kitchen") {
-  SensorlessZoneCard(
-    reading: sensorlessKitchen, mode: .standard, showsControls: true, isEnabled: true,
-    isAdjustingOpening: false, isControllingPower: false, isLastKnown: false,
-    setPower: { _ in }, setOpening: { _ in }
+  HomeAssistantTemperatureCard(
+    reading: sensorlessKitchen, mode: .standard, showsControl: true, isControlEnabled: true,
+    showsAdjustmentControl: true
   )
   .frame(width: 320)
+  .fixedSize(horizontal: false, vertical: true)
   .padding()
 }
 
 #Preview("Kitchen · Full Bruce · large text") {
-  SensorlessZoneCard(
-    reading: sensorlessKitchen, mode: .full, showsControls: true, isEnabled: true,
-    isAdjustingOpening: false, isControllingPower: false, isLastKnown: false,
-    setPower: { _ in }, setOpening: { _ in }
+  HomeAssistantTemperatureCard(
+    reading: sensorlessKitchen, mode: .full, showsControl: true, isControlEnabled: true,
+    showsAdjustmentControl: true
   )
   .environment(\.dynamicTypeSize, .accessibility3)
   .frame(width: 320)
+  .fixedSize(horizontal: false, vertical: true)
   .padding()
 }
 
@@ -28,3 +28,32 @@ private let sensorlessKitchen = HomeAssistantTemperatureReading(
     entityID: "cover.kitchen_damper", value: 5, isAvailable: true, supportsPosition: true
   )
 )
+
+#Preview("Kitchen · wide card") {
+  HomeAssistantTemperatureCard(
+    reading: sensorlessKitchen, mode: .standard, showsControl: true, isControlEnabled: true,
+    showsAdjustmentControl: true
+  )
+  .frame(width: 700)
+  .fixedSize(horizontal: false, vertical: true)
+  .padding()
+}
+
+#Preview("Target and Vent · matching widths") {
+  VStack(spacing: 14) {
+    HomeAssistantTemperatureCard(
+      reading: HomeAssistantTemperatureReading(
+        id: "climate.lounge", name: "Lounge", value: 22, targetValue: 24,
+        unit: "°C", powerState: .poweredOn, kind: .zone
+      ),
+      mode: .standard, showsControl: true, isControlEnabled: true, showsAdjustmentControl: true
+    )
+    HomeAssistantTemperatureCard(
+      reading: sensorlessKitchen, mode: .standard,
+      showsControl: true, isControlEnabled: true, showsAdjustmentControl: true
+    )
+  }
+  .frame(width: 700)
+  .fixedSize(horizontal: false, vertical: true)
+  .padding()
+}

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct HomeAssistantClimateZoneCard: View, Equatable {
   private let temperatureCard: HomeAssistantTemperatureCard
-  private let openingCard: SensorlessZoneCard
 
   init(
     reading: HomeAssistantTemperatureReading,
@@ -19,36 +18,26 @@ struct HomeAssistantClimateZoneCard: View, Equatable {
       showsControl: reading.kind == .zone && store.supportsControl,
       isControlEnabled: store.canControl(reading),
       isControlling: store.isControllingClimateState(entityID: reading.id),
-      isTargetControlling: store.isAdjusting(entityID: reading.id),
+      isAdjustmentControlling: store.isAdjusting(entityID: reading.id),
       isLastKnown: isLastKnown,
-      showsTargetControl: reading.kind == .zone && reading.targetValue != nil
+      showsAdjustmentControl: reading.kind == .zone && reading.adjustmentValue != nil
         && store.supportsControl,
-      targetValueFractionLength: targetValueFractionLength,
+      adjustmentFractionLength: reading.isSensorlessZone ? 0 : targetValueFractionLength,
       setPower: setPower,
-      setTargetValue: { value in
-        MainActor.assumeIsolated { store.setTargetValue(value, for: reading) }
-      }
-    )
-    openingCard = SensorlessZoneCard(
-      reading: reading, mode: mode, showsControls: store.supportsControl,
-      isEnabled: store.canControl(reading),
-      isAdjustingOpening: store.isAdjusting(entityID: reading.id),
-      isControllingPower: store.isControllingClimateState(entityID: reading.id),
-      isLastKnown: isLastKnown, setPower: setPower,
-      setOpening: { value in
-        MainActor.assumeIsolated { store.setOpening(value, for: reading) }
+      setAdjustmentValue: { value in
+        MainActor.assumeIsolated {
+          if reading.isSensorlessZone {
+            store.setOpening(value, for: reading)
+          } else {
+            store.setTargetValue(value, for: reading)
+          }
+        }
       }
     )
   }
 
   var body: some View {
-    if temperatureCard.reading.kind == .zone && temperatureCard.reading.value == nil
-      && temperatureCard.reading.targetValue == nil
-    {
-      openingCard
-    } else {
-      temperatureCard
-    }
+    temperatureCard
   }
 
   nonisolated static func == (lhs: Self, rhs: Self) -> Bool {

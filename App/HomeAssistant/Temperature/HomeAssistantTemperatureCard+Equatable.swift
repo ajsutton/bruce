@@ -11,10 +11,10 @@ extension HomeAssistantTemperatureCard: Equatable {
       && lhs.showsControl == rhs.showsControl
       && lhs.isControlEnabled == rhs.isControlEnabled
       && lhs.isControlling == rhs.isControlling
-      && lhs.isTargetControlling == rhs.isTargetControlling
+      && lhs.isAdjustmentControlling == rhs.isAdjustmentControlling
       && lhs.isLastKnown == rhs.isLastKnown
-      && lhs.showsTargetControl == rhs.showsTargetControl
-      && lhs.targetValueFractionLength == rhs.targetValueFractionLength
+      && lhs.showsAdjustmentControl == rhs.showsAdjustmentControl
+      && lhs.adjustmentFractionLength == rhs.adjustmentFractionLength
   }
 }
 
