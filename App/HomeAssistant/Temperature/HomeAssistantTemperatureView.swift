@@ -12,7 +12,6 @@ struct HomeAssistantTemperatureView: View {
   let isConnecting: Bool
   let showsConnectionProblems: Bool
   let requestRefresh: () -> Void
-  var isEmbedded = false
 
   private var copy: TemperatureCopy {
     TemperatureCopy(mode: mode)
@@ -56,17 +55,11 @@ struct HomeAssistantTemperatureView: View {
   }
 
   var body: some View {
-    Group {
-      if isEmbedded {
-        panelContent
-      } else {
-        NavigationStack {
-          panelContent
-            .navigationTitle(copy.navigationTitle)
-            .toolbarTitleDisplayMode(.inline)
-            .modifier(TemperatureNavigationStyle(mode: mode))
-        }
-      }
+    NavigationStack {
+      panelContent
+        .navigationTitle(copy.navigationTitle)
+        .toolbarTitleDisplayMode(.inline)
+        .modifier(TemperatureNavigationStyle(mode: mode))
     }
     .tint(mode.accentColor)
     .alert(
@@ -115,12 +108,8 @@ struct HomeAssistantTemperatureView: View {
             .padding(.horizontal)
             .padding(.top, 8)
         }
-        if isEmbedded {
+        ScrollView {
           temperatureReadings
-        } else {
-          ScrollView {
-            temperatureReadings
-          }
         }
       }
     }

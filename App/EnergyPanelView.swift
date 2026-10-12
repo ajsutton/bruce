@@ -8,31 +8,24 @@ struct EnergyPanelView: View {
   var showsConnectionProblems = true
   let manageConnection: () -> Void
   let requestRefresh: () -> Void
-  var isEmbedded = false
 
   private var copy: EnergyPanelCopy {
     EnergyPanelCopy(mode: mode)
   }
 
   var body: some View {
-    Group {
-      if isEmbedded {
+    NavigationStack {
+      ScrollView {
         panelContent
-      } else {
-        NavigationStack {
-          ScrollView {
-            panelContent
-          }
-          .navigationTitle(copy.navigationTitle)
-          #if os(iOS)
-            .toolbarTitleDisplayMode(
-              dynamicTypeSize.isAccessibilitySize ? .large : .inline
-            )
-          #else
-            .toolbarTitleDisplayMode(.inline)
-          #endif
-        }
       }
+      .navigationTitle(copy.navigationTitle)
+      #if os(iOS)
+        .toolbarTitleDisplayMode(
+          dynamicTypeSize.isAccessibilitySize ? .large : .inline
+        )
+      #else
+        .toolbarTitleDisplayMode(.inline)
+      #endif
     }
     .background(mode.panelBackgroundColor(for: colorScheme))
     .preferredColorScheme(mode.isFullBruce ? .dark : nil)
