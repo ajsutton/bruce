@@ -43,7 +43,11 @@ struct BrucePanelsView: View {
         )
       }
 
-      panels
+      #if os(macOS)
+        macOSPanels
+      #else
+        panels
+      #endif
       #if os(macOS)
         if connectionBanner == nil, showsServerStatus {
           serverStatusView
@@ -82,58 +86,41 @@ struct BrucePanelsView: View {
 }
 
 extension BrucePanelsView {
-  fileprivate var panels: some View {
-    TabView(selection: $selectedPanel) {
-      Tab(
-        title(for: .climate),
-        systemImage: BrucePanel.climate.systemImage,
-        value: BrucePanel.climate
-      ) {
-        panel(identifier: BrucePanel.climate.sectionAccessibilityIdentifier) {
-          HomeAssistantTemperatureView(
-            store: temperatureStore,
-            mode: mode,
-            isConnecting: isConnecting,
-            showsConnectionProblems: connectionBanner == nil,
-            requestRefresh: requestHomeRefresh
+  #if os(macOS)
+    fileprivate var macOSPanels: some View {
+      NavigationSplitView {
+        List(
+          BrucePanel.allCases,
+          selection: Binding<BrucePanel?>(
+            get: { selectedPanel },
+            set: { panel in
+              guard let panel else { return }
+              selectedPanel = panel
+            }
           )
+        ) { panel in
+          Label(title(for: panel), systemImage: panel.systemImage)
+            .tag(panel)
         }
-      }
-
-      Tab(
-        title(for: .car),
-        systemImage: BrucePanel.car.systemImage,
-        value: BrucePanel.car
-      ) {
-        panel(identifier: BrucePanel.car.sectionAccessibilityIdentifier) {
-          CarPanelView(
-            chargingStore: chargingStore,
-            garageDoorStore: garageDoorStore,
-            mode: mode,
-            showsConnectionProblems: connectionBanner == nil,
-            manageConnection: manageConnection,
-            requestRefresh: requestHomeRefresh
-          )
-        }
-      }
-
-      Tab(
-        title(for: .energy),
-        systemImage: BrucePanel.energy.systemImage,
-        value: BrucePanel.energy
-      ) {
-        panel(identifier: BrucePanel.energy.sectionAccessibilityIdentifier) {
-          EnergyPanelView(
-            homeEnergyStore: homeEnergyStore,
-            mode: mode,
-            showsConnectionProblems: connectionBanner == nil,
-            manageConnection: manageConnection,
-            requestRefresh: requestHomeRefresh
-          )
-        }
+        .navigationSplitViewColumnWidth(min: 170, ideal: 190)
+      } detail: {
+        panelContent(for: selectedPanel)
+          .id(selectedPanel)
+          .navigationTitle(title(for: selectedPanel))
+          .toolbarTitleDisplayMode(.inline)
       }
     }
-    #if os(iOS)
+  #endif
+
+  #if os(iOS)
+    fileprivate var panels: some View {
+      TabView(selection: $selectedPanel) {
+        ForEach(BrucePanel.allCases) { panel in
+          Tab(title(for: panel), systemImage: panel.systemImage, value: panel) {
+            panelContent(for: panel)
+          }
+        }
+      }
       .tabViewStyle(.sidebarAdaptable)
       .background {
         BrucePanelSwipeGestureView(
@@ -141,7 +128,40 @@ extension BrucePanelsView {
           exclusionFrames: panelSwipeExclusionFrames
         )
       }
-    #endif
+    }
+  #endif
+
+  @ViewBuilder
+  fileprivate func panelContent(for selectedPanel: BrucePanel) -> some View {
+    panel(identifier: selectedPanel.sectionAccessibilityIdentifier) {
+      switch selectedPanel {
+      case .climate:
+        HomeAssistantTemperatureView(
+          store: temperatureStore,
+          mode: mode,
+          isConnecting: isConnecting,
+          showsConnectionProblems: connectionBanner == nil,
+          requestRefresh: requestHomeRefresh
+        )
+      case .car:
+        CarPanelView(
+          chargingStore: chargingStore,
+          garageDoorStore: garageDoorStore,
+          mode: mode,
+          showsConnectionProblems: connectionBanner == nil,
+          manageConnection: manageConnection,
+          requestRefresh: requestHomeRefresh
+        )
+      case .energy:
+        EnergyPanelView(
+          homeEnergyStore: homeEnergyStore,
+          mode: mode,
+          showsConnectionProblems: connectionBanner == nil,
+          manageConnection: manageConnection,
+          requestRefresh: requestHomeRefresh
+        )
+      }
+    }
   }
 
   fileprivate func panel<Content: View>(
