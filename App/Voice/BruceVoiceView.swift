@@ -3,6 +3,7 @@ import SwiftUI
 struct BruceVoiceView: View {
   @ObservedObject var store: OpenClawVoiceStore
   let mode: BruceMode
+  var isEmbedded = false
   @Environment(\.colorScheme) private var colorScheme
   @State private var showsProgress = false
   @Environment(\.openURL) private var openURL
@@ -18,11 +19,13 @@ struct BruceVoiceView: View {
             Link(copy.privacy, destination: url).font(.footnote).padding(.vertical, 8)
           }
         }
-        .navigationTitle(copy.title)
+        .navigationTitle(isEmbedded ? AppCopy(mode: mode).voiceTab : copy.title)
         .toolbar {
-          ToolbarItem(placement: .cancellationAction) {
-            Button(store.hasCall ? copy.hideCall : copy.done) { dismiss() }
-              .accessibilityHint(store.hasCall ? copy.hideCallHint : "")
+          if !isEmbedded {
+            ToolbarItem(placement: .cancellationAction) {
+              Button(store.hasCall ? copy.hideCall : copy.done) { dismiss() }
+                .accessibilityHint(store.hasCall ? copy.hideCallHint : "")
+            }
           }
         }
         .padding()
@@ -30,7 +33,10 @@ struct BruceVoiceView: View {
         .background(mode.panelBackgroundColor(for: colorScheme))
     }
     .tint(mode.accentColor)
-    .interactiveDismissDisabled(store.hasCall)
+    .interactiveDismissDisabled(!isEmbedded && store.hasCall)
+    .onAppear {
+      if isEmbedded, store.phase == .idle { store.prepare() }
+    }
     .task(id: store.phase) {
       showsProgress = false
       guard store.phase == .loading || store.phase == .ending else { return }
@@ -96,7 +102,12 @@ struct BruceVoiceView: View {
           Button(copy.retry, action: store.prepare).buttonStyle(.borderedProminent)
         }
       }
-    case .idle, .loading, .ending:
+    case .idle:
+      Button(action: store.prepare) {
+        Label(copy.title, systemImage: "waveform")
+      }
+      .buttonStyle(.borderedProminent)
+    case .loading, .ending:
       VStack(spacing: 16) {
         ProgressView().opacity(showsProgress ? 1 : 0)
         Text(store.phase == .ending ? copy.ending : copy.loading)

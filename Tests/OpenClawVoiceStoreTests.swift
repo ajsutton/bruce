@@ -105,6 +105,45 @@ final class OpenClawVoiceStoreTests: XCTestCase {
     await transition(store, to: .idle) { store.end() }
   }
 
+  func testRemovingPickerCancelsAgentSelection() async {
+    let client = VoiceClientDouble()
+    let store = OpenClawVoiceStore(client: client)
+    await transition(store, to: .choosing) { store.prepare() }
+    await transition(store, to: .idle) { BruceVoicePresentation.dismissPicker(store) }
+    XCTAssertEqual(client.closeCount, 1)
+  }
+
+  func testRemovingPickerPreservesActiveConversation() async {
+    let client = VoiceClientDouble()
+    client.roster = [agent]
+    let store = OpenClawVoiceStore(client: client, makeAudio: { VoiceAudioDouble() })
+    await transition(store, to: .choosing) { store.prepare() }
+    await transition(store, to: .connected) { store.start(self.agent) }
+    BruceVoicePresentation.dismissPicker(store)
+    XCTAssertEqual(store.phase, .connected)
+    XCTAssertEqual(client.closeCount, 0)
+    await transition(store, to: .idle) { store.end() }
+  }
+
+  func testClosingOneOfTwoPickersPreservesTheOtherPicker() async {
+    let client = VoiceClientDouble()
+    let store = OpenClawVoiceStore(client: client)
+    let first = UUID()
+    let second = UUID()
+    store.presentPicker(id: first)
+    store.presentPicker(id: second)
+    await transition(store, to: .choosing) { store.prepare() }
+    BruceVoicePresentation.dismissPicker(store, presenterID: first)
+    BruceVoicePresentation.dismissPicker(store, presenterID: first)
+    BruceVoicePresentation.dismissPicker(store, presenterID: UUID())
+    XCTAssertEqual(store.phase, .choosing)
+    XCTAssertEqual(client.closeCount, 0)
+    await transition(store, to: .idle) {
+      BruceVoicePresentation.dismissPicker(store, presenterID: second)
+    }
+    XCTAssertEqual(client.closeCount, 1)
+  }
+
   private func transition(
     _ store: OpenClawVoiceStore, to phase: OpenClawVoiceStore.Phase, action: () -> Void
   ) async {

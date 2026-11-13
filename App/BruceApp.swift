@@ -42,7 +42,7 @@ struct BruceApp: App {
 
   var body: some Scene {
     WindowGroup("Bruce", id: "main") {
-      BruceVoiceHost(store: voiceStore, mode: modeController.mode) {
+      BruceVoiceHost(store: voiceStore) {
         #if os(macOS)
           ContentView(
             modeController: modeController,

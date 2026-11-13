@@ -22,7 +22,6 @@ struct CarPanelView: View {
         panelContent
       }
       .navigationTitle(copy.navigationTitle)
-      .modifier(BruceVoiceToolbar(mode: mode))
       #if os(iOS)
         .toolbarTitleDisplayMode(
           dynamicTypeSize.isAccessibilitySize ? .large : .inline

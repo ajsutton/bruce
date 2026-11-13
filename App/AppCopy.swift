@@ -7,6 +7,7 @@ struct AppCopy {
 
   var climateTab: String { text(.climateTab) }
   var carTab: String { text(.carTab) }
+  var voiceTab: String { text(.voiceTab) }
   var energyTab: String { text(.energyTab) }
   var generalSettingsTab: String { text(.generalSettingsTab) }
   var homeAssistantSettingsTab: String { text(.homeAssistantSettingsTab) }
@@ -29,6 +30,7 @@ extension AppCopy {
     case climateTab
     case carTab
     case energyTab
+    case voiceTab
     case generalSettingsTab
     case homeAssistantSettingsTab
     case fullBruceToggle
@@ -48,6 +50,8 @@ extension AppCopy {
         .localized("app.carTab")
       case .energyTab:
         .localized("app.energyTab")
+      case .voiceTab:
+        .localized("app.voiceTab")
       case .generalSettingsTab:
         .localized("app.generalSettingsTab")
       case .homeAssistantSettingsTab:

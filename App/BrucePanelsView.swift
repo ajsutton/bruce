@@ -27,13 +27,21 @@ struct BrucePanelsView: View {
     )
   }
 
+  private var showsConnectionBanner: Bool {
+    #if os(iOS)
+      selectedPanel != .voice
+    #else
+      true
+    #endif
+  }
+
   private var showsServerStatus: Bool {
     serverStatus.phase != .idle || isConnecting || isRemovingConnection
   }
 
   var body: some View {
     VStack(spacing: 0) {
-      if let connectionBanner {
+      if let connectionBanner, showsConnectionBanner {
         HomeAssistantConnectionBannerView(
           banner: connectionBanner,
           lastSuccessfulUpdate: serverStatus.lastSuccessfulUpdate,
@@ -81,6 +89,9 @@ struct BrucePanelsView: View {
       copy.carTab
     case .energy:
       copy.energyTab
+    #if os(iOS)
+      case .voice: copy.voiceTab
+    #endif
     }
   }
 }
@@ -102,6 +113,7 @@ extension BrucePanelsView {
           Label(title(for: panel), systemImage: panel.systemImage)
             .tag(panel)
         }
+        .modifier(BruceVoiceSidebar(mode: mode))
         .navigationSplitViewColumnWidth(min: 170, ideal: 190)
       } detail: {
         panelContent(for: selectedPanel)
@@ -133,34 +145,34 @@ extension BrucePanelsView {
 
   @ViewBuilder
   fileprivate func panelContent(for selectedPanel: BrucePanel) -> some View {
-    panel(identifier: selectedPanel.sectionAccessibilityIdentifier) {
-      switch selectedPanel {
-      case .climate:
+    switch selectedPanel {
+    case .climate:
+      panel(identifier: selectedPanel.sectionAccessibilityIdentifier) {
         HomeAssistantTemperatureView(
-          store: temperatureStore,
-          mode: mode,
-          isConnecting: isConnecting,
-          showsConnectionProblems: connectionBanner == nil,
-          requestRefresh: requestHomeRefresh
+          store: temperatureStore, mode: mode, isConnecting: isConnecting,
+          showsConnectionProblems: connectionBanner == nil, requestRefresh: requestHomeRefresh
         )
-      case .car:
+      }
+    case .car:
+      panel(identifier: selectedPanel.sectionAccessibilityIdentifier) {
         CarPanelView(
-          chargingStore: chargingStore,
-          garageDoorStore: garageDoorStore,
-          mode: mode,
-          showsConnectionProblems: connectionBanner == nil,
-          manageConnection: manageConnection,
-          requestRefresh: requestHomeRefresh
-        )
-      case .energy:
-        EnergyPanelView(
-          homeEnergyStore: homeEnergyStore,
-          mode: mode,
-          showsConnectionProblems: connectionBanner == nil,
-          manageConnection: manageConnection,
+          chargingStore: chargingStore, garageDoorStore: garageDoorStore, mode: mode,
+          showsConnectionProblems: connectionBanner == nil, manageConnection: manageConnection,
           requestRefresh: requestHomeRefresh
         )
       }
+    case .energy:
+      panel(identifier: selectedPanel.sectionAccessibilityIdentifier) {
+        EnergyPanelView(
+          homeEnergyStore: homeEnergyStore, mode: mode,
+          showsConnectionProblems: connectionBanner == nil, manageConnection: manageConnection,
+          requestRefresh: requestHomeRefresh
+        )
+      }
+    #if os(iOS)
+      case .voice:
+        BruceVoiceDestinationView(mode: mode)
+    #endif
     }
   }
 

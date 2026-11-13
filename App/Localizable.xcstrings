@@ -8261,6 +8261,23 @@
           }
         }
       }
+    },
+    "app.voiceTab" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voice"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yarns"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

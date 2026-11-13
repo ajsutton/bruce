@@ -38,7 +38,6 @@ struct HomeAssistantSetupView: View {
         #endif
       }
       .navigationTitle(setupCopy.navigationTitle)
-      .modifier(BruceVoiceToolbar(mode: mode, isAvailable: !startsInConnectionManagement))
       #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

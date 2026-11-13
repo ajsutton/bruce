@@ -25,6 +25,7 @@ final class OpenClawVoiceStore: ObservableObject {
   @Published var browser: Browser?
   private let client: any OpenClawVoiceServing
   private let makeAudio: () -> any OpenClawAudioCalling
+  private var pickerPresenters: Set<UUID> = []
   private var audio: (any OpenClawAudioCalling)?
   private var task: Task<Void, Never>?
   private var connectionDeadline: Task<Void, Never>?
@@ -42,6 +43,16 @@ final class OpenClawVoiceStore: ObservableObject {
   }
 
   var hasCall: Bool { phase == .connecting || phase == .connected }
+
+  func presentPicker(id: UUID) {
+    pickerPresenters.insert(id)
+  }
+
+  /// Returns true when the final picker has left, including repeated teardown callbacks.
+  func removePicker(id: UUID) -> Bool {
+    guard pickerPresenters.remove(id) != nil else { return false }
+    return pickerPresenters.isEmpty
+  }
 
   func prepare() {
     guard phase == .idle || phase == .failed else { return }

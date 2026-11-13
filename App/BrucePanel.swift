@@ -2,6 +2,9 @@ enum BrucePanel: String, CaseIterable, Identifiable {
   case climate
   case car
   case energy
+  #if os(iOS)
+    case voice
+  #endif
 
   static let storageKey = "selectedPanel"
 
@@ -15,6 +18,9 @@ enum BrucePanel: String, CaseIterable, Identifiable {
       "car"
     case .energy:
       "bolt"
+    #if os(iOS)
+      case .voice: "waveform"
+    #endif
     }
   }
 
@@ -26,6 +32,9 @@ enum BrucePanel: String, CaseIterable, Identifiable {
       BruceAccessibilityIdentifier.carPanelSection
     case .energy:
       BruceAccessibilityIdentifier.energyPanelSection
+    #if os(iOS)
+      case .voice: nil
+    #endif
     }
   }
 }

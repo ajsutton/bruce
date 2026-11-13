@@ -8,11 +8,19 @@ final class BrucePanelSwipeNavigationTests: XCTestCase {
     XCTAssertEqual(destination(from: .car, direction: .left), .energy)
     XCTAssertEqual(destination(from: .energy, direction: .right), .car)
     XCTAssertEqual(destination(from: .car, direction: .right), .climate)
+    #if os(iOS)
+      XCTAssertEqual(destination(from: .energy, direction: .left), .voice)
+      XCTAssertEqual(destination(from: .voice, direction: .right), .energy)
+    #endif
   }
 
   func testSwipesAtTheFirstAndLastPanelDoNothing() {
     XCTAssertNil(destination(from: .climate, direction: .right))
-    XCTAssertNil(destination(from: .energy, direction: .left))
+    #if os(iOS)
+      XCTAssertNil(destination(from: .voice, direction: .left))
+    #else
+      XCTAssertNil(destination(from: .energy, direction: .left))
+    #endif
   }
 
   private func destination(

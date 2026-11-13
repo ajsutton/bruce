@@ -6,6 +6,8 @@ struct ContentView: View {
   #if os(macOS)
     @Environment(\.openSettings) private var openSettings
   #else
+    @AppStorage(BrucePanel.storageKey) private var selectedPanel = BrucePanel.climate
+    @Environment(\.bruceVoiceStore) private var voiceStore
     @EnvironmentObject private var sceneDelegate: BruceSceneDelegate
   #endif
   @ObservedObject var modeController: BruceModeController
@@ -69,6 +71,11 @@ struct ContentView: View {
         Text(copy.iconChangeFailedMessage)
       }
       #if os(iOS)
+        .onChange(of: selectedPanel) { oldPanel, newPanel in
+          if oldPanel == .voice, newPanel != .voice, let voiceStore {
+            BruceVoicePresentation.dismissPicker(voiceStore)
+          }
+        }
         .sheet(isPresented: $showsConnectionManagement) {
           HomeAssistantSetupView(
             store: setupStore,
@@ -103,20 +110,25 @@ struct ContentView: View {
       )
     } else {
       #if os(macOS)
-        ContentUnavailableView {
-          Label(copy.notConnectedTitle, systemImage: "house.fill")
-        } description: {
-          Text(copy.notConnectedDescription)
-        } actions: {
-          Button(copy.connectHomeAssistant) {
-            manageConnection()
+        NavigationSplitView {
+          Color.clear
+            .modifier(BruceVoiceSidebar(mode: mode))
+            .navigationSplitViewColumnWidth(min: 170, ideal: 190)
+        } detail: {
+          ContentUnavailableView {
+            Label(copy.notConnectedTitle, systemImage: "house.fill")
+          } description: {
+            Text(copy.notConnectedDescription)
+          } actions: {
+            Button(copy.connectHomeAssistant) {
+              manageConnection()
+            }
+            .buttonStyle(.borderedProminent)
           }
-          .buttonStyle(.borderedProminent)
+          .padding()
         }
-        .padding()
-        .modifier(BruceVoiceToolbar(mode: mode))
       #else
-        HomeAssistantSetupView(store: setupStore, mode: mode)
+        BruceSetupTabsView(store: setupStore, mode: mode)
       #endif
     }
   }
