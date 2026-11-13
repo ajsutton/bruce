@@ -114,6 +114,7 @@ struct ContentView: View {
           .buttonStyle(.borderedProminent)
         }
         .padding()
+        .modifier(BruceVoiceToolbar(mode: mode))
       #else
         HomeAssistantSetupView(store: setupStore, mode: mode)
       #endif

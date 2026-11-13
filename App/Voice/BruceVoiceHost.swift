@@ -6,36 +6,50 @@ struct BruceVoiceHost<Content: View>: View {
   @ViewBuilder let content: () -> Content
   @State private var showsVoice = false
 
-  private var copy: VoiceCopy { VoiceCopy(mode: mode) }
-
   var body: some View {
     content()
-      .safeAreaInset(edge: .bottom) {
-        HStack {
-          Spacer()
-          Button {
-            showsVoice = true
-            store.prepare()
-          } label: {
-            Label(store.hasCall ? copy.returnToCall : copy.title, systemImage: "waveform")
-              .padding(.horizontal, 8)
-              .frame(minHeight: 44)
+      .environment(
+        \.bruceVoicePresentation, BruceVoicePresentation(store: store, isPresented: $showsVoice)
+      )
+      #if os(macOS)
+        .safeAreaInset(edge: .top, spacing: 0) {
+          if let agent = store.agent, store.phase != .idle, store.phase != .choosing {
+            OpenClawCompactCallView(
+              agent: agent, phase: store.phase, isMuted: store.isMuted, mode: mode,
+              toggleMute: store.toggleMute, end: store.end
+            )
+            .background(.bar)
+            .overlay(alignment: .bottom) { Divider() }
           }
-          .buttonStyle(.borderedProminent)
-          .disabled(store.phase == .ending)
-          .padding(12)
-          Spacer()
         }
-        .background(.bar)
-      }
-      .sheet(isPresented: $showsVoice, onDismiss: voiceDismissed) {
-        BruceVoiceView(store: store, mode: mode)
-      }
+      #else
+        .sheet(isPresented: $showsVoice) {
+          BruceVoiceView(store: store, mode: mode)
+        }
+      #endif
       .onChange(of: store.phase) { _, phase in
         if phase == .idle { showsVoice = false }
+        #if os(macOS)
+          if store.hasCall { showsVoice = false }
+        #endif
+      }
+      .onChange(of: showsVoice) { wasPresented, isPresented in
+        if wasPresented, !isPresented { voiceDismissed() }
       }
   }
+
   private func voiceDismissed() {
-    if !store.hasCall { store.end() }
+    if !store.hasCall, store.phase != .idle, store.phase != .failed { store.end() }
+  }
+}
+
+#Preview("Voice toolbar") {
+  BruceVoiceHost(store: OpenClawVoiceStore(), mode: .standard) {
+    NavigationStack {
+      Color.clear
+        .navigationTitle("Bruce")
+        .modifier(BruceVoiceToolbar(mode: .standard))
+    }
+    .frame(width: 620, height: 360)
   }
 }

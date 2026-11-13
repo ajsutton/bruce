@@ -58,6 +58,7 @@ struct HomeAssistantTemperatureView: View {
     NavigationStack {
       panelContent
         .navigationTitle(copy.navigationTitle)
+        .modifier(BruceVoiceToolbar(mode: mode))
         .toolbarTitleDisplayMode(.inline)
         .modifier(TemperatureNavigationStyle(mode: mode))
     }

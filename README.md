@@ -39,11 +39,12 @@ runtime, or `IOS_SIMULATOR_ID` to select an exact simulator.
 
 ## Voice conversations
 
-Choose **Talk to Bruce**, sign in through the existing OpenClaw website when prompted, and
+Choose the **Talk to Bruce** toolbar button, sign in through the existing OpenClaw website when prompted, and
 select an agent. The picker and active call show the gateway's configured names and photos.
 Every call starts a new conversation; Bruce has no conversation-history screen. Mute and End
-control the voice connection. Dismissing the call sheet, switching apps, or locking an iPhone
-keeps an established call active; return using the voice button. System audio interruptions or
+control the voice connection. On Mac, the active call appears as a compact row beneath the
+main window’s toolbar. On iPhone, hiding the call sheet, switching apps, or locking the phone
+keeps an established call active; return using the toolbar voice button. System audio interruptions or
 an unrecoverable connection failure end the call.
 
 Voice uses the existing gateway at `https://bruce.thesuttons.name`, its Talk provider/model/voice,
