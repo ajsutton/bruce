@@ -35,7 +35,7 @@ struct BruceVoiceView: View {
     .tint(mode.accentColor)
     .interactiveDismissDisabled(!isEmbedded && store.hasCall)
     .onAppear {
-      if isEmbedded, store.phase == .idle { store.prepare() }
+      if isEmbedded, store.phase == .idle || store.phase == .ending { store.prepare() }
     }
     .task(id: store.phase) {
       showsProgress = false
@@ -68,7 +68,7 @@ struct BruceVoiceView: View {
       if let agent = store.agent {
         OpenClawCallView(
           agent: agent, isConnected: store.phase == .connected, isMuted: store.isMuted,
-          mode: mode, toggleMute: store.toggleMute, end: store.end
+          mode: mode, toggleMute: store.toggleMute, end: { store.end() }
         )
       }
     case .signingIn:

@@ -29,7 +29,7 @@ private struct BruceVoiceSidebarView: View {
       if let agent = store.agent, store.hasCall || store.phase == .ending {
         OpenClawCompactCallView(
           agent: agent, phase: store.phase, isMuted: store.isMuted, mode: mode,
-          toggleMute: store.toggleMute, end: store.end
+          toggleMute: store.toggleMute, end: { store.end() }
         )
       } else if store.phase == .idle {
         Button {
@@ -42,7 +42,7 @@ private struct BruceVoiceSidebarView: View {
         HStack(alignment: .top) {
           Text(copy.title).font(.headline)
           Spacer(minLength: 4)
-          Button(action: store.end) { Image(systemName: "xmark") }
+          Button(action: { store.end() }, label: { Image(systemName: "xmark") })
             .labelStyle(.iconOnly)
             .help(copy.done)
             .accessibilityLabel(copy.done)

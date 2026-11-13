@@ -44,8 +44,9 @@ select an agent. The picker and active call show the gateway's configured names 
 Every call starts a new conversation; Bruce has no conversation-history screen. Mute and End
 control the voice connection. On Mac, the active call stays at the bottom of the sidebar. On iPhone, the Voice tab contains
 the agent picker and active call. Switching tabs or apps, or locking the phone, keeps an
-established call active; return using the Voice tab. System audio interruptions or
-an unrecoverable connection failure end the call.
+established call active; return using the Voice tab. iPhone calls also use the system call
+interface, including lock-screen Mute and End controls. Hanging up returns to the agent picker
+on both platforms. System audio interruptions or an unrecoverable connection failure end the call.
 
 Voice uses the existing gateway at `https://bruce.thesuttons.name`, its Talk provider/model/voice,
 and gateway-controlled direct WebRTC. The deployed GPT-Live Codex route uses the existing

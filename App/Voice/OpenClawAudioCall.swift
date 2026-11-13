@@ -22,7 +22,6 @@ final class OpenClawAudioCall: NSObject, OpenClawAudioCalling {
   }()
   private var peer: RTCPeerConnection?
   private var track: RTCAudioTrack?
-  private var ownsAudioSession = false
   private var interruptionObservation: NSObjectProtocol?
   private let logger = Logger(subsystem: "net.symphonious.bruce", category: "VoiceAudio")
   var onConnectionChange: ((OpenClawAudioState) -> Void)?
@@ -36,8 +35,6 @@ final class OpenClawAudioCall: NSObject, OpenClawAudioCalling {
       let audio = AVAudioSession.sharedInstance()
       try audio.setCategory(
         .playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
-      try audio.setActive(true)
-      ownsAudioSession = true
       interruptionObservation = NotificationCenter.default.addObserver(
         forName: AVAudioSession.interruptionNotification, object: audio, queue: .main
       ) { [weak self] notification in
@@ -89,13 +86,5 @@ final class OpenClawAudioCall: NSObject, OpenClawAudioCalling {
     track = nil
     peer?.close()
     peer = nil
-    #if os(iOS)
-      if ownsAudioSession {
-        ownsAudioSession = false
-        do {
-          try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        } catch { /* The call is already closed; the system owns any interrupted route. */  }
-      }
-    #endif
   }
 }

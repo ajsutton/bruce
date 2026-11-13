@@ -163,7 +163,9 @@ plists before automating subsequent uploads.
 
 Before App Review, provide working OpenClaw/Cloudflare Access review access as well as Home
 Assistant access. Explain microphone permission and background audio during an active call, and
-include the agent picker/call screen in review material. Match App Store privacy answers to the
+include the agent picker/call screen in review material. Explain that CallKit and the Voice over IP
+background mode support user-initiated outgoing audio calls only; Bruce does not receive incoming
+calls, use PushKit, or add calls to Phone Recents. Match App Store privacy answers to the
 voice audio, retained conversation content, and account identifiers described in
 `docs/privacy/index.html` and the app privacy manifest. Do not claim that all voice content is
 transient: OpenClaw retains conversations under the gateway operator's retention settings.

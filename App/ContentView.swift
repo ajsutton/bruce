@@ -6,6 +6,7 @@ struct ContentView: View {
   #if os(macOS)
     @Environment(\.openSettings) private var openSettings
   #else
+    @State private var voicePresenterID = UUID()
     @AppStorage(BrucePanel.storageKey) private var selectedPanel = BrucePanel.climate
     @Environment(\.bruceVoiceStore) private var voiceStore
     @EnvironmentObject private var sceneDelegate: BruceSceneDelegate
@@ -50,6 +51,9 @@ struct ContentView: View {
         }
       #endif
       .onChange(of: scenePhase) { _, newScenePhase in
+        #if os(iOS)
+          updateVoicePresentation(isPresented: selectedPanel == .voice)
+        #endif
         HomeAssistantRefreshCoordinator.sceneDidChange(
           to: newScenePhase,
           refreshLocalPreferences: modeController.requestLocalPreferenceRefresh
@@ -71,11 +75,11 @@ struct ContentView: View {
         Text(copy.iconChangeFailedMessage)
       }
       #if os(iOS)
-        .onChange(of: selectedPanel) { oldPanel, newPanel in
-          if oldPanel == .voice, newPanel != .voice, let voiceStore {
-            BruceVoicePresentation.dismissPicker(voiceStore)
-          }
+        .onChange(of: selectedPanel, initial: true) { _, newPanel in
+          updateVoicePresentation(isPresented: newPanel == .voice)
         }
+        .onAppear { updateVoicePresentation(isPresented: selectedPanel == .voice) }
+        .onDisappear { updateVoicePresentation(isPresented: false) }
         .sheet(isPresented: $showsConnectionManagement) {
           HomeAssistantSetupView(
             store: setupStore,
@@ -132,6 +136,20 @@ struct ContentView: View {
       #endif
     }
   }
+
+  #if os(iOS)
+    private func updateVoicePresentation(isPresented: Bool) {
+      guard let voiceStore else { return }
+      if BruceVoicePresentation.shouldPresentPicker(
+        isSelected: isPresented, scenePhase: scenePhase
+      ) {
+        voiceStore.presentPicker(id: voicePresenterID)
+        if voiceStore.phase == .idle { voiceStore.prepare() }
+      } else {
+        BruceVoicePresentation.dismissPicker(voiceStore, presenterID: voicePresenterID)
+      }
+    }
+  #endif
 
   private var presentation: HomeAssistantPresentation {
     HomeAssistantPresentation(

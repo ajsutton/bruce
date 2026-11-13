@@ -24,6 +24,7 @@ final class OpenClawVoiceStore: ObservableObject {
   @Published private(set) var problem: Problem?
   @Published var browser: Browser?
   private let client: any OpenClawVoiceServing
+  private let systemCall: any OpenClawSystemCalling
   private let makeAudio: () -> any OpenClawAudioCalling
   private var launchedBrowserID: UUID?
   private var pickerPresenters: Set<UUID> = []
@@ -32,14 +33,20 @@ final class OpenClawVoiceStore: ObservableObject {
   private var connectionDeadline: Task<Void, Never>?
   private var browserWaiter: CheckedContinuation<Void, any Error>?
   private var generation = UUID()
+  private var returnsToPicker = false
   private let logger = Logger(subsystem: "net.symphonious.bruce", category: "Voice")
 
   init(
     client: any OpenClawVoiceServing = OpenClawVoiceClient(),
+    systemCall: any OpenClawSystemCalling = OpenClawSystemCall(),
     makeAudio: @escaping () -> any OpenClawAudioCalling = { OpenClawAudioCall() }
   ) {
+    self.systemCall = systemCall
     self.client = client
     self.makeAudio = makeAudio
+    systemCall.onEnd = { [weak self] in self?.end() }
+    systemCall.onMute = { [weak self] muted in self?.applyMuted(muted) }
+    systemCall.onFailure = { [weak self] in self?.fail(OpenClawVoiceError.disconnected) }
     client.onDisconnect = { [weak self] in self?.fail(OpenClawVoiceError.disconnected) }
   }
 
@@ -54,15 +61,21 @@ final class OpenClawVoiceStore: ObservableObject {
 
   func presentPicker(id: UUID) {
     pickerPresenters.insert(id)
+    if phase == .ending, problem == nil { returnsToPicker = true }
   }
 
   /// Returns true when the final picker has left, including repeated teardown callbacks.
   func removePicker(id: UUID) -> Bool {
     guard pickerPresenters.remove(id) != nil else { return false }
+    if pickerPresenters.isEmpty { returnsToPicker = false }
     return pickerPresenters.isEmpty
   }
 
   func prepare() {
+    if phase == .ending {
+      if problem == nil { returnsToPicker = true }
+      return
+    }
     guard phase == .idle || phase == .failed else { return }
     problem = nil
     agents = []
@@ -96,12 +109,17 @@ final class OpenClawVoiceStore: ObservableObject {
     let audio = makeAudio()
     self.audio = audio
     let generation = generation
+    var didConnect = false
     audio.onConnectionChange = { [weak self] state in
       guard let self, self.generation == generation, self.hasCall else { return }
       switch state {
       case .connected:
         self.connectionDeadline?.cancel()
-        self.client.connected()
+        if !didConnect {
+          didConnect = true
+          self.client.connected()
+          self.systemCall.connected()
+        }
         self.phase = .connected
       case .disconnected:
         self.phase = .connecting
@@ -111,9 +129,11 @@ final class OpenClawVoiceStore: ObservableObject {
       }
     }
     setConnectionDeadline(seconds: 60)
-    task = Task { [weak self, client] in
+    task = Task { [weak self, client, systemCall] in
       do {
         let offer = try await audio.offer()
+        try Task.checkCancellation()
+        try await systemCall.start(agent: agent)
         try Task.checkCancellation()
         let answer = try await client.start(agentID: agent.id, offer: offer)
         try Task.checkCancellation()
@@ -137,11 +157,19 @@ final class OpenClawVoiceStore: ObservableObject {
 
   func toggleMute() {
     guard phase == .connected else { return }
-    isMuted.toggle()
-    audio?.setMuted(isMuted)
+    systemCall.setMuted(!isMuted)
   }
 
-  func end() { stop(problem: nil) }
+  private func applyMuted(_ muted: Bool) {
+    guard hasCall else { return }
+    isMuted = muted
+    audio?.setMuted(muted)
+  }
+
+  func end(returnToPicker: Bool = true) {
+    if !returnToPicker { returnsToPicker = false }
+    stop(problem: nil, returnToPicker: returnToPicker && hasCall && !pickerPresenters.isEmpty)
+  }
 
   func continueSignIn(browserID: UUID) {
     guard browser?.id == browserID, browser?.isWebsite == true, browserWaiter != nil else { return }
@@ -179,8 +207,9 @@ final class OpenClawVoiceStore: ObservableObject {
     stop(problem: problem)
   }
 
-  private func stop(problem: Problem?) {
+  private func stop(problem: Problem?, returnToPicker: Bool = false) {
     guard phase != .ending else { return }
+    returnsToPicker = returnToPicker
     generation = UUID()
     phase = .ending
     self.problem = problem
@@ -191,6 +220,7 @@ final class OpenClawVoiceStore: ObservableObject {
     browserWaiter?.resume(throwing: CancellationError())
     browserWaiter = nil
     browser = nil
+    systemCall.end(failed: problem != nil)
     audio?.close()
     audio = nil
     isMuted = false
@@ -202,6 +232,7 @@ final class OpenClawVoiceStore: ObservableObject {
       guard let self else { return }
       self.phase = problem == nil ? .idle : .failed
       self.task = nil
+      if self.returnsToPicker, !self.pickerPresenters.isEmpty { self.prepare() }
     }
   }
 }
