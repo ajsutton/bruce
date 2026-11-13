@@ -5,6 +5,7 @@ protocol OpenClawVoiceServing: AnyObject {
   var onDisconnect: (() -> Void)? { get set }
   func agents(signIn: @escaping @MainActor (URL, Bool) async throws -> Void) async throws
     -> [OpenClawAgent]
+  func connect(signIn: @escaping @MainActor (URL, Bool) async throws -> Void) async throws
   func start(agentID: String, offer: String) async throws -> String
   func connected()
   func close() async throws
@@ -32,18 +33,37 @@ final class OpenClawVoiceClient: OpenClawVoiceServing {
   func agents(signIn: @escaping @MainActor (URL, Bool) async throws -> Void) async throws
     -> [OpenClawAgent]
   {
-    let access = try await authenticate(signIn: signIn)
-    self.access = access
-    try await gateway.connect(
-      access: access, identity: OpenClawDeviceIdentity(credentials: credentials))
-    try await talk.reconcile()
+    try await connect(signIn: signIn)
+    defer { gateway.close() }
     struct Roster: Decodable { let agents: [OpenClawAgent] }
     return try await gateway.call("agents.list").decode(Roster.self).agents
   }
 
+  func connect(signIn: @escaping @MainActor (URL, Bool) async throws -> Void) async throws {
+    if let access {
+      do { try access.validate() } catch { self.access = nil }
+    }
+    if access == nil { access = try await authenticate(signIn: signIn) }
+    guard let access else { throw OpenClawVoiceError.signInRequired }
+    do {
+      try await gateway.connect(
+        access: access, identity: OpenClawDeviceIdentity(credentials: credentials))
+      try await talk.reconcile()
+    } catch {
+      if !Task.isCancelled, !(error is CancellationError) { self.access = nil }
+      gateway.close()
+      throw error
+    }
+  }
+
   func start(agentID: String, offer: String) async throws -> String {
     guard let access else { throw OpenClawVoiceError.signInRequired }
-    return try await talk.start(agentID: agentID, offer: offer, access: access)
+    do {
+      return try await talk.start(agentID: agentID, offer: offer, access: access)
+    } catch {
+      if !Task.isCancelled, !(error is CancellationError) { self.access = nil }
+      throw error
+    }
   }
 
   func connected() { talk.connected() }

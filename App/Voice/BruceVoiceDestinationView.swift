@@ -31,6 +31,8 @@ private final class PreviewVoiceDestinationClient: OpenClawVoiceServing {
     ]
   }
 
+  func connect(signIn: @escaping @MainActor (URL, Bool) async throws -> Void) async throws {}
+
   func start(agentID: String, offer: String) async throws -> String {
     throw OpenClawVoiceError.unavailable
   }

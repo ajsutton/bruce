@@ -8,7 +8,7 @@ import XCTest
 final class OpenClawVoiceCallLifecycleTests: XCTestCase {
   private let agent = OpenClawAgent(id: "family", name: "Bruce — Family", identity: nil)
 
-  func testHangupRefreshesTheAgentPickerAndStartsANewConversation() async {
+  func testHangupUsesThePlatformDestinationAndReconnectsForANewConversation() async {
     let client = VoiceClientDouble()
     client.roster = [agent]
     let system = VoiceSystemDouble()
@@ -17,12 +17,16 @@ final class OpenClawVoiceCallLifecycleTests: XCTestCase {
     store.presentPicker(id: UUID())
     await transition(store, to: .choosing) { store.prepare() }
     await transition(store, to: .connected) { store.start(self.agent) }
-    await transition(store, to: .choosing) { store.end() }
-    XCTAssertEqual(client.rosterCount, 2)
+    await transition(store, to: postHangupPhase) { store.end() }
+    XCTAssertEqual(client.rosterCount, 1)
     XCTAssertEqual(client.closeCount, 1)
+    #if os(macOS)
+      await transition(store, to: .choosing) { store.prepare() }
+    #endif
     XCTAssertNil(store.agent)
     await transition(store, to: .connected) { store.start(self.agent) }
     XCTAssertEqual(client.startedAgents, ["family", "family"])
+    XCTAssertEqual(client.connectCount, 2)
     await transition(store, to: .idle) { store.end(returnToPicker: false) }
   }
 
@@ -39,10 +43,12 @@ final class OpenClawVoiceCallLifecycleTests: XCTestCase {
     system.onMute?(true)
     XCTAssertTrue(store.isMuted)
     XCTAssertEqual(audio.mutedValues, [true])
-    await transition(store, to: .choosing) { system.onEnd?() }
+    await transition(store, to: postHangupPhase) { system.onEnd?() }
     XCTAssertTrue(audio.isClosed)
     XCTAssertEqual(system.endCount, 1)
-    await transition(store, to: .idle) { store.end(returnToPicker: false) }
+    #if os(iOS)
+      await transition(store, to: .idle) { store.end(returnToPicker: false) }
+    #endif
   }
 
   func testRejectedSystemCallDoesNotStartRemoteVoice() async {
@@ -73,10 +79,13 @@ final class OpenClawVoiceCallLifecycleTests: XCTestCase {
     await transition(store, to: .choosing) { store.prepare() }
     store.start(agent)
     await fulfillment(of: [starting], timeout: 3)
-    await transition(store, to: .choosing) { store.end() }
+    await transition(store, to: postHangupPhase) { store.end() }
     XCTAssertTrue(client.startedAgents.isEmpty)
     system.blocksStart = false
     system.onStart = nil
+    #if os(macOS)
+      await transition(store, to: .choosing) { store.prepare() }
+    #endif
     await transition(store, to: .connected) { store.start(self.agent) }
     await transition(store, to: .idle) { store.end(returnToPicker: false) }
   }
@@ -113,7 +122,7 @@ final class OpenClawVoiceCallLifecycleTests: XCTestCase {
     XCTAssertNotNil(store.problem)
   }
 
-  func testReturningToVoiceBeforeHangupFinishesRestoresThePicker() async {
+  func testReturningBeforeHangupFinishesUsesThePlatformDestination() async {
     let client = VoiceClientDouble()
     client.roster = [agent]
     let store = OpenClawVoiceStore(
@@ -128,10 +137,12 @@ final class OpenClawVoiceCallLifecycleTests: XCTestCase {
     await fulfillment(of: [closing], timeout: 3)
     BruceVoicePresentation.dismissPicker(store)
     store.prepare()
-    await transition(store, to: .choosing) { client.finishClose?() }
-    XCTAssertEqual(client.rosterCount, 2)
+    await transition(store, to: postHangupPhase) { client.finishClose?() }
+    XCTAssertEqual(client.rosterCount, 1)
     client.blocksClose = false
-    await transition(store, to: .idle) { store.end(returnToPicker: false) }
+    #if os(iOS)
+      await transition(store, to: .idle) { store.end(returnToPicker: false) }
+    #endif
   }
 
   func testReturningDuringFailureTeardownPreservesTheError() async {
@@ -170,7 +181,7 @@ final class OpenClawVoiceCallLifecycleTests: XCTestCase {
     XCTAssertEqual(client.rosterCount, 1)
   }
 
-  func testReturningDuringTheCallRestoresPostHangupPicker() async {
+  func testReturningDuringTheCallUsesThePlatformHangupDestination() async {
     let client = VoiceClientDouble()
     client.roster = [agent]
     let system = VoiceSystemDouble()
@@ -182,9 +193,11 @@ final class OpenClawVoiceCallLifecycleTests: XCTestCase {
     await transition(store, to: .connected) { store.start(self.agent) }
     BruceVoicePresentation.dismissPicker(store, presenterID: presenter)
     store.presentPicker(id: presenter)
-    await transition(store, to: .choosing) { system.onEnd?() }
-    XCTAssertEqual(client.rosterCount, 2)
-    await transition(store, to: .idle) { store.end(returnToPicker: false) }
+    await transition(store, to: postHangupPhase) { system.onEnd?() }
+    XCTAssertEqual(client.rosterCount, 1)
+    #if os(iOS)
+      await transition(store, to: .idle) { store.end(returnToPicker: false) }
+    #endif
   }
 
   func testBackgroundedVoiceDoesNotRetainAPickerAfterSystemHangup() async {
@@ -209,6 +222,14 @@ final class OpenClawVoiceCallLifecycleTests: XCTestCase {
     XCTAssertEqual(client.rosterCount, 1)
     XCTAssertFalse(
       BruceVoicePresentation.shouldPresentPicker(isSelected: false, scenePhase: .active))
+  }
+
+  private var postHangupPhase: OpenClawVoiceStore.Phase {
+    #if os(iOS)
+      .choosing
+    #else
+      .idle
+    #endif
   }
 
   private func transition(

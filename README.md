@@ -46,7 +46,8 @@ control the voice connection. On Mac, the active call stays at the bottom of the
 the agent picker and active call. Switching tabs or apps, or locking the phone, keeps an
 established call active; return using the Voice tab. iPhone calls also use the system call
 interface, including lock-screen Mute and End controls. Hanging up returns to the agent picker
-on both platforms. System audio interruptions or an unrecoverable connection failure end the call.
+on iPhone and the plain start button on Mac. The agent list is cached in memory until the app
+restarts; each call reconnects independently without reloading that list. System audio interruptions or an unrecoverable connection failure end the call.
 
 Voice uses the existing gateway at `https://bruce.thesuttons.name`, its Talk provider/model/voice,
 and gateway-controlled direct WebRTC. The deployed GPT-Live Codex route uses the existing

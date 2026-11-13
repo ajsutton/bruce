@@ -42,6 +42,11 @@ private struct BruceVoiceSidebarView: View {
         HStack(alignment: .top) {
           Text(copy.title).font(.headline)
           Spacer(minLength: 4)
+          if store.phase == .choosing {
+            Button(action: store.refreshAgents) { Image(systemName: "arrow.clockwise") }
+              .help(copy.refreshAgents)
+              .accessibilityLabel(copy.refreshAgents)
+          }
           Button(action: { store.end() }, label: { Image(systemName: "xmark") })
             .labelStyle(.iconOnly)
             .help(copy.done)
@@ -161,6 +166,8 @@ private final class PreviewVoiceSidebarClient: OpenClawVoiceServing {
         id: "family", name: "Bruce, Brucine & Brucette — Family", identity: nil),
     ]
   }
+
+  func connect(signIn: @escaping @MainActor (URL, Bool) async throws -> Void) async throws {}
 
   func start(agentID: String, offer: String) async throws -> String {
     throw OpenClawVoiceError.unavailable

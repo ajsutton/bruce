@@ -12,6 +12,7 @@ struct VoiceCopy {
   var privacy: String { text("voice.privacy") }
   var title: String { text("voice.title") }
   var chooseAgent: String { text("voice.chooseAgent") }
+  var refreshAgents: String { text("voice.refreshAgents") }
   var loading: String { text("voice.loading") }
   var connecting: String { text("voice.connecting") }
   var connected: String { text("voice.connected") }

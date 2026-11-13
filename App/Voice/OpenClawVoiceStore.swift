@@ -25,6 +25,7 @@ final class OpenClawVoiceStore: ObservableObject {
   @Published var browser: Browser?
   private let client: any OpenClawVoiceServing
   private let systemCall: any OpenClawSystemCalling
+  private let waitForConnectionTimeout: @MainActor (Duration) async throws -> Void
   private let makeAudio: () -> any OpenClawAudioCalling
   private var launchedBrowserID: UUID?
   private var pickerPresenters: Set<UUID> = []
@@ -34,16 +35,21 @@ final class OpenClawVoiceStore: ObservableObject {
   private var browserWaiter: CheckedContinuation<Void, any Error>?
   private var generation = UUID()
   private var returnsToPicker = false
+  private var hasLoadedAgents = false
   private let logger = Logger(subsystem: "net.symphonious.bruce", category: "Voice")
 
   init(
     client: any OpenClawVoiceServing = OpenClawVoiceClient(),
     systemCall: any OpenClawSystemCalling = OpenClawSystemCall(),
-    makeAudio: @escaping () -> any OpenClawAudioCalling = { OpenClawAudioCall() }
+    makeAudio: @escaping () -> any OpenClawAudioCalling = { OpenClawAudioCall() },
+    waitForConnectionTimeout: @escaping @MainActor (Duration) async throws -> Void = {
+      try await Task.sleep(for: $0)
+    }
   ) {
     self.systemCall = systemCall
     self.client = client
     self.makeAudio = makeAudio
+    self.waitForConnectionTimeout = waitForConnectionTimeout
     systemCall.onEnd = { [weak self] in self?.end() }
     systemCall.onMute = { [weak self] muted in self?.applyMuted(muted) }
     systemCall.onFailure = { [weak self] in self?.fail(OpenClawVoiceError.disconnected) }
@@ -78,20 +84,25 @@ final class OpenClawVoiceStore: ObservableObject {
     }
     guard phase == .idle || phase == .failed else { return }
     problem = nil
-    agents = []
     agent = nil
+    if hasLoadedAgents {
+      phase = .choosing
+      return
+    }
+    agents = []
     phase = .loading
     let generation = generation
     task = Task { [weak self, client] in
       do {
         let agents = try await client.agents { [weak self] url, website in
-          guard let self else { throw CancellationError() }
+          guard let self, self.generation == generation else { throw CancellationError() }
           try await self.signIn(url: url, website: website)
         }
         try Task.checkCancellation()
         guard let self, self.generation == generation else { return }
         self.browser = nil
         self.agents = agents
+        self.hasLoadedAgents = true
         self.phase = .choosing
         self.task = nil
       } catch {
@@ -99,6 +110,13 @@ final class OpenClawVoiceStore: ObservableObject {
         self?.fail(error)
       }
     }
+  }
+
+  func refreshAgents() {
+    guard phase == .choosing else { return }
+    hasLoadedAgents = false
+    phase = .idle
+    prepare()
   }
 
   func start(_ agent: OpenClawAgent) {
@@ -128,11 +146,18 @@ final class OpenClawVoiceStore: ObservableObject {
         self.fail(OpenClawVoiceError.disconnected)
       }
     }
-    setConnectionDeadline(seconds: 60)
     task = Task { [weak self, client, systemCall] in
       do {
+        try await client.connect { [weak self] url, website in
+          guard let self, self.generation == generation else { throw CancellationError() }
+          try await self.signIn(url: url, website: website)
+        }
+        try Task.checkCancellation()
+        guard let self, self.generation == generation else { return }
+        self.phase = .connecting
         let offer = try await audio.offer()
         try Task.checkCancellation()
+        self.setConnectionDeadline(seconds: 60)
         try await systemCall.start(agent: agent)
         try Task.checkCancellation()
         let answer = try await client.start(agentID: agent.id, offer: offer)
@@ -148,8 +173,9 @@ final class OpenClawVoiceStore: ObservableObject {
   private func setConnectionDeadline(seconds: Double) {
     connectionDeadline?.cancel()
     let generation = generation
+    let waitForConnectionTimeout = waitForConnectionTimeout
     connectionDeadline = Task { [weak self] in
-      do { try await Task.sleep(for: .seconds(seconds)) } catch { return }
+      do { try await waitForConnectionTimeout(.seconds(seconds)) } catch { return }
       guard self?.generation == generation else { return }
       self?.fail(URLError(.timedOut))
     }
@@ -209,6 +235,7 @@ final class OpenClawVoiceStore: ObservableObject {
 
   private func stop(problem: Problem?, returnToPicker: Bool = false) {
     guard phase != .ending else { return }
+    if problem != nil { hasLoadedAgents = false }
     returnsToPicker = returnToPicker
     generation = UUID()
     phase = .ending
@@ -232,7 +259,9 @@ final class OpenClawVoiceStore: ObservableObject {
       guard let self else { return }
       self.phase = problem == nil ? .idle : .failed
       self.task = nil
-      if self.returnsToPicker, !self.pickerPresenters.isEmpty { self.prepare() }
+      #if os(iOS)
+        if self.returnsToPicker, !self.pickerPresenters.isEmpty { self.prepare() }
+      #endif
     }
   }
 }

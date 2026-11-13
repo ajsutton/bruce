@@ -21,6 +21,12 @@ struct BruceVoiceView: View {
         }
         .navigationTitle(isEmbedded ? AppCopy(mode: mode).voiceTab : copy.title)
         .toolbar {
+          if store.phase == .choosing {
+            ToolbarItem(placement: .primaryAction) {
+              Button(
+                copy.refreshAgents, systemImage: "arrow.clockwise", action: store.refreshAgents)
+            }
+          }
           if !isEmbedded {
             ToolbarItem(placement: .cancellationAction) {
               Button(store.hasCall ? copy.hideCall : copy.done) { dismiss() }

@@ -7641,19 +7641,36 @@
         }
       }
     },
+    "voice.refreshAgents" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh agents"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Round up the agents again"
+          }
+        }
+      }
+    },
     "voice.loading" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connecting to Bruce…"
+            "value" : "Finding available agents…"
           }
         },
         "en-AU" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Getting Bruce on the blower…"
+            "value" : "Finding who’s up for a yarn…"
           }
         }
       }
