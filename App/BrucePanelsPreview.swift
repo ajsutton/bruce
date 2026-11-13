@@ -55,6 +55,7 @@ private enum BrucePanelsPreview {
       requestHomeRefresh: {},
       isRemovingConnection: false
     )
+    .environment(\.bruceVoiceStore, OpenClawVoiceStore())
     .tint(BruceMode.standard.accentColor)
     .task {
       await store.load()

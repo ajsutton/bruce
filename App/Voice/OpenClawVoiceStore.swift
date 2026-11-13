@@ -25,6 +25,7 @@ final class OpenClawVoiceStore: ObservableObject {
   @Published var browser: Browser?
   private let client: any OpenClawVoiceServing
   private let makeAudio: () -> any OpenClawAudioCalling
+  private var launchedBrowserID: UUID?
   private var pickerPresenters: Set<UUID> = []
   private var audio: (any OpenClawAudioCalling)?
   private var task: Task<Void, Never>?
@@ -43,6 +44,13 @@ final class OpenClawVoiceStore: ObservableObject {
   }
 
   var hasCall: Bool { phase == .connecting || phase == .connected }
+
+  /// All visible Mac sidebars can deliver sign-in URLs; each URL opens once.
+  func claimBrowserLaunch(id: UUID) -> Bool {
+    guard browser?.id == id, launchedBrowserID != id else { return false }
+    launchedBrowserID = id
+    return true
+  }
 
   func presentPicker(id: UUID) {
     pickerPresenters.insert(id)
@@ -134,6 +142,12 @@ final class OpenClawVoiceStore: ObservableObject {
   }
 
   func end() { stop(problem: nil) }
+
+  func continueSignIn(browserID: UUID) {
+    guard browser?.id == browserID, browser?.isWebsite == true, browserWaiter != nil else { return }
+    browser = nil
+    browserDismissed()
+  }
 
   func browserDismissed() {
     if let waiter = browserWaiter {

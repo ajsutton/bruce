@@ -144,6 +144,43 @@ final class OpenClawVoiceStoreTests: XCTestCase {
     XCTAssertEqual(client.closeCount, 1)
   }
 
+  func testSignInBrowserDeliverySurvivesTheInitiatingWindowClosing() throws {
+    let store = OpenClawVoiceStore(client: VoiceClientDouble())
+    let first = UUID()
+    let second = UUID()
+    store.presentPicker(id: first)
+    store.presentPicker(id: second)
+    let url = try XCTUnwrap(URL(string: "https://example.invalid/sign-in"))
+    let website = OpenClawVoiceStore.Browser(url: url, isWebsite: true)
+    store.browser = website
+    XCTAssertTrue(store.claimBrowserLaunch(id: website.id))
+    XCTAssertFalse(store.claimBrowserLaunch(id: website.id))
+    BruceVoicePresentation.dismissPicker(store, presenterID: first)
+    let transfer = OpenClawVoiceStore.Browser(url: url, isWebsite: false)
+    store.browser = transfer
+    XCTAssertFalse(store.claimBrowserLaunch(id: website.id))
+    XCTAssertTrue(store.claimBrowserLaunch(id: transfer.id))
+    XCTAssertFalse(store.claimBrowserLaunch(id: transfer.id))
+    store.browser = nil
+    XCTAssertFalse(store.claimBrowserLaunch(id: transfer.id))
+    BruceVoicePresentation.dismissPicker(store, presenterID: second)
+  }
+
+  func testDuplicateSignInContinuationDoesNotCancelAuthentication() async throws {
+    let client = VoiceClientDouble()
+    client.signInURL = try XCTUnwrap(URL(string: "https://example.invalid/sign-in"))
+    let store = OpenClawVoiceStore(client: client)
+    await transition(store, to: .signingIn) { store.prepare() }
+    let browser = try XCTUnwrap(store.browser)
+    await transition(store, to: .choosing) {
+      store.continueSignIn(browserID: browser.id)
+      store.continueSignIn(browserID: browser.id)
+    }
+    XCTAssertEqual(client.closeCount, 0)
+    XCTAssertNil(store.browser)
+    await transition(store, to: .idle) { store.end() }
+  }
+
   private func transition(
     _ store: OpenClawVoiceStore, to phase: OpenClawVoiceStore.Phase, action: () -> Void
   ) async {
@@ -161,11 +198,13 @@ private final class VoiceClientDouble: OpenClawVoiceServing {
   var roster: [OpenClawAgent] = []
   var startedAgents: [String] = []
   var closeCount = 0
+  var signInURL: URL?
 
   func agents(signIn: @escaping @MainActor (URL, Bool) async throws -> Void) async throws
     -> [OpenClawAgent]
   {
-    roster
+    if let signInURL { try await signIn(signInURL, true) }
+    return roster
   }
 
   func start(agentID: String, offer: String) async throws -> String {

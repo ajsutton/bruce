@@ -77,10 +77,9 @@ struct BruceVoiceView: View {
         Text(copy.signIn).font(.title2)
         Text(copy.signInDescription).multilineTextAlignment(.center)
         #if os(macOS)
-          if store.browser?.isWebsite == true {
+          if let browser = store.browser, browser.isWebsite {
             Button(copy.continueSignIn) {
-              store.browser = nil
-              store.browserDismissed()
+              store.continueSignIn(browserID: browser.id)
             }
             .buttonStyle(.borderedProminent)
           } else {

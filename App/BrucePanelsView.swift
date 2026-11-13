@@ -56,13 +56,6 @@ struct BrucePanelsView: View {
       #else
         panels
       #endif
-      #if os(macOS)
-        if connectionBanner == nil, showsServerStatus {
-          serverStatusView
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-        }
-      #endif
     }
     .background(mode.panelBackgroundColor(for: colorScheme).ignoresSafeArea())
     #if os(iOS)
@@ -112,6 +105,13 @@ extension BrucePanelsView {
         ) { panel in
           Label(title(for: panel), systemImage: panel.systemImage)
             .tag(panel)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+          if connectionBanner == nil, showsServerStatus {
+            serverStatusView
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(12)
+          }
         }
         .modifier(BruceVoiceSidebar(mode: mode))
         .navigationSplitViewColumnWidth(min: 170, ideal: 190)
