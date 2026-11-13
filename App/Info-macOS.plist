@@ -22,13 +22,13 @@
     <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>BruceSharedKeychainAccessGroup</key>
     <string>$(SHARED_KEYCHAIN_ACCESS_GROUP)</string>
-    <key>ITSAppUsesNonExemptEncryption</key>
-    <false/>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
         <true/>
     </dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Bruce sends microphone audio to the AI voice provider configured by your OpenClaw gateway so you can have a voice conversation.</string>
     <key>NSBonjourServices</key>
     <array>
         <string>_home-assistant._tcp</string>

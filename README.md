@@ -37,6 +37,26 @@ just format-check
 The iOS commands prefer an iOS 26 simulator. Set `IOS_RUNTIME_MAJOR` to choose another installed
 runtime, or `IOS_SIMULATOR_ID` to select an exact simulator.
 
+## Voice conversations
+
+Choose **Talk to Bruce**, sign in through the existing OpenClaw website when prompted, and
+select an agent. The picker and active call show the gateway's configured names and photos.
+Every call starts a new conversation; Bruce has no conversation-history screen. Mute and End
+control the voice connection. Dismissing the call sheet, switching apps, or locking an iPhone
+keeps an established call active; return using the voice button. System audio interruptions or
+an unrecoverable connection failure end the call.
+
+Voice uses the existing gateway at `https://bruce.thesuttons.name`, its Talk provider/model/voice,
+and gateway-controlled direct WebRTC. The deployed GPT-Live Codex route uses the existing
+ChatGPT subscription. Bruce does not configure providers, change agent instructions, or embed
+provider credentials. Cloudflare Access sign-in and device keys are stored in the device's
+Keychain, separately from Home Assistant. No developer `.agent-tokens` values are bundled.
+
+The gateway must support `talk.client.create` with `gateway-control-v1`. Audio flows directly
+between the device and the voice provider; the gateway owns agent execution and call control.
+The native Access transfer implementation is adapted from OpenClaw under its MIT licence;
+see `App/Resources/OpenClaw-LICENSE.txt`. WebRTC and Sodium versions are pinned in `project.yml`.
+
 ## Siri and Shortcuts
 
 After connecting Bruce to Home Assistant, its energy and EV charging actions are available in

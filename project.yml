@@ -6,6 +6,14 @@ options:
   defaultConfig: Debug
   bundleIdPrefix: net.symphonious.bruce
 
+packages:
+  StreamWebRTC:
+    url: https://github.com/GetStream/stream-video-swift-webrtc.git
+    exactVersion: 156.0.5
+  Sodium:
+    url: https://github.com/jedisct1/swift-sodium.git
+    revision: cfd195c76882aa9b997560ca7cb95d72fbf5db00
+
 configs:
   Debug: debug
   Testing: debug
@@ -68,6 +76,8 @@ targets:
           CODE_SIGN_ENTITLEMENTS: App/Bruce-iOS.entitlements
           PROVISIONING_PROFILE_SPECIFIER: ${IOS_PROVISIONING_PROFILE}
     dependencies:
+      - package: StreamWebRTC
+      - package: Sodium
       - target: BruceEnergyWidget
         embed: true
 
@@ -159,6 +169,8 @@ targets:
           PROVISIONING_PROFILE_SPECIFIER: ${MAC_PROVISIONING_PROFILE}
           ENABLE_HARDENED_RUNTIME: YES
     dependencies:
+      - package: StreamWebRTC
+      - package: Sodium
       - target: BruceEnergyWidget_macOS
         embed: true
 
@@ -234,6 +246,10 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGNING_REQUIRED: NO
         CODE_SIGNING_ALLOWED: NO
+
+    dependencies:
+      - package: StreamWebRTC
+      - package: Sodium
 
   BruceTests_iOS:
     type: bundle.unit-test

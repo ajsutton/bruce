@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="How Bruce handles account information and voice conversations.">
+    <meta name="color-scheme" content="light dark">
+    <title>Privacy — Bruce</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+        line-height: 1.6; max-width: 42rem; padding: 2rem; margin: auto; }
+      a { color: inherit; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><a href="../">Bruce</a></p>
+      <h1>Privacy</h1>
+      <p>Bruce connects to your household’s Home Assistant and OpenClaw services. It does not
+        include advertising or tracking software.</p>
+      <h2>Accounts and household information</h2>
+      <p>Bruce keeps connection credentials and its OpenClaw device key in your device’s Keychain.
+        Home Assistant supplies household readings and receives control requests. Cloudflare Access
+        authenticates your OpenClaw account. OpenClaw receives the account and device identifiers
+        needed to authorise your connection and show the agents you can access.</p>
+      <h2>Voice conversations</h2>
+      <p>The microphone is used only after you start a voice conversation and grant permission.
+        Audio travels to the voice provider configured by the OpenClaw gateway. The current
+        household setup uses OpenAI GPT-Live. OpenClaw receives conversation transcripts and
+        coordinates the agent’s work. An established call can continue while you use another app
+        or lock your phone. Mute stops outgoing microphone audio; End closes the voice connection.</p>
+      <p>Audio, conversation content, and account identifiers are processed to provide the requested
+        conversation. OpenClaw retains conversation history according to the gateway operator’s
+        settings, even though Bruce has no history screen. The voice provider’s own account terms
+        and retention settings also apply; Bruce does not promise that provider processing is
+        transient. Ask the household gateway operator about access, retention, and deletion.</p>
+      <h2>Your choices and requests</h2>
+      <p>You can revoke microphone permission in your device’s system Settings at any time.
+        End closes the current voice connection. To revoke account access or delete retained
+        conversations, contact your household gateway operator. You can also
+        <a href="https://github.com/ajsutton/bruce/issues/new?title=Privacy%20request">contact
+        the Bruce developer with a privacy request</a> for help reaching the responsible operator.
+        Do not include credentials, transcripts, or other personal information in a public issue.</p>
+      <p>Service providers must protect shared information to a standard at least equivalent to this
+        policy, including protecting account and voice information and limiting processing to the
+        agreed purposes. The gateway operator is responsible for selecting provider terms and
+        settings that meet those protections and for responding to access and deletion requests.</p>
+      <h2>On your device</h2>
+      <p>Bruce does not create a local recording or a persistent voice-history database. Agent photos
+        are cached in memory for display. Ending a call releases the microphone and audio connection;
+        it does not delete the gateway’s conversation history or cancel previously accepted agent work.</p>
+    </main>
+  </body>
+</html>

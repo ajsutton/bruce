@@ -9,6 +9,7 @@ struct BruceApp: App {
   #else
     @NSApplicationDelegateAdaptor(BruceAppDelegate.self) private var appDelegate
   #endif
+  @StateObject private var voiceStore = OpenClawVoiceStore()
   @StateObject private var modeController = BruceModeController()
   @StateObject private var setupStore: HomeAssistantSetupStore
   @StateObject private var temperatureStore: HomeAssistantTemperatureStore
@@ -41,31 +42,33 @@ struct BruceApp: App {
 
   var body: some Scene {
     WindowGroup("Bruce", id: "main") {
-      #if os(macOS)
-        ContentView(
-          modeController: modeController,
-          setupStore: setupStore,
-          temperatureStore: temperatureStore,
-          chargingStore: chargingStore,
-          garageDoorStore: garageDoorStore,
-          homeEnergyStore: homeEnergyStore,
-          settingsNavigation: settingsNavigation
-        )
-        .frame(minWidth: BrucePanelLayout.minimumWindowWidth)
-        .tint(modeController.mode.accentColor)
-        .environmentObject(observationCoordinator)
-      #else
-        ContentView(
-          modeController: modeController,
-          setupStore: setupStore,
-          temperatureStore: temperatureStore,
-          chargingStore: chargingStore,
-          garageDoorStore: garageDoorStore,
-          homeEnergyStore: homeEnergyStore
-        )
-        .tint(modeController.mode.accentColor)
-        .environmentObject(observationCoordinator)
-      #endif
+      BruceVoiceHost(store: voiceStore, mode: modeController.mode) {
+        #if os(macOS)
+          ContentView(
+            modeController: modeController,
+            setupStore: setupStore,
+            temperatureStore: temperatureStore,
+            chargingStore: chargingStore,
+            garageDoorStore: garageDoorStore,
+            homeEnergyStore: homeEnergyStore,
+            settingsNavigation: settingsNavigation
+          )
+          .frame(minWidth: BrucePanelLayout.minimumWindowWidth)
+          .tint(modeController.mode.accentColor)
+          .environmentObject(observationCoordinator)
+        #else
+          ContentView(
+            modeController: modeController,
+            setupStore: setupStore,
+            temperatureStore: temperatureStore,
+            chargingStore: chargingStore,
+            garageDoorStore: garageDoorStore,
+            homeEnergyStore: homeEnergyStore
+          )
+          .tint(modeController.mode.accentColor)
+          .environmentObject(observationCoordinator)
+        #endif
+      }
     }
     #if os(macOS)
       .windowResizability(.contentMinSize)
