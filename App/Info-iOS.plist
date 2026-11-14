@@ -27,6 +27,8 @@
         <key>NSAllowsArbitraryLoads</key>
         <true/>
     </dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Bruce provides audio-only voice conversations and does not capture photos or video. Its calling library includes camera support.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Bruce sends microphone audio to the AI voice provider configured by your OpenClaw gateway so you can have a voice conversation.</string>
     <key>NSBonjourServices</key>
