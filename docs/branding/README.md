@@ -1,15 +1,20 @@
 # Bruce artwork
 
-The app uses Bruce’s established illustrated country-butler portrait, supplied for this
-branding update. `bruce-portrait.png` is the canonical, unmodified 1254 × 1254 source.
-It contains no household photographs or identifying property details.
+## Current icons
 
-- Standard: the portrait, without lettering or extra badges.
-- Full Bruce: Bruce taking a sip from a glass beer mug, without a border.
-  `bruce-full-beer.png` is the canonical 1254 × 1254 AI-edited alternate source,
-  derived from the standard portrait while retaining his face, hat and illustrated style.
-- iOS: opaque square artwork; the system applies the final mask.
+- Standard Bruce: the approved Practical Butler cream bush-hat-and-bow-tie mark on green.
+  `bruce-portrait.png` is the canonical 1024 × 1024 opaque RGB source. The mark was
+  extracted from the top-left concept in the AI-generated design sheet and flattened
+  onto a square green field, excluding the presentation label and pre-rounded mask.
+- Full Bruce: the approved golden beer mug with cream foam on eucalyptus green.
+  `bruce-full-beer.png` is the canonical 1024 × 1024 opaque RGB source, resized from
+  the approved 1254 × 1254 AI-generated beer artwork. No hat, face or lightning bolt.
+- Source filenames are retained for generator compatibility; they no longer depict portraits.
+- iOS and CarPlay: opaque square artwork; the system applies the final mask.
 - macOS: rounded artwork inset by 10%, with transparent outer padding.
+- Neither source contains household photographs or identifying property details.
+
+## Regeneration
 
 Regenerate every asset on macOS from the repository root:
 
@@ -21,5 +26,11 @@ swift scripts/generate-brand-icons.swift
 catalogue slots, runtime selection logic or app functionality change.
 
 The [contact sheet](icon-preview.png) shows the committed iOS and Mac variants at
-large and small sizes. Regenerated PNG bytes may differ by renderer; dimensions,
-alpha handling, portrait framing and variant treatment should remain consistent.
+large and small sizes. These assets were rendered with Pillow using the same
+10% Mac inset and 22%-of-tile corner radius as the AppKit generator. Regenerated
+PNG bytes may differ by renderer; dimensions, opacity, artwork framing and
+variant treatment should remain consistent. iOS sources have no pre-rounded
+corners or transparent padding.
+
+The existing Full Bruce preference continues to select the alternate iOS icon
+and running Mac Dock icon. The Finder icon remains standard Bruce.

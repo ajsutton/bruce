@@ -45,13 +45,14 @@ standard Bruce.
 
 ## App icon
 
-Both modes use Bruce’s established illustrated portrait: an approachable Australian country
-butler, not a letter monogram. The canonical source is
+Standard Bruce uses the Practical Butler mark: a flat cream Australian bush hat and bow tie
+on a green field, without a face, lettering or border. Its canonical source is
 [`docs/branding/bruce-portrait.png`](../docs/branding/bruce-portrait.png).
-Full Bruce shows the same bloke drinking a beer from a glass mug, without a border.
+Full Bruce has knocked off: a simple golden beer mug with cream foam on eucalyptus green.
 Its canonical source is
 [`docs/branding/bruce-full-beer.png`](../docs/branding/bruce-full-beer.png).
-Do not replace the portrait with a generic British butler, robot or house symbol.
+The source filenames are retained for compatibility with the artwork generator; neither
+source contains a portrait. Do not add a face, lightning bolt or generic British butler.
 
 On iOS, the installed app icon follows the selected mode. On macOS, the selected mode changes the
 running app's Dock icon; the Finder icon remains the standard Bruce icon because macOS does not
