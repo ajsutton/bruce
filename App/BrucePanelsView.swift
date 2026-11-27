@@ -192,8 +192,13 @@ extension BrucePanelsView {
       #if os(iOS)
         .safeAreaBar(edge: .top, alignment: .trailing, spacing: 0) {
           if connectionBanner == nil, showsServerStatus {
-            serverStatusView
-            .padding(.vertical, 8)
+            Button(action: manageConnection) {
+              serverStatusView
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(BruceAccessibilityIdentifier.connectionStatus)
+            .frame(minHeight: 44)
+            .accessibilityHint(HomeAssistantInterfaceCopy(mode: mode).manageConnectionAccessibility)
             .padding(.trailing)
           }
         }

@@ -24,6 +24,11 @@ struct VoiceCopy {
   var end: String { text("voice.end") }
   var done: String { text("voice.done") }
   var retry: String { text("voice.retry") }
+  var logOut: String { text("voice.logOut") }
+  var loggedOut: String { text("voice.loggedOut") }
+  var loggingOut: String { text("voice.loggingOut") }
+  var logoutFailed: String { text("voice.logoutFailed") }
+  var logoutExplanation: String { text("voice.logoutExplanation") }
   var signIn: String { text("voice.signIn") }
   var continueSignIn: String { text("voice.continueSignIn") }
   var signInDescription: String { text("voice.signInDescription") }

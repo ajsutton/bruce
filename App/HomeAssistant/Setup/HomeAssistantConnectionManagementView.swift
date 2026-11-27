@@ -4,6 +4,7 @@
 
   struct HomeAssistantConnectionManagementView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.bruceVoiceStore) private var voiceStore
     @ObservedObject var store: HomeAssistantSetupStore
     let mode: BruceMode
     let reauthenticate: () -> Void
@@ -65,8 +66,12 @@
             ) {
               showsDisconnectConfirmation = true
             }
+            .accessibilityIdentifier(BruceAccessibilityIdentifier.connectionDisconnect)
             .disabled(store.isDisconnecting)
           }
+        }
+        if let voiceStore {
+          OpenClawLogoutSection(store: voiceStore, mode: mode)
         }
       }
       .formStyle(.grouped)

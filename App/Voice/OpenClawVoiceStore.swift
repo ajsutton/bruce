@@ -17,6 +17,7 @@ final class OpenClawVoiceStore: ObservableObject {
 
   enum Problem { case connection, microphone, signIn, unavailable }
 
+  @Published private(set) var isLoggingOut = false
   @Published private(set) var phase = Phase.idle
   @Published private(set) var agents: [OpenClawAgent] = []
   @Published private(set) var agent: OpenClawAgent?
@@ -31,6 +32,7 @@ final class OpenClawVoiceStore: ObservableObject {
   private var pickerPresenters: Set<UUID> = []
   private var audio: (any OpenClawAudioCalling)?
   private var task: Task<Void, Never>?
+  private var logoutTask: Task<Void, any Error>?
   private var connectionDeadline: Task<Void, Never>?
   private var browserWaiter: CheckedContinuation<Void, any Error>?
   private var generation = UUID()
@@ -67,7 +69,7 @@ final class OpenClawVoiceStore: ObservableObject {
 
   func presentPicker(id: UUID) {
     pickerPresenters.insert(id)
-    if phase == .ending, problem == nil { returnsToPicker = true }
+    if phase == .ending, problem == nil, !isLoggingOut { returnsToPicker = true }
   }
 
   /// Returns true when the final picker has left, including repeated teardown callbacks.
@@ -78,6 +80,7 @@ final class OpenClawVoiceStore: ObservableObject {
   }
 
   func prepare() {
+    guard !isLoggingOut else { return }
     if phase == .ending {
       if problem == nil { returnsToPicker = true }
       return
@@ -222,6 +225,7 @@ final class OpenClawVoiceStore: ObservableObject {
   }
 
   private func fail(_ error: any Error) {
+    guard !isLoggingOut else { return }
     logger.error("Voice connection failed: \(String(describing: error), privacy: .private)")
     let problem: Problem
     switch error {
@@ -263,5 +267,33 @@ final class OpenClawVoiceStore: ObservableObject {
         if self.returnsToPicker, !self.pickerPresenters.isEmpty { self.prepare() }
       #endif
     }
+  }
+}
+
+@MainActor
+extension OpenClawVoiceStore {
+  func logOut() async throws {
+    if let logoutTask { return try await logoutTask.value }
+    isLoggingOut = true
+    let operation = Task { try await completeLogout() }
+    logoutTask = operation
+    try await operation.value
+  }
+
+  private func completeLogout() async throws {
+    defer {
+      isLoggingOut = false
+      logoutTask = nil
+    }
+    hasLoadedAgents = false
+    agents = []
+    agent = nil
+    end(returnToPicker: false)
+    // Finish cancelled sign-in work before deleting credentials so a late result cannot
+    // restore the saved session. Normal call teardown also releases audio and CallKit.
+    await task?.value
+    try client.logOut()
+    problem = nil
+    phase = .idle
   }
 }

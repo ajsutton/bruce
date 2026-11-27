@@ -175,4 +175,5 @@ private final class PreviewVoiceSidebarClient: OpenClawVoiceServing {
 
   func connected() {}
   func close() async throws {}
+  func logOut() throws {}
 }

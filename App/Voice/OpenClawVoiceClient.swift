@@ -9,6 +9,7 @@ protocol OpenClawVoiceServing: AnyObject {
   func start(agentID: String, offer: String) async throws -> String
   func connected()
   func close() async throws
+  func logOut() throws
 }
 
 @MainActor
@@ -71,6 +72,12 @@ final class OpenClawVoiceClient: OpenClawVoiceServing {
   func close() async throws {
     defer { gateway.close() }
     try await talk.close()
+  }
+
+  func logOut() throws {
+    access = nil
+    gateway.close()
+    try credentials.delete("access-session")
   }
 
   private func authenticate(

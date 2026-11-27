@@ -13,6 +13,12 @@ struct HomeAssistantConnectionCandidate: Equatable, Sendable {
   let externalURL: URL?
   let activeURL: URL
   let source: Source
+
+  var usesUnencryptedRoute: Bool {
+    [activeURL, internalURL].compactMap(\.self).contains {
+      $0.scheme?.lowercased() == "http"
+    }
+  }
 }
 
 @MainActor
@@ -175,7 +181,7 @@ final class HomeAssistantSetupStore: ObservableObject {
       return
     }
     connectionController.step =
-      candidate.activeURL.scheme?.lowercased() == "http"
+      candidate.usesUnencryptedRoute
       ? .unencryptedWarning(candidate)
       : .confirmation(candidate)
   }

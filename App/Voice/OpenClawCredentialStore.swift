@@ -30,6 +30,13 @@ struct OpenClawCredentialStore {
     }
   }
 
+  func delete(_ account: String) throws {
+    let status = SecItemDelete(query(account) as CFDictionary)
+    guard status == errSecSuccess || status == errSecItemNotFound else {
+      throw CloudflareAccessError.storageFailed
+    }
+  }
+
   private func query(_ account: String) -> [String: Any] {
     [
       kSecClass as String: kSecClassGenericPassword,

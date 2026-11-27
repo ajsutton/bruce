@@ -23,7 +23,6 @@ struct HomeAssistantServerStatusView: View {
       platformStatus(at: context.date)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityStatusText(at: context.date))
-        .allowsHitTesting(false)
     }
   }
 

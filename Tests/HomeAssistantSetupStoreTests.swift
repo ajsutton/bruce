@@ -30,9 +30,10 @@ final class HomeAssistantSetupStoreTests: XCTestCase {
     store.confirmSelectedInstance()
 
     guard case .unencryptedWarning(let candidate) = store.step else {
-      return XCTFail("Expected an unencrypted connection warning.")
+      return XCTFail("Expected consent for the local HTTP fallback route.")
     }
     XCTAssertEqual(candidate.instanceID, "two")
+    XCTAssertEqual(candidate.activeURL, URL(string: "https://two.example.com"))
     store.acceptUnencryptedConnection()
     XCTAssertEqual(store.step, .confirmation(candidate))
     withExtendedLifetime(subscription) {}
@@ -77,10 +78,20 @@ final class HomeAssistantSetupStoreTests: XCTestCase {
     }
     store.startDiscovery()
     await fulfillment(of: [discovery.started], timeout: 1)
-    discovery.send(snapshot(instance("home", name: "Home")))
+    discovery.send(
+      snapshot(
+        HomeAssistantInstance(
+          id: "home", name: "Home", version: nil,
+          internalURL: URL(string: "http://home.local:8123"), externalURL: nil,
+          isOnboarding: false
+        ))
+    )
     await fulfillment(of: [instancesChanged], timeout: 1)
 
     store.confirmSelectedInstance()
+    guard case .unencryptedWarning = store.step else {
+      return XCTFail("An internal-only HTTP server must still require confirmation.")
+    }
     store.rejectUnencryptedConnection()
 
     XCTAssertEqual(store.step, .chooseServer)
@@ -259,6 +270,32 @@ final class HomeAssistantSetupStoreTests: XCTestCase {
       externalURL: externalURL,
       isOnboarding: false
     )
+  }
+}
+
+extension HomeAssistantSetupStoreTests {
+  func testDiscoveredHTTPSLoginRetainsConsentForItsHTTPFallback() async {
+    let discovery = ControlledSetupDiscovery()
+    let store = HomeAssistantSetupStore(discovery: discovery)
+    defer { store.stopDiscovery() }
+    let received = expectation(description: "Discovered home published")
+    let subscription = store.$instances.dropFirst().sink { _ in received.fulfill() }
+    store.startDiscovery()
+    await fulfillment(of: [discovery.started], timeout: 1)
+    discovery.send(snapshot(instance("home", name: "Home")))
+    await fulfillment(of: [received], timeout: 1)
+
+    store.confirmSelectedInstance()
+
+    guard case .unencryptedWarning(let candidate) = store.step else {
+      return XCTFail(
+        "Local HTTP fallback still requires explicit consent before credentials are sent.")
+    }
+    XCTAssertEqual(candidate.activeURL, URL(string: "https://home.example.com"))
+    store.acceptUnencryptedConnection()
+    store.requestAuthentication()
+    XCTAssertEqual(store.step, .readyForAuthentication(candidate))
+    withExtendedLifetime(subscription) {}
   }
 }
 

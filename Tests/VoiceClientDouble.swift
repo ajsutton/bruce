@@ -7,6 +7,8 @@ final class VoiceClientDouble: OpenClawVoiceServing {
   var onDisconnect: (() -> Void)?
   var roster: [OpenClawAgent] = []
   var startedAgents: [String] = []
+  var logoutCount = 0
+  var failsLogout = false
   var closeCount = 0
   var blocksClose = false
   var onClose: (() -> Void)?
@@ -43,6 +45,11 @@ final class VoiceClientDouble: OpenClawVoiceServing {
   func start(agentID: String, offer: String) async throws -> String {
     startedAgents.append(agentID)
     return "answer"
+  }
+
+  func logOut() throws {
+    logoutCount += 1
+    if failsLogout { throw CloudflareAccessError.storageFailed }
   }
 
   func connected() {}

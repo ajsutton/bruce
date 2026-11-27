@@ -7,6 +7,10 @@ struct BruceUITestHostApp: App {
   @StateObject private var chargingStore: HomeAssistantEVChargingStore
   @StateObject private var garageDoorStore: HomeAssistantGarageDoorStore
   @StateObject private var homeEnergyStore: HomeAssistantHomeEnergyStore
+  @StateObject private var setupStore = HomeAssistantSetupStore(
+    discovery: UITestAccountConnection(), connection: UITestAccountConnection())
+  @StateObject private var voiceStore = OpenClawVoiceStore(client: UITestVoiceClient())
+  @State private var showsConnectionManagement = false
   @State private var isContentReady = false
 
   init() {
@@ -42,12 +46,18 @@ struct BruceUITestHostApp: App {
         mode: .standard,
         isConnecting: false,
         connectionProblem: nil,
-        serverStatus: .idle,
-        manageConnection: {},
+        serverStatus: HomeAssistantServerStatus(phase: .live, lastSuccessfulUpdate: nil),
+        manageConnection: { showsConnectionManagement = true },
         requestHomeRefresh: {},
         isRemovingConnection: false
       )
       .tint(BruceMode.standard.accentColor)
+      .sheet(isPresented: $showsConnectionManagement) {
+        HomeAssistantSetupView(
+          store: setupStore, mode: .standard, startsInConnectionManagement: true
+        )
+        .environment(\.bruceVoiceStore, voiceStore)
+      }
       .overlay(alignment: .topLeading) {
         if isContentReady {
           Color.clear
@@ -57,6 +67,7 @@ struct BruceUITestHostApp: App {
         }
       }
       .task {
+        await setupStore.restoreSavedConnection()
         await temperatureStore.load()
         isContentReady = true
       }

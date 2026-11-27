@@ -6,9 +6,11 @@ import Foundation
 final class StubHomeAssistantWebAuthenticator: HomeAssistantWebAuthenticating {
   var error: (any Error)?
   private(set) var authenticationCount = 0
+  private(set) var authenticationURLs: [URL] = []
 
   func authenticate(at url: URL) async throws -> URL {
     authenticationCount += 1
+    authenticationURLs.append(url)
     if let error {
       throw error
     }

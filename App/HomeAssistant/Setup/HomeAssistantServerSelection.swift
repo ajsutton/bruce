@@ -36,7 +36,7 @@ enum HomeAssistantServerSelection {
   static func candidate(
     from instance: HomeAssistantInstance
   ) -> HomeAssistantConnectionCandidate? {
-    let activeURL = instance.internalURL ?? instance.eligibleExternalURL
+    let activeURL = instance.eligibleExternalURL ?? instance.internalURL
     guard let activeURL else {
       return nil
     }

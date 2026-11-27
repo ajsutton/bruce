@@ -7657,6 +7657,86 @@
         }
       }
     },
+    "voice.logOut" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log Out of OpenClaw"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clock off OpenClaw"
+          }
+        }
+      }
+    },
+    "voice.loggedOut" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logged out of OpenClaw"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clocked off OpenClaw"
+          }
+        }
+      }
+    },
+    "voice.loggingOut" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logging out…"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clocking off…"
+          }
+        }
+      }
+    },
+    "voice.logoutExplanation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ends any voice call and removes the saved OpenClaw sign-in from this device."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hangs up the yarn and clocks off OpenClaw on this device. Sign in again for the next chat."
+          }
+        }
+      }
+    },
+    "voice.logoutFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t remove the saved OpenClaw sign-in. Try logging out again."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The OpenClaw sign-in wouldn’t budge. Give logging out another go."
+          }
+        }
+      }
+    },
     "voice.refreshAgents" : {
       "extractionState" : "manual",
       "localizations" : {

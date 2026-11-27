@@ -16,6 +16,13 @@ final class BrucePanelNavigationUITests: XCTestCase {
     try await super.tearDown()
   }
 
+  func testStatusPillOpensExistingManagementAndOpenClawLogoutPreservesHomeAssistant() {
+    screen.launch()
+
+    screen.openConnectionManagement()
+    screen.logOutOpenClaw()
+  }
+
   func testSelectingNonadjacentTabsShowsTheirPanels() {
     screen.launch()
 

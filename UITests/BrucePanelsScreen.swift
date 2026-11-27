@@ -41,6 +41,39 @@ final class BrucePanelsScreen {
     waitForSelection(tab("Climate"), description: "the Climate tab to be selected")
   }
 
+  func openConnectionManagement() {
+    record("Tap the live connection-status pill")
+    waitForElement(
+      application.buttons[BruceAccessibilityIdentifier.connectionStatus],
+      description: "the connection status button"
+    )
+    application.buttons[BruceAccessibilityIdentifier.connectionStatus].tap()
+    waitForExistence(application.navigationBars["Connection"], description: "connection management")
+    record("Scroll connection details to the account actions")
+    application.collectionViews.firstMatch.swipeUp()
+    waitForElement(
+      application.buttons[BruceAccessibilityIdentifier.connectionDisconnect],
+      description: "the existing Home Assistant disconnect control"
+    )
+    waitForElement(
+      application.buttons[BruceAccessibilityIdentifier.openClawLogout],
+      description: "the separate OpenClaw logout control"
+    )
+  }
+
+  func logOutOpenClaw() {
+    record("Log out of OpenClaw")
+    application.buttons[BruceAccessibilityIdentifier.openClawLogout].tap()
+    waitForExistence(
+      application.staticTexts[BruceAccessibilityIdentifier.openClawLoggedOut],
+      description: "confirmation that OpenClaw is logged out"
+    )
+    waitForElement(
+      application.buttons[BruceAccessibilityIdentifier.connectionDisconnect],
+      description: "the Home Assistant connection to remain available"
+    )
+  }
+
   func selectEnergy() {
     select(
       tabLabel: "Energy",

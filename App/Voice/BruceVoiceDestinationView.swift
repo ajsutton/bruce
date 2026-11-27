@@ -38,4 +38,5 @@ private final class PreviewVoiceDestinationClient: OpenClawVoiceServing {
   }
   func connected() {}
   func close() async throws {}
+  func logOut() throws {}
 }

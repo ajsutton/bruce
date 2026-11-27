@@ -90,6 +90,7 @@ struct BruceApp: App {
           settingsNavigation: settingsNavigation
         )
         .tint(modeController.mode.accentColor)
+        .environment(\.bruceVoiceStore, voiceStore)
       }
     #endif
   }

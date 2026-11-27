@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct HomeAssistantConnectionSummaryView: View {
+  @Environment(\.bruceVoiceStore) private var voiceStore
   @ObservedObject var store: HomeAssistantSetupStore
   let mode: BruceMode
   let credentials: HomeAssistantCredentials
@@ -27,6 +28,11 @@ struct HomeAssistantConnectionSummaryView: View {
       Section {
         connectionManagementControls
       }
+      #if os(macOS)
+        if let voiceStore {
+          OpenClawLogoutSection(store: voiceStore, mode: mode)
+        }
+      #endif
     }
     .formStyle(.grouped)
   }
