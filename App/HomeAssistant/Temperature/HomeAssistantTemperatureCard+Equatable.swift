@@ -33,6 +33,7 @@ extension HomeAssistantAirConditionerCard: Equatable {
       )
       && lhs.mode == rhs.mode
       && lhs.showsName == rhs.showsName
+      && lhs.selectedClimateMode == rhs.selectedClimateMode
       && lhs.showsControls == rhs.showsControls
       && lhs.isControlEnabled == rhs.isControlEnabled
       && lhs.isControlling == rhs.isControlling

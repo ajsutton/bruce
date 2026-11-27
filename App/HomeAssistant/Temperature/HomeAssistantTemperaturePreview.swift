@@ -46,6 +46,28 @@ import SwiftUI
   .background(BruceMode.full.backgroundColor)
 }
 
+#Preview("Remembered AC mode", traits: .sizeThatFitsLayout) {
+  VStack(spacing: 14) {
+    HomeAssistantAirConditionerCard(
+      reading: HomeAssistantTemperaturePreview.airConditioner.replacingClimateState(
+        powerState: .off, operatingMode: .off
+      ),
+      averageValue: 23.3, mode: .standard, selectedClimateMode: .heating,
+      showsControls: true, isControlEnabled: true
+    )
+    HomeAssistantAirConditionerCard(
+      reading: HomeAssistantTemperaturePreview.airConditioner.replacingClimateState(
+        powerState: .poweredOn, operatingMode: .heating
+      ),
+      averageValue: 23.3, mode: .standard,
+      showsControls: true, isControlEnabled: true
+    )
+  }
+  .frame(width: 700)
+  .fixedSize(horizontal: false, vertical: true)
+  .padding()
+}
+
 #Preview("Climate Presets") {
   let summary = HomeAssistantTemperatureSummary(
     readings: HomeAssistantTemperaturePreview.previewTemperatureReadings

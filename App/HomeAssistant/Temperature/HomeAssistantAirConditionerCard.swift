@@ -9,6 +9,7 @@ struct HomeAssistantAirConditionerCard: View {
   let reading: HomeAssistantTemperatureReading
   let averageValue: Double?
   let mode: BruceMode
+  let selectedClimateMode: HomeAssistantTemperatureReading.ClimateMode?
   let showsName: Bool
   let showsControls: Bool
   let isControlEnabled: Bool
@@ -26,6 +27,7 @@ struct HomeAssistantAirConditionerCard: View {
     reading: HomeAssistantTemperatureReading,
     averageValue: Double?,
     mode: BruceMode,
+    selectedClimateMode: HomeAssistantTemperatureReading.ClimateMode? = nil,
     showsName: Bool = false,
     showsControls: Bool = false,
     isControlEnabled: Bool = false,
@@ -42,6 +44,7 @@ struct HomeAssistantAirConditionerCard: View {
     self.reading = reading
     self.averageValue = averageValue
     self.mode = mode
+    self.selectedClimateMode = reading.preferredClimateMode(remembered: selectedClimateMode)
     self.showsName = showsName
     self.showsControls = showsControls
     self.isControlEnabled = isControlEnabled
@@ -124,6 +127,10 @@ struct HomeAssistantAirConditionerCard: View {
     .accessibilityValue(isLastKnown ? copy.lastKnown : "")
     .onChange(of: isControlEnabled, dismissModePickerWhenDisabled)
     .onChange(of: isControlling, dismissModePickerWhenUpdating)
+  }
+
+  private var modeSelectionPresentation: AirConditionerModePresentation {
+    modePresentation.selectingModeWhileOff(showsControls ? selectedClimateMode : nil)
   }
 
   private func rowLayout(_ density: AirConditionerCardDensity) -> some View {
@@ -265,7 +272,8 @@ extension HomeAssistantAirConditionerCard {
       .popover(isPresented: $isShowingModePicker, arrowEdge: .top) {
         HomeAssistantClimateModePicker(
           modes: reading.availableModes,
-          operatingMode: reading.operatingMode,
+          operatingMode: reading.powerState == .off
+            ? selectedClimateMode?.operatingMode ?? reading.operatingMode : reading.operatingMode,
           mode: mode,
           isCondensed: isCondensed
         ) { selectedMode in
@@ -284,7 +292,7 @@ extension HomeAssistantAirConditionerCard {
   }
 
   fileprivate func modeText(isCondensed: Bool) -> some View {
-    Text(modePresentation.label)
+    Text(modeSelectionPresentation.label)
       .font(modeFont(isCondensed: isCondensed))
       .foregroundStyle(modePresentation.foreground)
       .lineLimit(1)
@@ -292,7 +300,11 @@ extension HomeAssistantAirConditionerCard {
   }
 
   fileprivate var modeControlAccessibilityValue: String {
-    let value = isControlling ? copy.inProgress : modePresentation.accessibilityLabel
+    let modeValue =
+      reading.powerState == .off
+      ? "\(modeSelectionPresentation.accessibilityLabel). \(copy.powerOffAccessibility)"
+      : modeSelectionPresentation.accessibilityLabel
+    let value = isControlling ? copy.inProgress : modeValue
     return isLastKnown ? copy.lastKnown(value) : value
   }
 

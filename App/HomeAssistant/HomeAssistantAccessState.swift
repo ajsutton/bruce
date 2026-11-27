@@ -11,7 +11,7 @@ struct HomeAssistantAccessState: Equatable {
   static let requiresUserAction = Self(phase: .requiresUserAction)
 
   let phase: Phase
-  private let serverIdentity: HomeAssistantServerIdentity?
+  let serverIdentity: HomeAssistantServerIdentity?
 
   var isReady: Bool {
     phase == .ready

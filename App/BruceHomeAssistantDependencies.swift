@@ -33,7 +33,8 @@ struct BruceHomeAssistantDependencies {
         apiClient: context.apiClient
       ),
       controller: context.apiClient,
-      historyStore: ClimateHistoryStore(source: context.states, loader: context.apiClient)
+      historyStore: ClimateHistoryStore(source: context.states, loader: context.apiClient),
+      modeDefaults: .standard
     )
     self.chargingStore = chargingStore
     self.garageDoorStore = garageDoorStore

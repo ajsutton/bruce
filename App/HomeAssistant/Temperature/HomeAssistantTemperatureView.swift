@@ -122,6 +122,7 @@ struct HomeAssistantTemperatureView: View {
           reading: reading,
           averageValue: summary.averageRoomTemperature,
           mode: mode,
+          selectedClimateMode: store.selectedClimateMode(for: reading),
           showsName: summary.airConditioners.count > 1,
           showsControls: store.supportsControl,
           isControlEnabled: store.canControl(reading),
@@ -138,6 +139,7 @@ struct HomeAssistantTemperatureView: View {
             }
           },
           setMode: { climateMode in
+            if store.selectClimateModeIfOff(climateMode, for: reading) { return }
             Task {
               await store.setMode(climateMode, for: reading)
             }

@@ -18,3 +18,12 @@ zones, off. Manual power, temperature, and vent controls remain available.
 Labels configure membership, not temperatures or vent opening percentages.
 Changing labels in Home Assistant updates Bruce through its live registry
 subscription.
+
+The air conditioner icon controls power independently of the mode dropdown.
+Selecting a mode while the air conditioner is off leaves it off; tapping the
+icon then starts it in the selected mode. The dropdown retains the last
+confirmed active mode when switching off. Bruce saves this mode, or a mode
+chosen while off, on this device for each Home Assistant server and air
+conditioner. Cooling is the fallback when no supported mode has been saved;
+systems without Cooling use their first advertised mode. Stale cached updates
+and unconfirmed mode commands do not replace the saved active mode.

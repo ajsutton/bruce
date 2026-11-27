@@ -10,6 +10,15 @@ struct AirConditionerModePresentation {
     TemperatureCopy(mode: mode)
   }
 
+  func selectingModeWhileOff(_ selectedMode: HomeAssistantTemperatureReading.ClimateMode?) -> Self {
+    guard reading.powerState == .off, let selectedMode else { return self }
+    return Self(
+      reading: reading.replacingClimateState(
+        powerState: .off, operatingMode: selectedMode.operatingMode),
+      mode: mode, showsName: showsName, style: style
+    )
+  }
+
   var label: String {
     switch reading.operatingMode {
     case .automatic:

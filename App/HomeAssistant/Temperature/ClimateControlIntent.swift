@@ -79,7 +79,7 @@ enum ClimateControlIntent {
 }
 
 extension HomeAssistantTemperatureReading.ClimateMode {
-  fileprivate var operatingMode: HomeAssistantTemperatureReading.OperatingMode {
+  var operatingMode: HomeAssistantTemperatureReading.OperatingMode {
     switch self {
     case .automatic:
       .automatic

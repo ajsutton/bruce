@@ -10,6 +10,9 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   @Published private(set) var problem: Problem?
   @Published var controllingEntityIDs: Set<String> = []
   @Published var controlProblem: ControlProblem?
+  @Published private(set) var rememberedClimateModes:
+    [String: HomeAssistantTemperatureReading.ClimateMode] = [:]
+  var modePreferences: AirConditionerModePreferences
   let historyStore: ClimateHistoryStore?
   let loader: any HomeAssistantTemperatureLoading
   let controller: (any HomeAssistantClimateControlling)?
@@ -42,6 +45,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     loader: any HomeAssistantTemperatureLoading,
     controller: (any HomeAssistantClimateControlling)? = nil,
     historyStore: ClimateHistoryStore? = nil,
+    modeDefaults: UserDefaults? = nil,
     now: @escaping @Sendable () -> Date = Date.init,
     confirmationTimeout: Duration = .seconds(5),
     sleep: @escaping @Sendable (Duration) async throws -> Void = {
@@ -50,30 +54,13 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     onAuthenticationRequired: @escaping @MainActor @Sendable () -> Void = {}
   ) {
     self.historyStore = historyStore
+    modePreferences = AirConditionerModePreferences(defaults: modeDefaults)
     self.loader = loader
     self.controller = controller
     self.now = now
     self.confirmationTimeout = confirmationTimeout
     self.sleep = sleep
     self.onAuthenticationRequired = onAuthenticationRequired
-  }
-  func setPower(
-    for reading: HomeAssistantTemperatureReading,
-    isOn: Bool
-  ) async {
-    guard let controller else { return }
-    await performControl(for: reading, intent: .power(isOn: isOn)) { _ in
-      try await controller.setPower(entityID: reading.id, isOn: isOn)
-    }
-  }
-  func setMode(
-    _ mode: HomeAssistantTemperatureReading.ClimateMode,
-    for reading: HomeAssistantTemperatureReading
-  ) async {
-    guard let controller, reading.availableModes.contains(mode) else { return }
-    await performControl(for: reading, intent: .mode(mode)) { _ in
-      try await controller.setMode(mode, entityID: reading.id)
-    }
   }
 
   func dismissControlProblem() {
@@ -83,6 +70,11 @@ final class HomeAssistantTemperatureStore: ObservableObject {
   func synchronize(with access: HomeAssistantAccessState) async {
     switch access.phase {
     case .ready:
+      if let modes = modePreferences.selectServer(access.serverIdentity),
+        rememberedClimateModes != modes
+      {
+        rememberedClimateModes = modes
+      }
       readinessLoadTask?.cancel()
       readinessLoadTask = nil
       await load()
@@ -149,6 +141,8 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     invalidateControls()
     serverReadings = []
     readings = []
+    _ = modePreferences.selectServer(nil)
+    if !rememberedClimateModes.isEmpty { rememberedClimateModes = [:] }
     lastChecked = nil
     (isLive, isRefreshing) = (false, false)
     problem = nil
@@ -196,6 +190,7 @@ final class HomeAssistantTemperatureStore: ObservableObject {
     }
     switch update {
     case .live:
+      rememberConfirmedClimateModes(loadedReadings)
       liveSequence += 1
       let ready = liveWaiters.filter {
         liveSequence > $0.value.baseline
@@ -326,5 +321,12 @@ extension HomeAssistantTemperatureStore {
     if !HomeAssistantTemperaturePresentation.matches(readings, presentedReadings) {
       readings = presentedReadings
     }
+  }
+
+  func updateRememberedClimateModes(_ modes: [String: HomeAssistantTemperatureReading.ClimateMode])
+  {
+    guard modes != rememberedClimateModes else { return }
+    rememberedClimateModes = modes
+    modePreferences.save(modes)
   }
 }
