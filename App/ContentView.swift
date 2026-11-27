@@ -23,6 +23,8 @@ struct ContentView: View {
     @State private var showsConnectionManagement = false
   #endif
 
+  @State private var showsDemo = false
+
   private var mode: BruceMode {
     modeController.mode
   }
@@ -33,6 +35,20 @@ struct ContentView: View {
 
   var body: some View {
     content
+      .safeAreaInset(edge: .bottom) {
+        if presentation.screen != .panels {
+          DemoLaunchButton(launch: { showsDemo = true }, mode: mode)
+            .buttonStyle(.bordered)
+            .frame(minHeight: 44)
+            .padding(.bottom, 8)
+        }
+      }
+      .sheet(isPresented: $showsDemo) {
+        DemoModeView(mode: mode)
+          #if os(iOS)
+            .presentationDetents([.large])
+          #endif
+      }
       .preferredColorScheme(mode.isFullBruce ? .dark : nil)
       .task {
         await modeController.restore()

@@ -1,6 +1,312 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "demo.sampleQuestions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sample questions"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Give Bruce a sample question"
+          }
+        }
+      }
+    },
+    "demo.coolLounge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set lounge to 22°"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get the lounge to 22°"
+          }
+        }
+      }
+    },
+    "demo.disclosure" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sample home only. Calls use sample responses without recording your microphone. Mute silences responses."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Have a poke at the practice house. Calls use sample responses; the microphone stays off duty. Mute quietens the responses."
+          }
+        }
+      }
+    },
+    "demo.exit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exit Demo"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave the practice house"
+          }
+        }
+      }
+    },
+    "demo.familyAgent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruce — Demo Family"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruce — Practice Family"
+          }
+        }
+      }
+    },
+    "demo.finishVoiceHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finish your voice session before opening the demo."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finish your voice session before taking the demo for a spin."
+          }
+        }
+      }
+    },
+    "demo.homeDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The demo lounge is %1$@ degrees, with a target of %2$@ degrees. Solar generation is 8.4 kilowatts and the battery is at 76 percent."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demo lounge is sitting at %1$@ degrees, aiming for %2$@. The sun’s chipping in 8.4 kilowatts and the battery’s at 76 percent. House is sorted."
+          }
+        }
+      }
+    },
+    "demo.homeQuestion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How is the house?"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House all sorted?"
+          }
+        }
+      }
+    },
+    "demo.houseAgent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruce — Demo House"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruce — Practice House"
+          }
+        }
+      }
+    },
+    "demo.launch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Demo"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take the demo for a spin"
+          }
+        }
+      }
+    },
+    "demo.launchHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explore a sample home without signing in."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Have a look around the practice house. No sign-in needed."
+          }
+        }
+      }
+    },
+    "demo.temperatureChanged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I’ve set the demo lounge target to 22 degrees."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demo lounge is set to 22 degrees. Good as gold."
+          }
+        }
+      }
+    },
+    "demo.temperatureFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I couldn’t change the demo temperature. Please try again."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The demo air-con’s having a sook. Give it another go."
+          }
+        }
+      }
+    },
+    "demo.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demo Home"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bruce’s practice house"
+          }
+        }
+      }
+    },
+    "demo.unmuteHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unmute to ask a sample question."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unmute Bruce to try a sample question."
+          }
+        }
+      }
+    },
+    "demo.voiceExplanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In a connected home, your chosen OpenClaw agent responds to your voice. This offline demo uses sample responses. You can mute the call, end it, and choose another agent. No microphone audio is captured or sent."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect your real home and your chosen OpenClaw agent will have a yarn with you. Here in the practice house, Bruce sticks to sample responses. Try mute, end the call, or pick another agent. The microphone stays off duty; no audio is captured or sent."
+          }
+        }
+      }
+    },
+    "demo.voiceQuestion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How do voice calls work?"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What’s the go with voice calls?"
+          }
+        }
+      }
+    },
+    "demo.welcome" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome to Bruce’s demo home. This is a simulated call. Your microphone is not recorded. Use the sample questions above to hear a response, or explore the house controls."
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome to the practice house. This is a pretend call, and the microphone’s off duty. Try a sample question up top to hear Bruce, or have a poke at the house controls."
+          }
+        }
+      }
+    },
     "" : {
 
     },

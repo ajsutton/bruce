@@ -82,7 +82,7 @@ final class HomeAssistantGarageDoorStore: ObservableObject {
 }
 
 extension HomeAssistantGarageDoorStore {
-  private func observeUpdates() async {
+  func observeUpdates() async {
     let generation = UUID()
     observationGeneration = generation
     isLoading = !isRefreshing

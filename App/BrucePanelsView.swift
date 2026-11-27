@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrucePanelsView: View {
   @Environment(\.colorScheme) private var colorScheme
-  @AppStorage(BrucePanel.storageKey) private var selectedPanel = BrucePanel.climate
+  @AppStorage(BrucePanel.storageKey) private var savedPanel = BrucePanel.climate
   #if os(iOS)
     @State private var panelSwipeExclusionFrames: [CGRect] = []
   #endif
@@ -17,6 +17,20 @@ struct BrucePanelsView: View {
   let manageConnection: () -> Void
   let requestHomeRefresh: () -> Void
   let isRemovingConnection: Bool
+  var selection: Binding<BrucePanel>?
+
+  private var selectedPanel: BrucePanel {
+    get { selection?.wrappedValue ?? savedPanel }
+    nonmutating set {
+      if let selection {
+        selection.wrappedValue = newValue
+      } else {
+        savedPanel = newValue
+      }
+    }
+  }
+
+  private var panelSelection: Binding<BrucePanel> { selection ?? $savedPanel }
 
   private var copy: AppCopy { AppCopy(mode: mode) }
 
@@ -130,7 +144,7 @@ extension BrucePanelsView {
 
   #if os(iOS)
     fileprivate var panels: some View {
-      TabView(selection: $selectedPanel) {
+      TabView(selection: panelSelection) {
         ForEach(BrucePanel.allCases) { panel in
           Tab(title(for: panel), systemImage: panel.systemImage, value: panel) {
             panelContent(for: panel)
@@ -140,7 +154,7 @@ extension BrucePanelsView {
       .tabViewStyle(.sidebarAdaptable)
       .background {
         BrucePanelSwipeGestureView(
-          selectedPanel: $selectedPanel,
+          selectedPanel: panelSelection,
           exclusionFrames: panelSwipeExclusionFrames
         )
       }

@@ -161,7 +161,16 @@ for the bundled WebRTC/BoringSSL and Sodium cryptography. The app deliberately o
 exemption. Record Apple's resulting declaration and any required compliance code in both app
 plists before automating subsequent uploads.
 
-Before App Review, provide working OpenClaw/Cloudflare Access review access as well as Home
+Reviewers can choose **Try Demo** on the disconnected home screen without signing in. The demo
+uses isolated, in-memory climate, charging, garage and energy clients. Controls change only sample
+data; exiting discards the visit. Demo voice offers two sample agents, local spoken responses,
+sample questions, a sample temperature command, mute and end-call controls. It never records the
+microphone or connects to OpenClaw, and is explicitly labelled as simulated. Include these entry
+and exit instructions in TestFlight and App Store review notes. Real authentication, remote audio,
+CallKit, CarPlay and widgets still require a configured environment to exercise; the demo does
+not claim to validate those integrations.
+
+When providing live review access, supply OpenClaw/Cloudflare Access access as well as Home
 Assistant access. Explain microphone permission and background audio during an active call, and
 include the agent picker/call screen in review material. Explain that CallKit and the Voice over IP
 background mode support user-initiated outgoing audio calls only; Bruce does not receive incoming
