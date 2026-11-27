@@ -253,6 +253,12 @@ extension HomeAssistantObservationCoordinator {
     while isActive: Bool,
     registrationDidBegin: @MainActor @Sendable () -> Void = {}
   ) async {
+    guard !Task.isCancelled else { return }
+    // SwiftUI can overlap activity registrations across a foreground transition. Even when
+    // suspension was coalesced away, the supervisor must validate the retained connection.
+    if isActive {
+      await sendWakeHint()
+    }
     await updateActivity.observeUpdates(
       while: isActive,
       registrationDidBegin: registrationDidBegin

@@ -23,14 +23,13 @@ final class HomeAssistantConnectionBannerTests: XCTestCase {
     XCTAssertEqual(banner?.action, .refresh)
   }
 
-  func testReconnectingServerDoesNotOfferAnAction() {
+  func testReconnectingServerUsesSubtleStatusInsteadOfAnErrorBanner() {
     let banner = HomeAssistantConnectionBanner(
       presentationProblem: nil,
       serverStatus: status(.reconnecting)
     )
 
-    XCTAssertEqual(banner?.problem, .reconnecting)
-    XCTAssertEqual(banner?.action, HomeAssistantConnectionBanner.Action.none)
+    XCTAssertNil(banner)
   }
 
   func testHealthyServerDoesNotCreateConnectionBanner() {

@@ -60,6 +60,15 @@ final class BruceCopyTests: XCTestCase {
     XCTAssertEqual(TemperatureCopy(mode: .full).lastKnown, "Last word Bruce got")
   }
 
+  func testReconnectingServerStatusUsesShortVisualCopyAndDetailedAccessibilityCopy() {
+    let standard = HomeAssistantInterfaceCopy(mode: .standard)
+    let full = HomeAssistantInterfaceCopy(mode: .full)
+
+    XCTAssertEqual(standard.serverReconnecting, "Reconnecting")
+    XCTAssertEqual(full.serverReconnecting, "Hooking back up")
+    XCTAssertTrue(standard.serverReconnectingAccessibility.contains("out of date"))
+  }
+
   func testLiveServerStatusKeepsContextInItsAccessibilityCopy() {
     let standard = HomeAssistantInterfaceCopy(mode: .standard)
     let full = HomeAssistantInterfaceCopy(mode: .full)

@@ -27,6 +27,10 @@ struct BrucePanelsView: View {
     )
   }
 
+  private var showsFeatureConnectionProblems: Bool {
+    connectionBanner == nil && serverStatus.phase != .reconnecting
+  }
+
   private var showsConnectionBanner: Bool {
     #if os(iOS)
       selectedPanel != .voice
@@ -150,14 +154,16 @@ extension BrucePanelsView {
       panel(identifier: selectedPanel.sectionAccessibilityIdentifier) {
         HomeAssistantTemperatureView(
           store: temperatureStore, mode: mode, isConnecting: isConnecting,
-          showsConnectionProblems: connectionBanner == nil, requestRefresh: requestHomeRefresh
+          showsConnectionProblems: showsFeatureConnectionProblems,
+          requestRefresh: requestHomeRefresh
         )
       }
     case .car:
       panel(identifier: selectedPanel.sectionAccessibilityIdentifier) {
         CarPanelView(
           chargingStore: chargingStore, garageDoorStore: garageDoorStore, mode: mode,
-          showsConnectionProblems: connectionBanner == nil, manageConnection: manageConnection,
+          showsConnectionProblems: showsFeatureConnectionProblems,
+          manageConnection: manageConnection,
           requestRefresh: requestHomeRefresh
         )
       }
@@ -165,7 +171,8 @@ extension BrucePanelsView {
       panel(identifier: selectedPanel.sectionAccessibilityIdentifier) {
         EnergyPanelView(
           homeEnergyStore: homeEnergyStore, mode: mode,
-          showsConnectionProblems: connectionBanner == nil, manageConnection: manageConnection,
+          showsConnectionProblems: showsFeatureConnectionProblems,
+          manageConnection: manageConnection,
           requestRefresh: requestHomeRefresh
         )
       }

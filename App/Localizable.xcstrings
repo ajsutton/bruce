@@ -3712,6 +3712,22 @@
         }
       }
     },
+    "homeAssistantInterface.serverStatus.reconnecting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnecting"
+          }
+        },
+        "en-AU" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hooking back up"
+          }
+        }
+      }
+    },
     "homeAssistantInterface.serverStatus.updating" : {
       "localizations" : {
         "en" : {

@@ -54,8 +54,6 @@ struct HomeAssistantConnectionBannerView: View {
         Button(copy.refreshConnection, action: requestRefresh)
           .frame(minWidth: 44, minHeight: 44)
           .accessibilityLabel(copy.refreshConnectionAccessibility)
-      case .none:
-        EmptyView()
       }
     }
     .padding(.horizontal)

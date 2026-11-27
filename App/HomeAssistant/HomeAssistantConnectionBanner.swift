@@ -4,13 +4,11 @@ struct HomeAssistantConnectionBanner: Equatable {
     case signInRequired
     case needsAttention
     case unavailable
-    case reconnecting
   }
 
   enum Action: Equatable {
     case manageConnection
     case refresh
-    case none
   }
 
   let problem: Problem
@@ -25,8 +23,6 @@ struct HomeAssistantConnectionBanner: Equatable {
       .manageConnection
     case .unavailable:
       .refresh
-    case .reconnecting:
-      .none
     }
   }
 
@@ -46,9 +42,7 @@ struct HomeAssistantConnectionBanner: Equatable {
       problem = .needsAttention
     case .unavailable:
       problem = .unavailable
-    case .reconnecting:
-      problem = .reconnecting
-    case .idle, .updating, .live:
+    case .idle, .updating, .live, .reconnecting:
       return nil
     }
   }

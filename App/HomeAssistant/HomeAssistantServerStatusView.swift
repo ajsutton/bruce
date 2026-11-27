@@ -63,6 +63,14 @@ struct HomeAssistantServerStatusView: View {
           lastUpdatedText(lastSuccessfulUpdate)
         }
       }
+    } else if status.phase == .reconnecting {
+      HStack(spacing: 4) {
+        Text(copy.serverReconnecting)
+        if let lastSuccessfulUpdate = status.lastSuccessfulUpdateForDisplay(at: date) {
+          Text("·")
+          lastUpdatedText(lastSuccessfulUpdate)
+        }
+      }
     } else if status.phase == .updating {
       HStack(spacing: 4) {
         Text(copy.serverUpdating)
@@ -86,14 +94,14 @@ struct HomeAssistantServerStatusView: View {
     if isRemovingConnection {
       return "xmark.circle"
     }
-    if isConnecting || status.phase == .updating {
+    if isConnecting || status.phase == .updating || status.phase == .reconnecting {
       return "arrow.clockwise"
     }
     return "circle.fill"
   }
 
   private var statusIconColor: Color {
-    isConnecting || isRemovingConnection || status.phase == .updating ? .secondary : .green
+    isHealthyLive ? .green : .secondary
   }
 
   private var isHealthyLive: Bool {
@@ -106,6 +114,8 @@ struct HomeAssistantServerStatusView: View {
       title = copy.disconnecting
     } else if isConnecting {
       title = copy.serverConnecting
+    } else if status.phase == .reconnecting {
+      title = copy.serverReconnectingAccessibility
     } else if status.phase == .updating {
       title = copy.serverUpdating
     } else {
@@ -147,4 +157,14 @@ struct HomeAssistantServerStatusView: View {
       ? AnyShapeStyle(Color.white.opacity(0.78))
       : AnyShapeStyle(.secondary)
   }
+}
+
+#Preview("Reconnecting") {
+  HomeAssistantServerStatusView(
+    mode: .standard,
+    status: HomeAssistantServerStatus(phase: .reconnecting, lastSuccessfulUpdate: .now),
+    isConnecting: false,
+    isRemovingConnection: false
+  )
+  .padding()
 }

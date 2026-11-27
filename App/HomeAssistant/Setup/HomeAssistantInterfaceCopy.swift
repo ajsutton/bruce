@@ -173,9 +173,15 @@ struct HomeAssistantInterfaceCopy {
       localized("homeAssistantInterface.presentationProblem.needsAttention")
     case .unavailable:
       localized("homeAssistantInterface.presentationProblem.unavailable")
-    case .reconnecting:
-      localized("homeAssistantInterface.presentationProblem.reconnecting")
     }
+  }
+
+  var serverReconnecting: String {
+    localized("homeAssistantInterface.serverStatus.reconnecting")
+  }
+
+  var serverReconnectingAccessibility: String {
+    localized("homeAssistantInterface.presentationProblem.reconnecting")
   }
 
   private func localized(_ key: String.LocalizationValue) -> String {
