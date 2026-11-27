@@ -178,6 +178,15 @@ private enum HomeAssistantTemperaturePreview {
     airConditioner,
     livingRoom.replacingClimateState(powerState: .off, operatingMode: .off),
     HomeAssistantTemperatureReading(
+      id: "climate.kitchen", name: "Kitchen", value: nil, targetValue: nil,
+      unit: "°C", powerState: .off, kind: .zone, operatingMode: .off,
+      floor: HomeAssistantClimateFloor(id: "downstairs", name: "Downstairs", level: 0),
+      presetLabels: [.init(id: "climate_preset_exclude", name: "Exclude")],
+      opening: HomeAssistantZoneOpening(
+        entityID: "cover.kitchen_damper", value: 5, isAvailable: true, supportsPosition: true
+      )
+    ),
+    HomeAssistantTemperatureReading(
       id: "climate.bedroom",
       name: "Master Bedroom",
       value: 21.8,

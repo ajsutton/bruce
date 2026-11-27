@@ -155,6 +155,11 @@ struct HomeAssistantTemperatureReading: Equatable, Identifiable, Sendable {
     kind == .zone && value == nil && targetValue == nil
   }
 
+  /// The reserved `Climate Preset: Exclude` label affects presets, not manual controls.
+  var isExcludedFromClimatePresets: Bool {
+    presetLabels.contains { $0.name.caseInsensitiveCompare("Exclude") == .orderedSame }
+  }
+
   var adjustmentValue: Double? {
     guard isSensorlessZone else { return targetValue }
     return opening.flatMap { $0.isAvailable ? $0.value : nil }

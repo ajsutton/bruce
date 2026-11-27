@@ -27,8 +27,8 @@ struct HomeAssistantTemperatureSummary {
   }
 
   var climatePresets: [HomeAssistantClimatePreset] {
-    let zones = rooms.filter { $0.kind == .zone }
-    guard !zones.isEmpty else { return [] }
+    guard rooms.contains(where: { $0.kind == .zone }) else { return [] }
+    let zones = rooms.filter { $0.kind == .zone && !$0.isExcludedFromClimatePresets }
 
     let all = HomeAssistantClimatePreset(
       id: .all,
@@ -83,7 +83,7 @@ struct HomeAssistantTemperatureSummary {
       name: "",
       zoneEntityIDs: []
     )
-    return [all] + labelPresets + floorPresets + [none]
+    return zones.isEmpty ? [none] : [all] + labelPresets + floorPresets + [none]
   }
 
   var selectedClimatePresetID: HomeAssistantClimatePreset.Identifier? {

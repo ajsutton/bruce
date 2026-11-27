@@ -128,7 +128,10 @@ struct HomeAssistantRegistryClient:
     labelsByID: [String: HomeAssistantRegistryLabel]
   ) -> [HomeAssistantClimatePresetLabel] {
     labelIDs.compactMap { id in
-      guard let label = labelsByID[id], label.name.hasPrefix(climatePresetLabelPrefix) else {
+      guard let label = labelsByID[id],
+        label.name.range(of: climatePresetLabelPrefix, options: [.anchored, .caseInsensitive])
+          != nil
+      else {
         return nil
       }
       let name = label.name
