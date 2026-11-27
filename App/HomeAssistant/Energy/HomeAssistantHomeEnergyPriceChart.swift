@@ -5,9 +5,23 @@ struct HomeAssistantHomeEnergyPriceChart: View {
   @Environment(\.colorScheme) private var colorScheme
   @ObservedObject var store: HomeEnergyPriceHistoryStore
   let mode: BruceMode
+  @State private var selectedTime: Date?
 
   var copy: HomeEnergyCopy {
     HomeEnergyCopy(mode: mode)
+  }
+
+  private var selectionReadout: some View {
+    let time = selectedTime ?? store.priceHistory.interval.end
+    return HomeEnergyChartReadout(time: time, freshnessLabel: freshnessLabel) {
+      ForEach(HomeEnergyPriceHistory.Tariff.allCases, id: \.self) { tariff in
+        let value = HomeEnergyChartSelection.priceValue(
+          in: store.priceHistory, tariff: tariff, at: time)
+        Text(
+          "\(seriesName(for: tariff)) \(HomeEnergyChartSelection.formatted(value, unit: "¢/kWh"))")
+      }
+    }
+    .foregroundStyle(primaryForeground)
   }
 
   var body: some View {
@@ -15,6 +29,7 @@ struct HomeAssistantHomeEnergyPriceChart: View {
       chartHeader
 
       if store.hasUsableHistory {
+        selectionReadout
         priceChart
         if store.problem != nil {
           Label(
@@ -45,6 +60,9 @@ struct HomeAssistantHomeEnergyPriceChart: View {
           .frame(maxWidth: .infinity, minHeight: 220)
           .accessibilityLabel(copy.priceHistoryLoading)
       }
+    }
+    .onChange(of: store.priceHistory.interval) { _, interval in
+      if let selectedTime, !interval.contains(selectedTime) { self.selectedTime = nil }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(16)
@@ -125,17 +143,24 @@ struct HomeAssistantHomeEnergyPriceChart: View {
   }
 
   private var priceChart: some View {
-    Chart(priceChartPoints) { point in
-      LineMark(
-        x: .value(copy.priceHistoryTimeAxis, point.timestamp),
-        y: .value(copy.priceHistoryPriceAxis, point.centsPerKilowattHour),
-        series: .value(copy.priceHistorySeries, point.seriesID)
-      )
-      .foregroundStyle(
-        by: .value(copy.priceHistorySeries, seriesName(for: point.tariff))
-      )
-      .interpolationMethod(.stepEnd)
-      .lineStyle(StrokeStyle(lineWidth: 1))
+    Chart {
+      ForEach(priceChartPoints) { point in
+        LineMark(
+          x: .value(copy.priceHistoryTimeAxis, point.timestamp),
+          y: .value(copy.priceHistoryPriceAxis, point.centsPerKilowattHour),
+          series: .value(copy.priceHistorySeries, point.seriesID)
+        )
+        .foregroundStyle(
+          by: .value(copy.priceHistorySeries, seriesName(for: point.tariff))
+        )
+        .interpolationMethod(.stepEnd)
+        .lineStyle(StrokeStyle(lineWidth: 1))
+      }
+      if let selectedTime {
+        RuleMark(x: .value(copy.priceHistoryTimeAxis, selectedTime))
+          .foregroundStyle(secondaryForeground)
+          .accessibilityHidden(true)
+      }
     }
     .chartXScale(domain: store.priceHistory.interval.start...store.priceHistory.interval.end)
     .chartYScale(domain: priceYDomain)
@@ -164,6 +189,7 @@ struct HomeAssistantHomeEnergyPriceChart: View {
         }
       }
     }
+    .chartXSelection(value: $selectedTime)
     .frame(minHeight: 220)
     .accessibilityChartDescriptor(priceAccessibilityDescriptor)
   }

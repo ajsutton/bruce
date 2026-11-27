@@ -5,9 +5,19 @@ struct HomeAssistantHomeEnergyBatteryChart: View {
   @Environment(\.colorScheme) private var colorScheme
   @ObservedObject var store: HomeEnergyBatteryHistoryStore
   let mode: BruceMode
+  @State private var selectedTime: Date?
 
   private var copy: HomeEnergyCopy {
     HomeEnergyCopy(mode: mode)
+  }
+
+  private var selectionReadout: some View {
+    let time = selectedTime ?? store.batteryHistory.interval.end
+    return HomeEnergyChartReadout(time: time, freshnessLabel: freshnessLabel) {
+      let value = HomeEnergyChartSelection.batteryValue(in: store.batteryHistory, at: time)
+      Text("\(copy.batteryHistory) \(HomeEnergyChartSelection.formatted(value, unit: "%"))")
+    }
+    .foregroundStyle(primaryForeground)
   }
 
   var body: some View {
@@ -15,6 +25,7 @@ struct HomeAssistantHomeEnergyBatteryChart: View {
       chartHeader
 
       if store.hasUsableHistory {
+        selectionReadout
         batteryChart
         if store.problem != nil {
           Label(
@@ -45,6 +56,9 @@ struct HomeAssistantHomeEnergyBatteryChart: View {
           .frame(maxWidth: .infinity, minHeight: 220)
           .accessibilityLabel(copy.batteryHistoryLoading)
       }
+    }
+    .onChange(of: store.batteryHistory.interval) { _, interval in
+      if let selectedTime, !interval.contains(selectedTime) { self.selectedTime = nil }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(16)
@@ -97,6 +111,11 @@ struct HomeAssistantHomeEnergyBatteryChart: View {
           }
         }
       }
+      if let selectedTime {
+        RuleMark(x: .value(copy.batteryHistoryTimeAxis, selectedTime))
+          .foregroundStyle(secondaryForeground)
+          .accessibilityHidden(true)
+      }
     }
     .chartXScale(
       domain: store.batteryHistory.interval.start...store.batteryHistory.interval.end
@@ -120,6 +139,7 @@ struct HomeAssistantHomeEnergyBatteryChart: View {
         }
       }
     }
+    .chartXSelection(value: $selectedTime)
     .frame(minHeight: 220)
     .accessibilityChartDescriptor(batteryAccessibilityDescriptor)
   }

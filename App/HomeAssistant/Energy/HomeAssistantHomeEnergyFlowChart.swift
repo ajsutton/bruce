@@ -5,9 +5,22 @@ struct HomeAssistantHomeEnergyFlowChart: View {
   @Environment(\.colorScheme) private var colorScheme
   @ObservedObject var store: HomeEnergyFlowHistoryStore
   let mode: BruceMode
+  @State private var selectedTime: Date?
 
   var copy: HomeEnergyCopy {
     HomeEnergyCopy(mode: mode)
+  }
+
+  private var selectionReadout: some View {
+    let time = selectedTime ?? store.flowHistory.interval.end
+    return HomeEnergyChartReadout(time: time, freshnessLabel: freshnessLabel) {
+      ForEach(HomeEnergyFlowHistory.Series.allCases, id: \.self) { series in
+        let value = HomeEnergyChartSelection.flowValue(
+          in: store.flowHistory, series: series, at: time)
+        Text("\(seriesName(for: series)) \(HomeEnergyChartSelection.formatted(value, unit: " kW"))")
+      }
+    }
+    .foregroundStyle(primaryForeground)
   }
 
   var body: some View {
@@ -15,6 +28,7 @@ struct HomeAssistantHomeEnergyFlowChart: View {
       chartHeader
 
       if store.hasUsableHistory {
+        selectionReadout
         flowChart
         if store.problem != nil {
           Label(
@@ -45,6 +59,9 @@ struct HomeAssistantHomeEnergyFlowChart: View {
           .frame(maxWidth: .infinity, minHeight: 220)
           .accessibilityLabel(copy.flowHistoryLoading)
       }
+    }
+    .onChange(of: store.flowHistory.interval) { _, interval in
+      if let selectedTime, !interval.contains(selectedTime) { self.selectedTime = nil }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(16)
@@ -192,6 +209,11 @@ extension HomeAssistantHomeEnergyFlowChart {
           }
         }
       }
+      if let selectedTime {
+        RuleMark(x: .value(copy.flowHistoryTimeAxis, selectedTime))
+          .foregroundStyle(secondaryForeground)
+          .accessibilityHidden(true)
+      }
     }
     .chartXScale(domain: store.flowHistory.interval.start...store.flowHistory.interval.end)
     .chartYScale(domain: flowYDomain)
@@ -220,6 +242,7 @@ extension HomeAssistantHomeEnergyFlowChart {
         }
       }
     }
+    .chartXSelection(value: $selectedTime)
     .frame(minHeight: 220)
     .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     .accessibilityChartDescriptor(flowAccessibilityDescriptor)
